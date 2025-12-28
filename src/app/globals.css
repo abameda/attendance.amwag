@@ -1,26 +1,205 @@
 @import "tailwindcss";
 
+/* Premium Dark Mode Color System */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Core Background Hierarchy */
+  --premium-bg-deep: #020617;
+  /* slate-950 - deepest background */
+  --premium-bg: #0f172a;
+  /* slate-900 - main background */
+  --premium-surface: #1e293b;
+  /* slate-800 - elevated surfaces */
+  --premium-surface-hover: #334155;
+  /* slate-700 - hover states */
+
+  /* Border System */
+  --premium-border: #334155;
+  /* slate-700 - subtle borders */
+  --premium-border-subtle: #1e293b;
+  /* slate-800 - very subtle borders */
+
+  /* Text Hierarchy */
+  --premium-text: #f8fafc;
+  /* slate-50 - primary text */
+  --premium-text-muted: #94a3b8;
+  /* slate-400 - secondary text */
+  --premium-text-subtle: #64748b;
+  /* slate-500 - tertiary text */
+
+  /* Accent Colors - Teal */
+  --premium-accent: #0d9488;
+  /* teal-600 - primary accent */
+  --premium-accent-hover: #0f766e;
+  /* teal-700 - hover accent */
+  --premium-accent-light: #14b8a6;
+  /* teal-500 - light accent */
+  --premium-accent-glow: rgba(13, 148, 136, 0.3);
+  /* teal glow */
+
+  /* Legacy compatibility */
+  --background: #0f172a;
+  --foreground: #f8fafc;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Force dark mode globally */
+html {
+  color-scheme: dark;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--premium-bg-deep);
+  color: var(--premium-text);
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Custom Animations */
+@keyframes slide-in-right {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes scale-in {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse-glow {
+
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 var(--premium-accent-glow);
+  }
+
+  50% {
+    box-shadow: 0 0 0 10px rgba(13, 148, 136, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-slide-in-right {
+  animation: slide-in-right 0.3s ease-out forwards;
+}
+
+.animate-scale-in {
+  animation: scale-in 0.2s ease-out forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.2s ease-out forwards;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 2s infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Premium Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--premium-bg);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--premium-border);
+  border-radius: 4px;
+  border: 2px solid var(--premium-bg);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--premium-surface-hover);
+}
+
+/* Focus Ring Utility - Teal accent */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-teal-500 focus:ring-offset-2 focus:ring-offset-slate-900;
+}
+
+/* Card Hover Effect */
+.card-hover {
+  @apply transition-all duration-300 hover:ring-1 hover:ring-teal-500/20 hover:-translate-y-0.5;
+}
+
+/* Gradient Text - Premium */
+.gradient-text {
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-teal-400 to-cyan-400;
+}
+
+/* Glass Effect - Dark Mode */
+.glass {
+  @apply bg-slate-900/80 backdrop-blur-xl border border-slate-800;
+}
+
+/* Premium Surface */
+.premium-surface {
+  @apply bg-slate-900 border border-slate-800 rounded-2xl;
+}
+
+/* Premium Card */
+.premium-card {
+  @apply bg-slate-900/50 backdrop-blur-sm border border-slate-800/50 rounded-2xl shadow-xl shadow-black/20;
+}
+
+/* Status Badge Colors - Updated for dark mode */
+.status-present {
+  @apply bg-emerald-500/20 text-emerald-400 border border-emerald-500/30;
+}
+
+.status-late {
+  @apply bg-amber-500/20 text-amber-400 border border-amber-500/30;
+}
+
+.status-absent {
+  @apply bg-red-500/20 text-red-400 border border-red-500/30;
 }
