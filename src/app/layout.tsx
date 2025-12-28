@@ -11,6 +11,10 @@ export const metadata: Metadata = {
   title: "Amwag Attendance System",
   description: "Employee Attendance Management System for Amwag Transportation",
   keywords: ["attendance", "employee", "management", "transportation"],
+  icons: {
+    icon: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export default function RootLayout({
