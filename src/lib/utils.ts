@@ -152,3 +152,56 @@ export function hasCheckedOutToday(
         (record) => record.date === today && record.check_out_time !== null
     );
 }
+
+// Calculate overtime in minutes (max 180 minutes = 3 hours)
+export function calculateOvertime(
+    checkOutTime: string,
+    shiftEnd: string | null,
+    shiftStart: string | null,
+    maxMinutes: number = 180
+): number {
+    if (!shiftEnd) return 0;
+
+    const checkOut = new Date(checkOutTime);
+    const [endH, endM] = shiftEnd.split(':').map(Number);
+
+    const shiftEndDate = new Date(checkOut);
+    shiftEndDate.setHours(endH, endM, 0, 0);
+
+    // Handle overnight shifts
+    if (shiftStart) {
+        const [startH, startM] = shiftStart.split(':').map(Number);
+        const isOvernightShift = endH < startH || (endH === startH && endM < startM);
+
+        if (isOvernightShift) {
+            const shiftStartToday = new Date(checkOut);
+            shiftStartToday.setHours(startH, startM, 0, 0);
+
+            if (checkOut >= shiftStartToday) {
+                // We're in the first part of the overnight shift, end is tomorrow
+                shiftEndDate.setDate(shiftEndDate.getDate() + 1);
+            }
+        }
+    }
+
+    const diffMs = checkOut.getTime() - shiftEndDate.getTime();
+    const diffMinutes = Math.floor(diffMs / 60000);
+
+    if (diffMinutes <= 0) return 0;
+
+    return Math.min(diffMinutes, maxMinutes);
+}
+
+// Format overtime duration
+export function formatOvertime(minutes: number): string {
+    if (minutes <= 0) return '-';
+
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+
+    if (hours > 0) {
+        return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+}
+

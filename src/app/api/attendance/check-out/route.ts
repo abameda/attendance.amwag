@@ -21,10 +21,10 @@ export async function POST(request: NextRequest) {
         const now = new Date();
         const today = now.toISOString().split('T')[0];
 
-        // Get user's profile for shift_end
+        // Get user's profile for shift info and overtime settings
         const { data: profile } = await supabase
             .from('profiles')
-            .select('shift_end')
+            .select('shift_start, shift_end, overtime_enabled')
             .eq('id', user.id)
             .single();
 
@@ -50,29 +50,21 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Calculate early departure minutes
+        // Calculate early departure minutes and overtime
         let earlyDepartureMinutes = 0;
+        let overtimeMinutes = 0;
 
         if (profile?.shift_end) {
             const [endH, endM] = profile.shift_end.split(':').map(Number);
             const shiftEndDate = new Date(now);
             shiftEndDate.setHours(endH, endM, 0, 0);
 
-            // We also need shift_start to detect overnight shifts
-            const { data: fullProfile } = await supabase
-                .from('profiles')
-                .select('shift_start')
-                .eq('id', user.id)
-                .single();
+            // Handle overnight shifts
+            if (profile?.shift_start) {
+                const [startH, startM] = profile.shift_start.split(':').map(Number);
 
-            if (fullProfile?.shift_start) {
-                const [startH, startM] = fullProfile.shift_start.split(':').map(Number);
-
-                // Handle overnight shifts (e.g., 1:39 PM - 1:40 AM)
                 const isOvernightShift = endH < startH || (endH === startH && endM < startM);
                 if (isOvernightShift) {
-                    // If we're currently AFTER the shift start (e.g., 3:12 PM when shift started at 1:39 PM),
-                    // then shiftEndDate should be tomorrow
                     const shiftStartToday = new Date(now);
                     shiftStartToday.setHours(startH, startM, 0, 0);
 
@@ -87,16 +79,23 @@ export async function POST(request: NextRequest) {
             const diffMinutes = Math.floor(diffMs / 60000);
 
             if (diffMinutes > 0) {
+                // Left early
                 earlyDepartureMinutes = diffMinutes;
+            } else if (diffMinutes < 0 && profile.overtime_enabled) {
+                // Stayed late and overtime is enabled
+                // Calculate overtime (max 180 minutes = 3 hours)
+                const overtimeDiff = Math.abs(diffMinutes);
+                overtimeMinutes = Math.min(overtimeDiff, 180);
             }
         }
 
-        // Update the attendance record with check-out time and early departure
+        // Update the attendance record with check-out time, early departure, and overtime
         const { error } = await supabase
             .from('attendance')
             .update({
                 check_out_time: now.toISOString(),
                 early_departure_minutes: earlyDepartureMinutes,
+                overtime_minutes: overtimeMinutes,
             })
             .eq('id', existingRecord.id);
 
@@ -112,6 +111,7 @@ export async function POST(request: NextRequest) {
             data: {
                 check_out_time: now.toISOString(),
                 early_departure_minutes: earlyDepartureMinutes,
+                overtime_minutes: overtimeMinutes,
             },
         });
     } catch (error) {

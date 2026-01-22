@@ -19,6 +19,7 @@ CREATE TABLE public.profiles (
   job_title TEXT,
   shift_start TIME,
   shift_end TIME,
+  overtime_enabled BOOLEAN DEFAULT TRUE,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -37,6 +38,7 @@ CREATE TABLE public.attendance (
   status TEXT DEFAULT 'present' CHECK (status IN ('present', 'late', 'absent')),
   late_minutes INTEGER DEFAULT 0,
   early_departure_minutes INTEGER DEFAULT 0,
+  overtime_minutes INTEGER DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   UNIQUE(user_id, date)
 );

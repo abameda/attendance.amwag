@@ -11,7 +11,7 @@ import {
     addToast,
     ToastContainer,
 } from '@/components/ui';
-import { formatTime, formatTimestamp, formatLateness, getStatusColor } from '@/lib/utils';
+import { formatTime, formatTimestamp, formatLateness, formatOvertime, getStatusColor } from '@/lib/utils';
 import type { Profile, AttendanceRecord } from '@/types';
 import {
     LogIn,
@@ -283,7 +283,7 @@ export default function EmployeePortal() {
                             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                                 Today&apos;s Record
                             </h3>
-                            <div className="grid grid-cols-4 gap-2">
+                            <div className="grid grid-cols-5 gap-2">
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
                                     <p className="text-[10px] text-slate-500">Check In</p>
                                     <p className="font-semibold text-slate-50 text-sm">
@@ -315,6 +315,17 @@ export default function EmployeePortal() {
                                             }`}
                                     >
                                         {formatLateness(todayRecord.late_minutes)}
+                                    </p>
+                                </div>
+                                <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
+                                    <p className="text-[10px] text-slate-500">Overtime</p>
+                                    <p
+                                        className={`font-semibold text-sm ${(todayRecord.overtime_minutes || 0) > 0
+                                            ? 'text-teal-400'
+                                            : 'text-slate-50'
+                                            }`}
+                                    >
+                                        {formatOvertime(todayRecord.overtime_minutes || 0)}
                                     </p>
                                 </div>
                             </div>

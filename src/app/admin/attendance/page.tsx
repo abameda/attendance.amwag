@@ -16,6 +16,7 @@ import {
     formatTimestamp,
     formatLateness,
     formatEarlyDeparture,
+    formatOvertime,
     getStatusColor,
     exportToCSV,
 } from '@/lib/utils';
@@ -116,6 +117,7 @@ export default function AttendanceLogsPage() {
                 : '-',
             'Late Minutes': record.late_minutes,
             'Early Departure Minutes': record.early_departure_minutes || 0,
+            'Overtime Minutes': record.overtime_minutes || 0,
             Status: record.status,
             'IP Address': record.ip_address || '-',
         }));
@@ -138,6 +140,7 @@ export default function AttendanceLogsPage() {
                 : '-',
             'Late Minutes': record.late_minutes,
             'Early Departure Minutes': record.early_departure_minutes || 0,
+            'Overtime Minutes': record.overtime_minutes || 0,
             Status: record.status,
             'IP Address': record.ip_address || '-',
         }));
@@ -256,6 +259,9 @@ export default function AttendanceLogsPage() {
                                     Early Leave
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                    Overtime
+                                </th>
+                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
                                     Status
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
@@ -267,7 +273,7 @@ export default function AttendanceLogsPage() {
                             {isLoading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i} className="border-b border-slate-800/50">
-                                        <td colSpan={9} className="px-6 py-4">
+                                        <td colSpan={10} className="px-6 py-4">
                                             <div className="h-8 bg-slate-800 rounded animate-pulse" />
                                         </td>
                                     </tr>
@@ -275,7 +281,7 @@ export default function AttendanceLogsPage() {
                             ) : paginatedRecords.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={9}
+                                        colSpan={10}
                                         className="px-6 py-12 text-center text-slate-500"
                                     >
                                         No attendance records found
@@ -332,6 +338,16 @@ export default function AttendanceLogsPage() {
                                                     }`}
                                             >
                                                 {formatEarlyDeparture(record.early_departure_minutes || 0)}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span
+                                                className={`${(record.overtime_minutes || 0) > 0
+                                                    ? 'text-teal-400 font-medium'
+                                                    : 'text-slate-500'
+                                                    }`}
+                                            >
+                                                {formatOvertime(record.overtime_minutes || 0)}
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">

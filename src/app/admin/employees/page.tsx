@@ -25,6 +25,7 @@ import {
     Briefcase,
     CalendarOff,
     Upload,
+    Timer,
 } from 'lucide-react';
 import BulkImportModal from '@/components/BulkImportModal';
 
@@ -44,6 +45,7 @@ export default function EmployeesPage() {
         shift_start: '',
         shift_end: '',
         off_day: '',
+        overtime_enabled: true,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
@@ -80,6 +82,7 @@ export default function EmployeesPage() {
             shift_start: '',
             shift_end: '',
             off_day: '',
+            overtime_enabled: true,
         });
         setEditingEmployee(null);
     };
@@ -100,6 +103,7 @@ export default function EmployeesPage() {
             shift_start: employee.shift_start || '',
             shift_end: employee.shift_end || '',
             off_day: employee.off_day || '',
+            overtime_enabled: employee.overtime_enabled ?? true,
         });
         setIsModalOpen(true);
     };
@@ -120,6 +124,7 @@ export default function EmployeesPage() {
                         shift_start: formData.shift_start || null,
                         shift_end: formData.shift_end || null,
                         off_day: formData.off_day || null,
+                        overtime_enabled: formData.overtime_enabled,
                     })
                     .eq('id', editingEmployee.id);
 
@@ -287,6 +292,12 @@ export default function EmployeesPage() {
                                             Off: <span className="capitalize">{employee.off_day}</span>
                                         </div>
                                     )}
+                                    <div className="flex items-center gap-2 text-sm">
+                                        <Timer className={`w-4 h-4 ${employee.overtime_enabled ? 'text-teal-400' : 'text-slate-500'}`} />
+                                        <span className={employee.overtime_enabled ? 'text-teal-400' : 'text-slate-500'}>
+                                            Overtime: {employee.overtime_enabled ? 'Enabled' : 'Disabled'}
+                                        </span>
+                                    </div>
                                 </div>
                             </CardContent>
                         </Card>
@@ -406,6 +417,28 @@ export default function EmployeesPage() {
                                 { value: 'saturday', label: 'Saturday' },
                             ]}
                         />
+                    </div>
+
+                    {/* Overtime Toggle */}
+                    <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                        <div className="flex items-center gap-3">
+                            <Timer className="w-5 h-5 text-teal-400" />
+                            <div>
+                                <p className="text-sm font-medium text-slate-200">Overtime Tracking</p>
+                                <p className="text-xs text-slate-400">Allow overtime calculation for this employee (max 3 hours)</p>
+                            </div>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setFormData((prev) => ({ ...prev, overtime_enabled: !prev.overtime_enabled }))}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.overtime_enabled ? 'bg-teal-500' : 'bg-slate-600'
+                                }`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.overtime_enabled ? 'translate-x-6' : 'translate-x-1'
+                                    }`}
+                            />
+                        </button>
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">

@@ -84,7 +84,7 @@ export async function POST(request: NextRequest) {
         }
 
         const body = await request.json();
-        const { email, password, full_name, branch, job_title, shift_start, shift_end, off_day } = body;
+        const { email, password, full_name, branch, job_title, shift_start, shift_end, off_day, overtime_enabled } = body;
 
         // Validate required fields
         if (!email || !password || !full_name) {
@@ -121,14 +121,15 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // Update the profile with shift times and off day if provided
-        if (createData.user && (shift_start || shift_end || off_day)) {
+        // Update the profile with shift times, off day, and overtime settings if provided
+        if (createData.user) {
             await supabaseAdmin
                 .from('profiles')
                 .update({
                     shift_start: shift_start || null,
                     shift_end: shift_end || null,
-                    off_day: off_day || null
+                    off_day: off_day || null,
+                    overtime_enabled: overtime_enabled ?? true
                 })
                 .eq('id', createData.user.id);
         }

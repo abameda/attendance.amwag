@@ -9,6 +9,7 @@ export interface Profile {
   shift_start: string | null;
   shift_end: string | null;
   off_day: string | null; // Day of week: 'sunday', 'monday', 'tuesday', etc.
+  overtime_enabled: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -23,6 +24,7 @@ export interface AttendanceRecord {
   status: 'present' | 'late' | 'absent';
   late_minutes: number;
   early_departure_minutes: number;
+  overtime_minutes: number;
   created_at: string;
   // Joined data
   profiles?: Profile;
@@ -38,6 +40,7 @@ export interface CreateEmployeeForm {
   shift_start: string;
   shift_end: string;
   off_day: string;
+  overtime_enabled: boolean;
 }
 
 export interface UpdateEmployeeForm {
@@ -47,6 +50,7 @@ export interface UpdateEmployeeForm {
   shift_start?: string;
   shift_end?: string;
   off_day?: string;
+  overtime_enabled?: boolean;
 }
 
 // API Response Types
@@ -66,6 +70,7 @@ export interface AttendanceLogEntry {
   check_out_time: string | null;
   late_minutes: number;
   early_departure_minutes: number;
+  overtime_minutes: number;
   status: 'present' | 'late' | 'absent';
   ip_address: string | null;
 }
