@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { headers } from 'next/headers';
 
 export async function POST(request: NextRequest) {
     try {
@@ -18,6 +19,12 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Get client IP address
+        const headersList = await headers();
+        const forwardedFor = headersList.get('x-forwarded-for');
+        const realIp = headersList.get('x-real-ip');
+        const currentIp = forwardedFor?.split(',')[0].trim() || realIp || 'Unknown';
+
         const now = new Date();
         const today = now.toISOString().split('T')[0];
 
@@ -28,10 +35,10 @@ export async function POST(request: NextRequest) {
             .eq('id', user.id)
             .single();
 
-        // Get today's attendance record
+        // Get today's attendance record (including check-in IP)
         const { data: existingRecord } = await supabase
             .from('attendance')
-            .select('id, check_in_time, check_out_time')
+            .select('id, check_in_time, check_out_time, ip_address')
             .eq('user_id', user.id)
             .eq('date', today)
             .single();
@@ -47,6 +54,18 @@ export async function POST(request: NextRequest) {
             return NextResponse.json(
                 { success: false, error: 'Already checked out today' },
                 { status: 400 }
+            );
+        }
+
+        // ⚡ IP Validation: Check-out IP must match Check-in IP
+        const checkInIp = existingRecord.ip_address;
+        if (checkInIp && checkInIp !== 'Unknown' && currentIp !== checkInIp) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'يجب تسجيل الخروج من نفس موقع تسجيل الدخول (IP مختلف)'
+                },
+                { status: 403 }
             );
         }
 
