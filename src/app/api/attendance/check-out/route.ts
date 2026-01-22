@@ -25,7 +25,17 @@ export async function POST(request: NextRequest) {
         const realIp = headersList.get('x-real-ip');
         const currentIp = forwardedFor?.split(',')[0].trim() || realIp || 'Unknown';
 
+        // Use Egypt timezone (UTC+2) for all time calculations
+        const TIMEZONE = 'Africa/Cairo';
         const now = new Date();
+
+        // Get current time in Egypt timezone
+        const egyptTimeStr = now.toLocaleString('en-US', { timeZone: TIMEZONE });
+        const egyptNow = new Date(egyptTimeStr);
+        const currentHour = egyptNow.getHours();
+        const currentMinute = egyptNow.getMinutes();
+        const currentTotalMinutes = currentHour * 60 + currentMinute;
+
         const today = now.toISOString().split('T')[0];
 
         // Get user's profile for shift info and overtime settings
@@ -75,27 +85,31 @@ export async function POST(request: NextRequest) {
 
         if (profile?.shift_end) {
             const [endH, endM] = profile.shift_end.split(':').map(Number);
-            const shiftEndDate = new Date(now);
-            shiftEndDate.setHours(endH, endM, 0, 0);
+            const shiftEndTotalMinutes = endH * 60 + endM;
 
             // Handle overnight shifts
+            let adjustedShiftEndMinutes = shiftEndTotalMinutes;
+
             if (profile?.shift_start) {
                 const [startH, startM] = profile.shift_start.split(':').map(Number);
+                const shiftStartTotalMinutes = startH * 60 + startM;
 
-                const isOvernightShift = endH < startH || (endH === startH && endM < startM);
+                // Overnight shift: end time is less than start time (e.g., 2 PM - 2 AM)
+                const isOvernightShift = shiftEndTotalMinutes < shiftStartTotalMinutes;
+
                 if (isOvernightShift) {
-                    const shiftStartToday = new Date(now);
-                    shiftStartToday.setHours(startH, startM, 0, 0);
-
-                    if (now >= shiftStartToday) {
-                        // We're in the first part of the overnight shift, end is tomorrow
-                        shiftEndDate.setDate(shiftEndDate.getDate() + 1);
+                    // If we're past the shift start (in the evening/night before midnight)
+                    if (currentTotalMinutes >= shiftStartTotalMinutes) {
+                        // Shift end is next day, add 24 hours (1440 minutes)
+                        adjustedShiftEndMinutes = shiftEndTotalMinutes + 1440;
                     }
+                    // If we're before shift end (early morning after midnight)
+                    // adjustedShiftEndMinutes stays the same
                 }
             }
 
-            const diffMs = shiftEndDate.getTime() - now.getTime();
-            const diffMinutes = Math.floor(diffMs / 60000);
+            // Calculate difference: positive = early, negative = overtime
+            const diffMinutes = adjustedShiftEndMinutes - currentTotalMinutes;
 
             if (diffMinutes > 0) {
                 // Left early
