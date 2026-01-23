@@ -20,7 +20,10 @@ export interface AttendanceRecord {
   date: string;
   check_in_time: string | null;
   check_out_time: string | null;
-  ip_address: string | null;
+  ip_address: string | null;  // Check-in IP
+  check_out_ip: string | null;  // Check-out IP
+  check_in_location: string | null;  // Branch name or 'خارج الشركة'
+  check_out_location: string | null;  // Branch name or 'خارج الشركة'
   status: 'present' | 'late' | 'absent';
   late_minutes: number;
   early_departure_minutes: number;
@@ -28,6 +31,16 @@ export interface AttendanceRecord {
   created_at: string;
   // Joined data
   profiles?: Profile;
+}
+
+// Branch Allowed IPs
+export interface BranchAllowedIp {
+  id: string;
+  branch_name: string;
+  ip_network: string;  // First 3 octets, e.g., "81.10.30"
+  description: string | null;
+  is_active: boolean;
+  created_at: string;
 }
 
 // Form Types
@@ -72,7 +85,8 @@ export interface AttendanceLogEntry {
   early_departure_minutes: number;
   overtime_minutes: number;
   status: 'present' | 'late' | 'absent';
-  ip_address: string | null;
+  ip_address: string | null;  // Check-in IP
+  check_out_ip: string | null;  // Check-out IP
 }
 
 // Dashboard Stats

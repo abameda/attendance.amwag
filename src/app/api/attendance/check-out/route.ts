@@ -67,17 +67,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // ⚡ IP Validation: Check-out IP must match Check-in IP
-        const checkInIp = existingRecord.ip_address;
-        if (checkInIp && checkInIp !== 'Unknown' && currentIp !== checkInIp) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: 'يجب تسجيل الخروج من نفس موقع تسجيل الدخول (IP مختلف)'
-                },
-                { status: 403 }
-            );
-        }
+        // ⚡ Removed strict IP validation - now we just track location
+
+        // Detect location from IP
+        const ipNetwork = currentIp.split('.').slice(0, 3).join('.');  // Get first 3 octets
+        const { data: matchingBranch } = await supabase
+            .from('branch_allowed_ips')
+            .select('branch_name')
+            .eq('ip_network', ipNetwork)
+            .eq('is_active', true)
+            .single();
+
+        const checkOutLocation = matchingBranch?.branch_name || 'خارج الشركة';
 
         // Calculate early departure minutes and overtime
         let earlyDepartureMinutes = 0;
@@ -122,11 +123,13 @@ export async function POST(request: NextRequest) {
             }
         }
 
-        // Update the attendance record with check-out time, early departure, and overtime
+        // Update the attendance record with check-out time, IP, location, early departure, and overtime
         const { error } = await supabase
             .from('attendance')
             .update({
                 check_out_time: now.toISOString(),
+                check_out_ip: currentIp,
+                check_out_location: checkOutLocation,
                 early_departure_minutes: earlyDepartureMinutes,
                 overtime_minutes: overtimeMinutes,
             })
@@ -143,6 +146,7 @@ export async function POST(request: NextRequest) {
             success: true,
             data: {
                 check_out_time: now.toISOString(),
+                check_out_location: checkOutLocation,
                 early_departure_minutes: earlyDepartureMinutes,
                 overtime_minutes: overtimeMinutes,
             },

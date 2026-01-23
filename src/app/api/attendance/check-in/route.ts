@@ -176,6 +176,17 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // Detect location from IP
+        const ipNetwork = ip.split('.').slice(0, 3).join('.');  // Get first 3 octets
+        const { data: matchingBranch } = await supabase
+            .from('branch_allowed_ips')
+            .select('branch_name')
+            .eq('ip_network', ipNetwork)
+            .eq('is_active', true)
+            .single();
+
+        const checkInLocation = matchingBranch?.branch_name || 'خارج الشركة';
+
         // Insert or update attendance record
         if (existingRecord) {
             // Update existing record
@@ -184,6 +195,7 @@ export async function POST(request: NextRequest) {
                 .update({
                     check_in_time: now.toISOString(),
                     ip_address: ip,
+                    check_in_location: checkInLocation,
                     late_minutes: lateMinutes,
                     status,
                 })
@@ -202,6 +214,7 @@ export async function POST(request: NextRequest) {
                 date: today,
                 check_in_time: now.toISOString(),
                 ip_address: ip,
+                check_in_location: checkInLocation,
                 late_minutes: lateMinutes,
                 status,
             });
@@ -219,6 +232,7 @@ export async function POST(request: NextRequest) {
             data: {
                 check_in_time: now.toISOString(),
                 ip_address: ip,
+                check_in_location: checkInLocation,
                 late_minutes: lateMinutes,
                 status,
             },

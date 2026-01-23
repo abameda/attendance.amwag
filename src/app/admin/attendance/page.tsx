@@ -119,7 +119,10 @@ export default function AttendanceLogsPage() {
             'Early Departure Minutes': record.early_departure_minutes || 0,
             'Overtime Minutes': record.overtime_minutes || 0,
             Status: record.status,
-            'IP Address': record.ip_address || '-',
+            'Check In Location': record.check_in_location || '-',
+            'Check In IP': record.ip_address || '-',
+            'Check Out Location': record.check_out_location || '-',
+            'Check Out IP': record.check_out_ip || '-',
         }));
 
         exportToCSV(exportData, `attendance_logs_${new Date().toISOString().split('T')[0]}`);
@@ -142,7 +145,10 @@ export default function AttendanceLogsPage() {
             'Early Departure Minutes': record.early_departure_minutes || 0,
             'Overtime Minutes': record.overtime_minutes || 0,
             Status: record.status,
-            'IP Address': record.ip_address || '-',
+            'Check In Location': record.check_in_location || '-',
+            'Check In IP': record.ip_address || '-',
+            'Check Out Location': record.check_out_location || '-',
+            'Check Out IP': record.check_out_ip || '-',
         }));
 
         const ws = XLSX.utils.json_to_sheet(exportData);
@@ -265,7 +271,10 @@ export default function AttendanceLogsPage() {
                                     Status
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    IP Address
+                                    Check In Location
+                                </th>
+                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                    Check Out Location
                                 </th>
                             </tr>
                         </thead>
@@ -273,7 +282,7 @@ export default function AttendanceLogsPage() {
                             {isLoading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i} className="border-b border-slate-800/50">
-                                        <td colSpan={10} className="px-6 py-4">
+                                        <td colSpan={11} className="px-6 py-4">
                                             <div className="h-8 bg-slate-800 rounded animate-pulse" />
                                         </td>
                                     </tr>
@@ -281,7 +290,7 @@ export default function AttendanceLogsPage() {
                             ) : paginatedRecords.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={10}
+                                        colSpan={11}
                                         className="px-6 py-12 text-center text-slate-500"
                                     >
                                         No attendance records found
@@ -360,11 +369,31 @@ export default function AttendanceLogsPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <div className="flex items-center gap-1.5 text-slate-500">
-                                                <Globe className="w-4 h-4" />
-                                                <span className="text-sm font-mono">
-                                                    {record.ip_address || '-'}
-                                                </span>
+                                            <div className="flex items-center gap-1.5">
+                                                {record.check_in_location === 'خارج الشركة' ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
+                                                        ⚠️ {record.check_in_location || '-'}
+                                                    </span>
+                                                ) : (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
+                                                        ✅ {record.check_in_location || '-'}
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-1.5">
+                                                {record.check_out_location === 'خارج الشركة' ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-amber-500/20 text-amber-400">
+                                                        ⚠️ {record.check_out_location || '-'}
+                                                    </span>
+                                                ) : record.check_out_location ? (
+                                                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium bg-emerald-500/20 text-emerald-400">
+                                                        ✅ {record.check_out_location}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-slate-500">-</span>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>
