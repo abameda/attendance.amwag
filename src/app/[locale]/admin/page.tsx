@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, Button, addToast } from '@/components/ui';
 import { Users, UserCheck, Clock, UserX, TrendingUp, Calendar, AlertTriangle, ClipboardList } from 'lucide-react';
+import { useTranslations, useLocale } from 'next-intl';
 import type { DashboardStats } from '@/types';
 
 export default function AdminDashboard() {
@@ -17,6 +18,8 @@ export default function AdminDashboard() {
     });
     const [isLoading, setIsLoading] = useState(true);
     const [isMarkingAbsent, setIsMarkingAbsent] = useState(false);
+    const t = useTranslations('Dashboard');
+    const locale = useLocale();
 
     const fetchStats = useCallback(async () => {
         try {
@@ -85,28 +88,28 @@ export default function AdminDashboard() {
 
     const statCards = [
         {
-            title: 'Total Employees',
+            titleKey: 'totalEmployees',
             value: stats.totalEmployees,
             icon: Users,
             gradient: 'from-blue-500 to-blue-600',
             shadowColor: 'shadow-blue-500/30',
         },
         {
-            title: 'Present Today',
+            titleKey: 'presentToday',
             value: stats.presentToday,
             icon: UserCheck,
             gradient: 'from-emerald-500 to-emerald-600',
             shadowColor: 'shadow-emerald-500/30',
         },
         {
-            title: 'Late Today',
+            titleKey: 'lateToday',
             value: stats.lateToday,
             icon: Clock,
             gradient: 'from-amber-500 to-amber-600',
             shadowColor: 'shadow-amber-500/30',
         },
         {
-            title: 'Absent Today',
+            titleKey: 'absentToday',
             value: stats.absentToday,
             icon: UserX,
             gradient: 'from-red-500 to-red-600',
@@ -114,7 +117,7 @@ export default function AdminDashboard() {
         },
     ];
 
-    const today = new Date().toLocaleDateString('en-US', {
+    const today = new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -127,7 +130,7 @@ export default function AdminDashboard() {
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
-                        Dashboard
+                        {t('title')}
                     </h1>
                     <p className="text-slate-400 mt-1 flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
@@ -137,7 +140,7 @@ export default function AdminDashboard() {
                 <div className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 rounded-xl border border-teal-500/30">
                     <TrendingUp className="w-5 h-5 text-teal-400" />
                     <span className="text-sm font-medium text-teal-300">
-                        Attendance Rate:{' '}
+                        {t('attendanceRate')}:{' '}
                         {stats.totalEmployees > 0
                             ? Math.round(
                                 ((stats.presentToday + stats.lateToday) / stats.totalEmployees) * 100
@@ -151,12 +154,12 @@ export default function AdminDashboard() {
             {/* Stats Cards */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                 {statCards.map((card) => (
-                    <Card key={card.title} className="overflow-hidden">
+                    <Card key={card.titleKey} className="overflow-hidden">
                         <CardContent className="p-6">
                             <div className="flex items-start justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-slate-400">
-                                        {card.title}
+                                        {t(card.titleKey)}
                                     </p>
                                     <p className="text-3xl font-bold text-slate-50 mt-2">
                                         {isLoading ? '-' : card.value}
@@ -177,7 +180,7 @@ export default function AdminDashboard() {
             <Card>
                 <CardContent className="p-6">
                     <h2 className="text-lg font-semibold text-slate-50 mb-4">
-                        Quick Actions
+                        {t('quickActions')}
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <a
@@ -188,8 +191,8 @@ export default function AdminDashboard() {
                                 <Users className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <p className="font-medium text-slate-100">Manage Employees</p>
-                                <p className="text-sm text-slate-400">Add or edit staff</p>
+                                <p className="font-medium text-slate-100">{t('manageEmployees')}</p>
+                                <p className="text-sm text-slate-400">{t('addOrEditStaff')}</p>
                             </div>
                         </a>
                         <a
@@ -200,8 +203,8 @@ export default function AdminDashboard() {
                                 <ClipboardList className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <p className="font-medium text-slate-100">View Attendance</p>
-                                <p className="text-sm text-slate-400">Check daily logs</p>
+                                <p className="font-medium text-slate-100">{t('viewAttendance')}</p>
+                                <p className="text-sm text-slate-400">{t('checkDailyLogs')}</p>
                             </div>
                         </a>
                         <a
@@ -212,8 +215,8 @@ export default function AdminDashboard() {
                                 <TrendingUp className="w-6 h-6 text-white" />
                             </div>
                             <div>
-                                <p className="font-medium text-slate-100">Export Reports</p>
-                                <p className="text-sm text-slate-400">Download CSV/Excel</p>
+                                <p className="font-medium text-slate-100">{t('exportReports')}</p>
+                                <p className="text-sm text-slate-400">{t('downloadCSV')}</p>
                             </div>
                         </a>
                         <button
@@ -226,9 +229,9 @@ export default function AdminDashboard() {
                             </div>
                             <div>
                                 <p className="font-medium text-slate-100">
-                                    {isMarkingAbsent ? 'Processing...' : 'Mark Absences'}
+                                    {isMarkingAbsent ? '...' : t('markAbsences')}
                                 </p>
-                                <p className="text-sm text-slate-400">Record absent today</p>
+                                <p className="text-sm text-slate-400">{t('recordAbsentToday')}</p>
                             </div>
                         </button>
                     </div>

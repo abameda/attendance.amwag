@@ -32,6 +32,7 @@ import {
     Globe,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+import { useTranslations } from 'next-intl';
 
 export default function AttendanceLogsPage() {
     const supabase = useMemo(() => createClient(), []);
@@ -42,6 +43,7 @@ export default function AttendanceLogsPage() {
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const recordsPerPage = 10;
+    const t = useTranslations('AttendanceLogs');
 
     const fetchAttendance = async () => {
         setIsLoading(true);
@@ -160,10 +162,10 @@ export default function AttendanceLogsPage() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
-                        Attendance Logs
+                        {t('title')}
                     </h1>
                     <p className="text-slate-400 mt-1">
-                        View and export attendance records
+                        {t('subtitle')}
                     </p>
                 </div>
                 <div className="flex gap-2">
@@ -186,7 +188,7 @@ export default function AttendanceLogsPage() {
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                             <Input
-                                placeholder="Search by name, email, or branch..."
+                                placeholder={t('searchPlaceholder')}
                                 value={searchQuery}
                                 onChange={(e) => {
                                     setSearchQuery(e.target.value);
@@ -219,10 +221,10 @@ export default function AttendanceLogsPage() {
                             }}
                             className="w-full md:w-40 px-4 py-2.5 text-slate-100 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
                         >
-                            <option value="" className="bg-slate-800">All Status</option>
-                            <option value="present" className="bg-slate-800">Present</option>
-                            <option value="late" className="bg-slate-800">Late</option>
-                            <option value="absent" className="bg-slate-800">Absent</option>
+                            <option value="" className="bg-slate-800">{t('allStatus')}</option>
+                            <option value="present" className="bg-slate-800">{t('present')}</option>
+                            <option value="late" className="bg-slate-800">{t('late')}</option>
+                            <option value="absent" className="bg-slate-800">{t('absent')}</option>
                         </select>
 
                         {/* Refresh */}
@@ -240,43 +242,43 @@ export default function AttendanceLogsPage() {
                         <thead>
                             <tr className="border-b border-slate-800">
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Employee
+                                    {t('employee')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Branch
+                                    {t('branch')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Date
+                                    {t('date')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Check In
+                                    {t('checkIn')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Check Out
+                                    {t('checkOut')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Lateness
+                                    {t('lateness')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Early Leave
+                                    {t('earlyLeave')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Overtime
+                                    {t('overtime')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Status
+                                    {t('status')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Check In Location
+                                    {t('checkInLocation')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Check In IP
+                                    {t('checkInIP')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Check Out Location
+                                    {t('checkOutLocation')}
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
-                                    Check Out IP
+                                    {t('checkOutIP')}
                                 </th>
                             </tr>
                         </thead>
@@ -295,7 +297,7 @@ export default function AttendanceLogsPage() {
                                         colSpan={13}
                                         className="px-6 py-12 text-center text-slate-500"
                                     >
-                                        No attendance records found
+                                        {t('noRecords')}
                                     </td>
                                 </tr>
                             ) : (
@@ -425,9 +427,9 @@ export default function AttendanceLogsPage() {
                 {totalPages > 1 && (
                     <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800">
                         <p className="text-sm text-slate-500">
-                            Showing {(currentPage - 1) * recordsPerPage + 1} to{' '}
-                            {Math.min(currentPage * recordsPerPage, filteredRecords.length)} of{' '}
-                            {filteredRecords.length} records
+                            {t('showing')} {(currentPage - 1) * recordsPerPage + 1} {t('to')}{' '}
+                            {Math.min(currentPage * recordsPerPage, filteredRecords.length)} {t('of')}{' '}
+                            {filteredRecords.length} {t('records')}
                         </p>
                         <div className="flex gap-2">
                             <Button
