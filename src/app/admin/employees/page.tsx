@@ -43,10 +43,19 @@ export default function EmployeesPage() {
         branch: '',
         job_title: '',
         shift_start: '',
-        shift_end: '',
+        shift_duration: '8', // 8, 10, or 12 hours
         off_day: '',
         overtime_enabled: true,
     });
+
+    // Calculate shift_end from shift_start and shift_duration
+    const calculateShiftEnd = (startTime: string, durationHours: string): string => {
+        if (!startTime) return '';
+        const [hours, minutes] = startTime.split(':').map(Number);
+        const duration = parseInt(durationHours, 10);
+        const endHours = (hours + duration) % 24;
+        return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    };
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
@@ -72,6 +81,18 @@ export default function EmployeesPage() {
         fetchEmployees();
     }, []);
 
+    // Calculate duration from start and end times for editing
+    const calculateDurationFromTimes = (startTime: string | null, endTime: string | null): string => {
+        if (!startTime || !endTime) return '8';
+        const [startHours] = startTime.split(':').map(Number);
+        const [endHours] = endTime.split(':').map(Number);
+        let duration = endHours - startHours;
+        if (duration < 0) duration += 24; // Handle overnight shifts
+        if (duration === 10) return '10';
+        if (duration === 12) return '12';
+        return '8';
+    };
+
     const resetForm = () => {
         setFormData({
             email: '',
@@ -80,7 +101,7 @@ export default function EmployeesPage() {
             branch: '',
             job_title: '',
             shift_start: '',
-            shift_end: '',
+            shift_duration: '8',
             off_day: '',
             overtime_enabled: true,
         });
@@ -101,7 +122,7 @@ export default function EmployeesPage() {
             branch: employee.branch || '',
             job_title: employee.job_title || '',
             shift_start: employee.shift_start || '',
-            shift_end: employee.shift_end || '',
+            shift_duration: calculateDurationFromTimes(employee.shift_start, employee.shift_end),
             off_day: employee.off_day || '',
             overtime_enabled: employee.overtime_enabled ?? true,
         });
@@ -115,6 +136,7 @@ export default function EmployeesPage() {
         try {
             if (editingEmployee) {
                 // Update existing employee
+                const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
                 const { error } = await supabase
                     .from('profiles')
                     .update({
@@ -122,7 +144,7 @@ export default function EmployeesPage() {
                         branch: formData.branch,
                         job_title: formData.job_title,
                         shift_start: formData.shift_start || null,
-                        shift_end: formData.shift_end || null,
+                        shift_end: calculatedShiftEnd || null,
                         off_day: formData.off_day || null,
                         overtime_enabled: formData.overtime_enabled,
                     })
@@ -132,10 +154,15 @@ export default function EmployeesPage() {
                 addToast('Employee updated successfully', 'success');
             } else {
                 // Create new employee
+                const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
+                const submitData = {
+                    ...formData,
+                    shift_end: calculatedShiftEnd,
+                };
                 const response = await fetch('/api/employees', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData),
+                    body: JSON.stringify(submitData),
                 });
 
                 const result = await response.json();
@@ -390,15 +417,29 @@ export default function EmployeesPage() {
                                 setFormData((prev) => ({ ...prev, shift_start: e.target.value }))
                             }
                         />
-                        <Input
-                            id="shift_end"
-                            label="Shift End Time"
-                            type="time"
-                            value={formData.shift_end}
+                        <Select
+                            id="shift_duration"
+                            label="Shift Duration"
+                            value={formData.shift_duration}
                             onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, shift_end: e.target.value }))
+                                setFormData((prev) => ({ ...prev, shift_duration: e.target.value }))
                             }
+                            options={[
+                                { value: '8', label: '8 Hours' },
+                                { value: '10', label: '10 Hours' },
+                                { value: '12', label: '12 Hours' },
+                            ]}
                         />
+                        {formData.shift_start && (
+                            <div className="flex items-center gap-2 text-sm text-slate-400 md:col-span-2">
+                                <Clock className="w-4 h-4" />
+                                <span>
+                                    Shift ends at: <span className="text-teal-400 font-medium">
+                                        {calculateShiftEnd(formData.shift_start, formData.shift_duration) || '--:--'}
+                                    </span>
+                                </span>
+                            </div>
+                        )}
                         <Select
                             id="off_day"
                             label="Off Day"
