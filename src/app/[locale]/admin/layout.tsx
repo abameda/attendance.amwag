@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -18,10 +19,10 @@ import {
 } from 'lucide-react';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
-const navItems = [
-    { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
-    { href: '/admin/employees', icon: Users, label: 'Employees' },
-    { href: '/admin/attendance', icon: ClipboardList, label: 'Attendance Logs' },
+const navItemsConfig = [
+    { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard' },
+    { href: '/admin/employees', icon: Users, labelKey: 'employees' },
+    { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs' },
 ];
 
 export default function AdminLayout({
@@ -32,6 +33,7 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const supabase = createClient();
+    const t = useTranslations('Sidebar');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [adminName, setAdminName] = useState('');
     const [adminJobTitle, setAdminJobTitle] = useState('');
@@ -119,7 +121,7 @@ export default function AdminLayout({
                         </div>
                         <div>
                             <h1 className="font-bold text-slate-50">Amwag</h1>
-                            <p className="text-xs text-slate-500">Admin Panel</p>
+                            <p className="text-xs text-slate-500">{t('adminPanel')}</p>
                         </div>
                     </div>
                     <button
@@ -132,7 +134,7 @@ export default function AdminLayout({
 
                 {/* Navigation */}
                 <nav className="p-4 space-y-1">
-                    {navItems.map((item) => {
+                    {navItemsConfig.map((item) => {
                         const isActive = pathname === item.href;
                         return (
                             <Link
@@ -147,7 +149,7 @@ export default function AdminLayout({
                                 )}
                             >
                                 <item.icon className="w-5 h-5" />
-                                <span className="font-medium">{item.label}</span>
+                                <span className="font-medium">{t(item.labelKey)}</span>
                                 {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
                             </Link>
                         );
@@ -175,7 +177,7 @@ export default function AdminLayout({
                         className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
                     >
                         <LogOut className="w-5 h-5" />
-                        <span className="font-medium">Logout</span>
+                        <span className="font-medium">{t('logout')}</span>
                     </button>
                 </div>
             </aside>

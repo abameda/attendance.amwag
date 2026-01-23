@@ -12,6 +12,7 @@ import {
     ToastContainer,
 } from '@/components/ui';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { useTranslations } from 'next-intl';
 import { formatTime, formatTimestamp, formatLateness, formatOvertime, getStatusColor } from '@/lib/utils';
 import type { Profile, AttendanceRecord } from '@/types';
 import {
@@ -34,6 +35,7 @@ export default function EmployeePortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const t = useTranslations('Employee');
 
     // Update current time every second
     useEffect(() => {
@@ -216,7 +218,7 @@ export default function EmployeePortal() {
                     </div>
                     <div>
                         <h1 className="font-bold text-slate-50">Amwag</h1>
-                        <p className="text-xs text-slate-500">Attendance System</p>
+                        <p className="text-xs text-slate-500">{t('title')}</p>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -285,23 +287,23 @@ export default function EmployeePortal() {
                     <Card className="mb-3 bg-slate-900/80 backdrop-blur-xl border-slate-800">
                         <CardContent className="p-4">
                             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                                Today&apos;s Record
+                                {t('todaysRecord')}
                             </h3>
                             <div className="grid grid-cols-5 gap-2">
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">Check In</p>
+                                    <p className="text-[10px] text-slate-500">{t('checkIn')}</p>
                                     <p className="font-semibold text-slate-50 text-sm">
                                         {formatTimestamp(todayRecord.check_in_time)}
                                     </p>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">Check Out</p>
+                                    <p className="text-[10px] text-slate-500">{t('checkOut')}</p>
                                     <p className="font-semibold text-slate-50 text-sm">
                                         {formatTimestamp(todayRecord.check_out_time)}
                                     </p>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">Status</p>
+                                    <p className="text-[10px] text-slate-500">{t('status')}</p>
                                     <span
                                         className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium capitalize ${getStatusColor(
                                             todayRecord.status
@@ -311,7 +313,7 @@ export default function EmployeePortal() {
                                     </span>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">Late</p>
+                                    <p className="text-[10px] text-slate-500">{t('late')}</p>
                                     <p
                                         className={`font-semibold text-sm ${todayRecord.late_minutes > 0
                                             ? 'text-amber-400'
@@ -322,7 +324,7 @@ export default function EmployeePortal() {
                                     </p>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">Overtime</p>
+                                    <p className="text-[10px] text-slate-500">{t('overtime')}</p>
                                     <p
                                         className={`font-semibold text-sm ${(todayRecord.overtime_minutes || 0) > 0
                                             ? 'text-teal-400'
@@ -350,7 +352,7 @@ export default function EmployeePortal() {
                             ) : (
                                 <>
                                     <LogIn className="w-6 h-6" />
-                                    Check In
+                                    {t('checkIn')}
                                 </>
                             )}
                         </button>
@@ -365,14 +367,14 @@ export default function EmployeePortal() {
                             ) : (
                                 <>
                                     <LogOut className="w-6 h-6" />
-                                    Check Out
+                                    {t('checkOut')}
                                 </>
                             )}
                         </button>
                     ) : (
                         <div className="w-full py-4 bg-gradient-to-r from-slate-700 to-slate-800 text-slate-300 text-lg font-bold rounded-xl flex items-center justify-center gap-3">
                             <CheckCircle2 className="w-6 h-6" />
-                            Day Complete
+                            {t('dayComplete')}
                         </div>
                     )}
                 </div>
@@ -382,16 +384,16 @@ export default function EmployeePortal() {
                     {hasCheckedOut ? (
                         <p className="text-slate-500 flex items-center justify-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            Shift completed for today
+                            {t('shiftCompleted')}
                         </p>
                     ) : hasCheckedIn ? (
                         <p className="text-slate-500 flex items-center justify-center gap-2">
                             <Clock className="w-4 h-4 text-teal-500 animate-pulse" />
-                            Currently on shift
+                            {t('currentlyOnShift')}
                         </p>
                     ) : (
                         <p className="text-slate-500">
-                            Start your day by checking in
+                            {t('startYourDay')}
                         </p>
                     )}
                 </div>

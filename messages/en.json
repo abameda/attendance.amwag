@@ -1,8 +1,40 @@
 {
-    "Admin": {
+    "Sidebar": {
         "dashboard": "Dashboard",
         "employees": "Employees",
-        "attendance": "Attendance"
+        "attendanceLogs": "Attendance Logs",
+        "adminPanel": "Admin Panel",
+        "logout": "Logout"
+    },
+    "Dashboard": {
+        "title": "Dashboard",
+        "attendanceRate": "Attendance Rate",
+        "absentToday": "Absent Today",
+        "lateToday": "Late Today",
+        "presentToday": "Present Today",
+        "totalEmployees": "Total Employees",
+        "quickActions": "Quick Actions",
+        "markAbsences": "Mark Absences",
+        "recordAbsentToday": "Record absent today",
+        "exportReports": "Export Reports",
+        "downloadCSV": "Download CSV/Excel",
+        "viewAttendance": "View Attendance",
+        "checkDailyLogs": "Check daily logs",
+        "manageEmployees": "Manage Employees",
+        "addOrEditStaff": "Add or edit staff"
+    },
+    "Employee": {
+        "title": "Attendance System",
+        "todaysRecord": "Today's Record",
+        "checkIn": "Check In",
+        "checkOut": "Check Out",
+        "status": "Status",
+        "late": "Late",
+        "overtime": "Overtime",
+        "dayComplete": "Day Complete",
+        "shiftCompleted": "Shift completed for today",
+        "currentlyOnShift": "Currently on shift",
+        "startYourDay": "Start your day by checking in"
     },
     "Common": {
         "save": "Save",
@@ -10,6 +42,9 @@
         "delete": "Delete",
         "edit": "Edit",
         "add": "Add",
-        "search": "Search..."
+        "search": "Search...",
+        "loading": "Loading...",
+        "english": "English",
+        "arabic": "العربية"
     }
 }
