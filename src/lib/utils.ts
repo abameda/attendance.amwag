@@ -98,12 +98,34 @@ export function getStatusColor(status: string): string {
     }
 }
 
-// Export to CSV
-export function exportToCSV(data: Record<string, unknown>[], filename: string) {
+// Export to CSV with metadata header
+export function exportToCSV(
+    data: Record<string, unknown>[],
+    filename: string,
+    exportedBy?: string
+) {
     if (data.length === 0) return;
 
     const headers = Object.keys(data[0]);
+
+    // Create metadata header rows
+    const exportDate = new Date().toLocaleString('ar-EG', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+
+    const metadataRows = [
+        'Amwag Transportation - نظام الحضور والانصراف',
+        'يتم إدارة النظام بواسطة إدارة IT',
+        `Exported By: ${exportedBy || 'Admin'} | Date: ${exportDate}`,
+        '', // Empty row as separator
+    ];
+
     const csvRows = [
+        ...metadataRows,
         headers.join(','),
         ...data.map((row) =>
             headers
@@ -121,7 +143,7 @@ export function exportToCSV(data: Record<string, unknown>[], filename: string) {
     ];
 
     const csvContent = csvRows.join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
     link.download = `${filename}.csv`;
