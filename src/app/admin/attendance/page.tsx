@@ -136,9 +136,7 @@ export default function AttendanceLogsPage() {
             'Overtime Minutes': record.overtime_minutes || 0,
             Status: record.status,
             'Check In Location': record.check_in_location || '-',
-            'Check In IP': record.ip_address || '-',
             'Check Out Location': record.check_out_location || '-',
-            'Check Out IP': record.check_out_ip || '-',
         }));
 
         exportToCSV(exportData, `attendance_logs_${new Date().toISOString().split('T')[0]}`);
@@ -162,9 +160,7 @@ export default function AttendanceLogsPage() {
             'Overtime Minutes': record.overtime_minutes || 0,
             Status: record.status,
             'Check In Location': record.check_in_location || '-',
-            'Check In IP': record.ip_address || '-',
             'Check Out Location': record.check_out_location || '-',
-            'Check Out IP': record.check_out_ip || '-',
         }));
 
         const ws = XLSX.utils.json_to_sheet(exportData);
