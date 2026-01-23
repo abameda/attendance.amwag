@@ -1,0 +1,15 @@
+{
+    "Admin": {
+        "dashboard": "لوحة التحكم",
+        "employees": "الموظفين",
+        "attendance": "الحضور"
+    },
+    "Common": {
+        "save": "حفظ",
+        "cancel": "إلغاء",
+        "delete": "حذف",
+        "edit": "تعديل",
+        "add": "إضافة",
+        "search": "بحث..."
+    }
+}

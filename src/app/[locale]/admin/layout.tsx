@@ -16,6 +16,7 @@ import {
     X,
     ChevronRight,
 } from 'lucide-react';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const navItems = [
     { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
@@ -84,6 +85,9 @@ export default function AdminLayout({
                         <span className="font-semibold text-slate-50">Admin</span>
                     </div>
                 </div>
+                <div className="flex items-center gap-2">
+                    <LanguageSwitcher />
+                </div>
             </header>
 
             {/* Mobile Overlay */}
@@ -151,7 +155,10 @@ export default function AdminLayout({
                 </nav>
 
                 {/* Sidebar Footer */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800 space-y-2">
+                    <div className="px-4">
+                        <LanguageSwitcher />
+                    </div>
                     <div className="flex items-center gap-3 px-4 py-3 mb-2">
                         <div className="w-10 h-10 bg-gradient-to-br from-teal-600 to-teal-700 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
                             {adminName.charAt(0).toUpperCase()}

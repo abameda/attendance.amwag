@@ -1,0 +1,15 @@
+{
+    "Admin": {
+        "dashboard": "Dashboard",
+        "employees": "Employees",
+        "attendance": "Attendance"
+    },
+    "Common": {
+        "save": "Save",
+        "cancel": "Cancel",
+        "delete": "Delete",
+        "edit": "Edit",
+        "add": "Add",
+        "search": "Search..."
+    }
+}
