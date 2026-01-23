@@ -98,7 +98,7 @@ export function getStatusColor(status: string): string {
     }
 }
 
-// Export to CSV with metadata header
+// Export to CSV with metadata footer (professional document style)
 export function exportToCSV(
     data: Record<string, unknown>[],
     filename: string,
@@ -108,7 +108,7 @@ export function exportToCSV(
 
     const headers = Object.keys(data[0]);
 
-    // Create metadata header rows
+    // Create metadata footer rows (professional document style)
     const exportDate = new Date().toLocaleString('ar-EG', {
         year: 'numeric',
         month: 'long',
@@ -117,15 +117,15 @@ export function exportToCSV(
         minute: '2-digit',
     });
 
-    const metadataRows = [
+    const footerRows = [
+        '', // Empty row as separator
+        '─────────────────────────────────────────────────────────────────',
         'Amwag Transportation - نظام الحضور والانصراف',
         'يتم إدارة النظام بواسطة إدارة IT',
         `Exported By: ${exportedBy || 'Admin'} | Date: ${exportDate}`,
-        '', // Empty row as separator
     ];
 
     const csvRows = [
-        ...metadataRows,
         headers.join(','),
         ...data.map((row) =>
             headers
@@ -140,6 +140,7 @@ export function exportToCSV(
                 })
                 .join(',')
         ),
+        ...footerRows,
     ];
 
     const csvContent = csvRows.join('\n');

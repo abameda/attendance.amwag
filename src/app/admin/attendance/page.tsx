@@ -172,7 +172,7 @@ export default function AttendanceLogsPage() {
             'Check Out IP': record.check_out_ip || '-',
         }));
 
-        // Create metadata header rows
+        // Create metadata footer rows (professional document style)
         const exportDate = new Date().toLocaleString('ar-EG', {
             year: 'numeric',
             month: 'long',
@@ -181,22 +181,28 @@ export default function AttendanceLogsPage() {
             minute: '2-digit',
         });
 
-        const metadataRows = [
+        // Create worksheet with data first
+        const ws = XLSX.utils.json_to_sheet(exportData);
+
+        // Calculate footer starting row (data rows + header row + 2 empty rows)
+        const footerStartRow = exportData.length + 3;
+
+        // Add footer rows
+        const footerData = [
+            ['─────────────────────────────────────────────────────────────────'],
             ['Amwag Transportation - نظام الحضور والانصراف'],
             ['يتم إدارة النظام بواسطة إدارة IT'],
             [`Exported By: ${adminName || 'Admin'} | Date: ${exportDate}`],
-            [], // Empty row as separator
         ];
 
-        // Create worksheet with metadata + data
-        const ws = XLSX.utils.aoa_to_sheet(metadataRows);
-        XLSX.utils.sheet_add_json(ws, exportData, { origin: 'A5' });
+        XLSX.utils.sheet_add_aoa(ws, footerData, { origin: `A${footerStartRow}` });
 
-        // Style the header rows (make them bold/merged)
+        // Merge footer cells for professional look
         if (!ws['!merges']) ws['!merges'] = [];
-        ws['!merges'].push({ s: { r: 0, c: 0 }, e: { r: 0, c: 5 } }); // Merge first row
-        ws['!merges'].push({ s: { r: 1, c: 0 }, e: { r: 1, c: 5 } }); // Merge second row
-        ws['!merges'].push({ s: { r: 2, c: 0 }, e: { r: 2, c: 5 } }); // Merge third row
+        ws['!merges'].push({ s: { r: footerStartRow - 1, c: 0 }, e: { r: footerStartRow - 1, c: 5 } });
+        ws['!merges'].push({ s: { r: footerStartRow, c: 0 }, e: { r: footerStartRow, c: 5 } });
+        ws['!merges'].push({ s: { r: footerStartRow + 1, c: 0 }, e: { r: footerStartRow + 1, c: 5 } });
+        ws['!merges'].push({ s: { r: footerStartRow + 2, c: 0 }, e: { r: footerStartRow + 2, c: 5 } });
 
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Attendance Logs');
