@@ -3,7 +3,7 @@ export interface Profile {
   id: string;
   email: string;
   full_name: string;
-  role: 'admin' | 'employee';
+  role: 'admin' | 'employee' | 'accountant';
   branch: string | null;
   job_title: string | null;
   shift_start: string | null;

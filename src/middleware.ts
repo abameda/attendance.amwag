@@ -77,7 +77,14 @@ export async function middleware(request: NextRequest) {
             .single();
 
         const url = request.nextUrl.clone();
-        url.pathname = `/${locale}${profile?.role === 'admin' ? '/admin' : '/employee'}`;
+        // Redirect based on role
+        if (profile?.role === 'admin') {
+            url.pathname = `/${locale}/admin`;
+        } else if (profile?.role === 'accountant') {
+            url.pathname = `/${locale}/admin/attendance`;
+        } else {
+            url.pathname = `/${locale}/employee`;
+        }
         return NextResponse.redirect(url);
     }
 
@@ -89,15 +96,32 @@ export async function middleware(request: NextRequest) {
             .eq('id', user.id)
             .single();
 
-        // Admin routes protection
-        if (pathWithoutLocale.startsWith('/admin') && profile?.role !== 'admin') {
+        const role = profile?.role;
+
+        // Accountant can only access /admin/attendance
+        if (role === 'accountant') {
+            if (pathWithoutLocale.startsWith('/admin') && !pathWithoutLocale.startsWith('/admin/attendance')) {
+                const url = request.nextUrl.clone();
+                url.pathname = `/${locale}/admin/attendance`;
+                return NextResponse.redirect(url);
+            }
+            // Accountant cannot access employee routes
+            if (pathWithoutLocale.startsWith('/employee')) {
+                const url = request.nextUrl.clone();
+                url.pathname = `/${locale}/admin/attendance`;
+                return NextResponse.redirect(url);
+            }
+        }
+
+        // Admin routes protection (only admin and accountant can access)
+        if (pathWithoutLocale.startsWith('/admin') && role !== 'admin' && role !== 'accountant') {
             const url = request.nextUrl.clone();
             url.pathname = `/${locale}/employee`;
             return NextResponse.redirect(url);
         }
 
         // Employee routes protection
-        if (pathWithoutLocale.startsWith('/employee') && profile?.role === 'admin') {
+        if (pathWithoutLocale.startsWith('/employee') && role === 'admin') {
             const url = request.nextUrl.clone();
             url.pathname = `/${locale}/admin`;
             return NextResponse.redirect(url);

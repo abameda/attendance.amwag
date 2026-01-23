@@ -20,9 +20,9 @@ import {
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const navItemsConfig = [
-    { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard' },
-    { href: '/admin/employees', icon: Users, labelKey: 'employees' },
-    { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs' },
+    { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard', adminOnly: true },
+    { href: '/admin/employees', icon: Users, labelKey: 'employees', adminOnly: true },
+    { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs', adminOnly: false },
 ];
 
 export default function AdminLayout({
@@ -37,6 +37,7 @@ export default function AdminLayout({
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [adminName, setAdminName] = useState('');
     const [adminJobTitle, setAdminJobTitle] = useState('');
+    const [userRole, setUserRole] = useState<string>('admin');
 
     useEffect(() => {
         const fetchAdminProfile = async () => {
@@ -46,12 +47,13 @@ export default function AdminLayout({
             if (user) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('full_name, job_title')
+                    .select('full_name, job_title, role')
                     .eq('id', user.id)
                     .single();
                 if (profile) {
                     setAdminName(profile.full_name);
                     setAdminJobTitle(profile.job_title || 'Administrator');
+                    setUserRole(profile.role || 'admin');
                 }
             }
         };
@@ -134,26 +136,28 @@ export default function AdminLayout({
 
                 {/* Navigation */}
                 <nav className="p-4 space-y-1">
-                    {navItemsConfig.map((item) => {
-                        const isActive = pathname === item.href;
-                        return (
-                            <Link
-                                key={item.href}
-                                href={item.href}
-                                onClick={() => setIsSidebarOpen(false)}
-                                className={cn(
-                                    'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
-                                    isActive
-                                        ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg shadow-teal-500/20'
-                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                )}
-                            >
-                                <item.icon className="w-5 h-5" />
-                                <span className="font-medium">{t(item.labelKey)}</span>
-                                {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                            </Link>
-                        );
-                    })}
+                    {navItemsConfig
+                        .filter((item) => userRole === 'admin' || !item.adminOnly)
+                        .map((item) => {
+                            const isActive = pathname === item.href;
+                            return (
+                                <Link
+                                    key={item.href}
+                                    href={item.href}
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className={cn(
+                                        'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
+                                        isActive
+                                            ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg shadow-teal-500/20'
+                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                    )}
+                                >
+                                    <item.icon className="w-5 h-5" />
+                                    <span className="font-medium">{t(item.labelKey)}</span>
+                                    {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                                </Link>
+                            );
+                        })}
                 </nav>
 
                 {/* Sidebar Footer */}
