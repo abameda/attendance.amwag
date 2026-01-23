@@ -30,24 +30,8 @@ import {
     ChevronLeft,
     ChevronRight,
     Globe,
-    Printer,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-
-// Print styles to hide IP columns
-const printStyles = `
-@media print {
-    .no-print {
-        display: none !important;
-    }
-    .print-only {
-        display: table-cell !important;
-    }
-    body {
-        -webkit-print-color-adjust: exact;
-        print-color-adjust: exact;
-    }
-}`;
 
 export default function AttendanceLogsPage() {
     const supabase = useMemo(() => createClient(), []);
@@ -170,17 +154,10 @@ export default function AttendanceLogsPage() {
         addToast('Excel exported successfully', 'success');
     };
 
-    const handlePrint = () => {
-        window.print();
-    };
-
     return (
         <div className="space-y-6">
-            {/* Print Styles */}
-            <style dangerouslySetInnerHTML={{ __html: printStyles }} />
-
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 print:hidden">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
                         Attendance Logs
@@ -198,15 +175,11 @@ export default function AttendanceLogsPage() {
                         <Download className="w-4 h-4 mr-2" />
                         Excel
                     </Button>
-                    <Button variant="outline" onClick={handlePrint}>
-                        <Printer className="w-4 h-4 mr-2" />
-                        Print
-                    </Button>
                 </div>
             </div>
 
             {/* Filters */}
-            <Card className="print:hidden">
+            <Card>
                 <CardContent className="p-4">
                     <div className="flex flex-col md:flex-row gap-4">
                         {/* Search */}
@@ -296,13 +269,13 @@ export default function AttendanceLogsPage() {
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
                                     Check In Location
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300 no-print">
+                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
                                     Check In IP
                                 </th>
                                 <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
                                     Check Out Location
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300 no-print">
+                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
                                     Check Out IP
                                 </th>
                             </tr>
@@ -410,7 +383,7 @@ export default function AttendanceLogsPage() {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 no-print">
+                                        <td className="px-6 py-4">
                                             <div className="flex items-center gap-1.5">
                                                 <Globe className="w-3 h-3 text-slate-500" />
                                                 <span className="text-xs text-slate-400 font-mono">
@@ -433,7 +406,7 @@ export default function AttendanceLogsPage() {
                                                 )}
                                             </div>
                                         </td>
-                                        <td className="px-6 py-4 no-print">
+                                        <td className="px-6 py-4">
                                             <div className="flex items-center gap-1.5">
                                                 <Globe className="w-3 h-3 text-slate-500" />
                                                 <span className="text-xs text-slate-400 font-mono">
