@@ -98,32 +98,11 @@ export function getStatusColor(status: string): string {
     }
 }
 
-// Export to CSV with metadata footer (professional document style)
-export function exportToCSV(
-    data: Record<string, unknown>[],
-    filename: string,
-    exportedBy?: string
-) {
+// Export to CSV
+export function exportToCSV(data: Record<string, unknown>[], filename: string) {
     if (data.length === 0) return;
 
     const headers = Object.keys(data[0]);
-
-    // Create metadata footer rows (professional document style)
-    const exportDate = new Date().toLocaleString('ar-EG', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-
-    const footerRows = [
-        '', // Empty row as separator
-        '─────────────────────────────────────────────────────────────────',
-        'Amwag Transportation - نظام الحضور والانصراف',
-        'يتم إدارة النظام بواسطة إدارة IT',
-        `Exported By: ${exportedBy || 'Admin'} | Date: ${exportDate}`,
-    ];
 
     const csvRows = [
         headers.join(','),
@@ -140,7 +119,6 @@ export function exportToCSV(
                 })
                 .join(',')
         ),
-        ...footerRows,
     ];
 
     const csvContent = csvRows.join('\n');

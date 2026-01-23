@@ -41,28 +41,7 @@ export default function AttendanceLogsPage() {
     const [dateFilter, setDateFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
-    const [adminName, setAdminName] = useState('');
     const recordsPerPage = 10;
-
-    // Fetch admin profile for export metadata
-    useEffect(() => {
-        const fetchAdminProfile = async () => {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('full_name')
-                    .eq('id', user.id)
-                    .single();
-                if (profile) {
-                    setAdminName(profile.full_name);
-                }
-            }
-        };
-        fetchAdminProfile();
-    }, [supabase]);
 
     const fetchAttendance = async () => {
         setIsLoading(true);
@@ -146,7 +125,7 @@ export default function AttendanceLogsPage() {
             'Check Out IP': record.check_out_ip || '-',
         }));
 
-        exportToCSV(exportData, `attendance_logs_${new Date().toISOString().split('T')[0]}`, adminName);
+        exportToCSV(exportData, `attendance_logs_${new Date().toISOString().split('T')[0]}`);
         addToast('CSV exported successfully', 'success');
     };
 
@@ -172,38 +151,7 @@ export default function AttendanceLogsPage() {
             'Check Out IP': record.check_out_ip || '-',
         }));
 
-        // Create metadata footer rows (professional document style)
-        const exportDate = new Date().toLocaleString('ar-EG', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
-
-        // Create worksheet with data first
         const ws = XLSX.utils.json_to_sheet(exportData);
-
-        // Calculate footer starting row (data rows + header row + 2 empty rows)
-        const footerStartRow = exportData.length + 3;
-
-        // Add footer rows
-        const footerData = [
-            ['─────────────────────────────────────────────────────────────────'],
-            ['Amwag Transportation - نظام الحضور والانصراف'],
-            ['يتم إدارة النظام بواسطة إدارة IT'],
-            [`Exported By: ${adminName || 'Admin'} | Date: ${exportDate}`],
-        ];
-
-        XLSX.utils.sheet_add_aoa(ws, footerData, { origin: `A${footerStartRow}` });
-
-        // Merge footer cells for professional look
-        if (!ws['!merges']) ws['!merges'] = [];
-        ws['!merges'].push({ s: { r: footerStartRow - 1, c: 0 }, e: { r: footerStartRow - 1, c: 5 } });
-        ws['!merges'].push({ s: { r: footerStartRow, c: 0 }, e: { r: footerStartRow, c: 5 } });
-        ws['!merges'].push({ s: { r: footerStartRow + 1, c: 0 }, e: { r: footerStartRow + 1, c: 5 } });
-        ws['!merges'].push({ s: { r: footerStartRow + 2, c: 0 }, e: { r: footerStartRow + 2, c: 5 } });
-
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Attendance Logs');
         XLSX.writeFile(wb, `amwag_attendance_${new Date().toISOString().split('T')[0]}.xlsx`);
