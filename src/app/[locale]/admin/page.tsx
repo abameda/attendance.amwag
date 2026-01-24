@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Card, CardContent, Button, addToast } from '@/components/ui';
 import { Users, UserCheck, Clock, UserX, TrendingUp, Calendar, AlertTriangle, ClipboardList } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
+import Link from 'next/link';
 import type { DashboardStats } from '@/types';
 
 export default function AdminDashboard() {
@@ -183,7 +184,7 @@ export default function AdminDashboard() {
                         {t('quickActions')}
                     </h2>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <a
+                        <Link
                             href="/admin/employees"
                             className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group border border-slate-700/50"
                         >
@@ -194,8 +195,8 @@ export default function AdminDashboard() {
                                 <p className="font-medium text-slate-100">{t('manageEmployees')}</p>
                                 <p className="text-sm text-slate-400">{t('addOrEditStaff')}</p>
                             </div>
-                        </a>
-                        <a
+                        </Link>
+                        <Link
                             href="/admin/attendance"
                             className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group border border-slate-700/50"
                         >
@@ -206,8 +207,8 @@ export default function AdminDashboard() {
                                 <p className="font-medium text-slate-100">{t('viewAttendance')}</p>
                                 <p className="text-sm text-slate-400">{t('checkDailyLogs')}</p>
                             </div>
-                        </a>
-                        <a
+                        </Link>
+                        <Link
                             href="/admin/attendance"
                             className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group border border-slate-700/50"
                         >
@@ -218,7 +219,7 @@ export default function AdminDashboard() {
                                 <p className="font-medium text-slate-100">{t('exportReports')}</p>
                                 <p className="text-sm text-slate-400">{t('downloadCSV')}</p>
                             </div>
-                        </a>
+                        </Link>
                         <button
                             onClick={handleMarkAbsences}
                             disabled={isMarkingAbsent}

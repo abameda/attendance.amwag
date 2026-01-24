@@ -12,11 +12,6 @@ interface Toast {
     type: ToastType;
 }
 
-interface ToastContextValue {
-    addToast: (message: string, type?: ToastType) => void;
-    removeToast: (id: string) => void;
-}
-
 let toastListeners: ((toasts: Toast[]) => void)[] = [];
 let toasts: Toast[] = [];
 

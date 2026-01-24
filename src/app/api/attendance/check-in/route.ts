@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 
-export async function POST(request: NextRequest) {
+export async function POST(_request: NextRequest) {
     try {
         const supabase = await createClient();
 
@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
 
             // Window opens 1 hour before shift start
             let windowStartH = startH - 1;
-            let windowStartM = startM;
+            const windowStartM = startM;
             if (windowStartH < 0) {
                 windowStartH = 23; // Wrap to previous day (e.g., shift at 00:30 -> window starts at 23:30)
             }
