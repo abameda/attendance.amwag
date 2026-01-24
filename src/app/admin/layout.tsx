@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -17,12 +16,11 @@ import {
     X,
     ChevronRight,
 } from 'lucide-react';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
 
-const navItemsConfig = [
-    { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard', adminOnly: true },
-    { href: '/admin/employees', icon: Users, labelKey: 'employees', adminOnly: true },
-    { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs', adminOnly: false },
+const navItems = [
+    { href: '/admin', icon: LayoutDashboard, label: 'Dashboard' },
+    { href: '/admin/employees', icon: Users, label: 'Employees' },
+    { href: '/admin/attendance', icon: ClipboardList, label: 'Attendance Logs' },
 ];
 
 export default function AdminLayout({
@@ -33,12 +31,9 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const supabase = createClient();
-    const t = useTranslations('Sidebar');
-    const tc = useTranslations('Common');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [adminName, setAdminName] = useState('');
     const [adminJobTitle, setAdminJobTitle] = useState('');
-    const [userRole, setUserRole] = useState<string>('admin');
 
     useEffect(() => {
         const fetchAdminProfile = async () => {
@@ -48,13 +43,12 @@ export default function AdminLayout({
             if (user) {
                 const { data: profile } = await supabase
                     .from('profiles')
-                    .select('full_name, job_title, role')
+                    .select('full_name, job_title')
                     .eq('id', user.id)
                     .single();
                 if (profile) {
                     setAdminName(profile.full_name);
                     setAdminJobTitle(profile.job_title || 'Administrator');
-                    setUserRole(profile.role || 'admin');
                 }
             }
         };
@@ -90,9 +84,6 @@ export default function AdminLayout({
                         <span className="font-semibold text-slate-50">Admin</span>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <LanguageSwitcher />
-                </div>
             </header>
 
             {/* Mobile Overlay */}
@@ -124,7 +115,7 @@ export default function AdminLayout({
                         </div>
                         <div>
                             <h1 className="font-bold text-slate-50">Amwag</h1>
-                            <p className="text-xs text-slate-500">{t('adminPanel')}</p>
+                            <p className="text-xs text-slate-500">Admin Panel</p>
                         </div>
                     </div>
                     <button
@@ -137,35 +128,30 @@ export default function AdminLayout({
 
                 {/* Navigation */}
                 <nav className="p-4 space-y-1">
-                    {navItemsConfig
-                        .filter((item) => userRole === 'admin' || !item.adminOnly)
-                        .map((item) => {
-                            const isActive = pathname === item.href;
-                            return (
-                                <Link
-                                    key={item.href}
-                                    href={item.href}
-                                    onClick={() => setIsSidebarOpen(false)}
-                                    className={cn(
-                                        'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
-                                        isActive
-                                            ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg shadow-teal-500/20'
-                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
-                                    )}
-                                >
-                                    <item.icon className="w-5 h-5" />
-                                    <span className="font-medium">{t(item.labelKey)}</span>
-                                    {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
-                                </Link>
-                            );
-                        })}
+                    {navItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                onClick={() => setIsSidebarOpen(false)}
+                                className={cn(
+                                    'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
+                                    isActive
+                                        ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg shadow-teal-500/20'
+                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                )}
+                            >
+                                <item.icon className="w-5 h-5" />
+                                <span className="font-medium">{item.label}</span>
+                                {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                            </Link>
+                        );
+                    })}
                 </nav>
 
                 {/* Sidebar Footer */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800 space-y-2">
-                    <div className="px-4">
-                        <LanguageSwitcher />
-                    </div>
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800">
                     <div className="flex items-center gap-3 px-4 py-3 mb-2">
                         <div className="w-10 h-10 bg-gradient-to-br from-teal-600 to-teal-700 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
                             {adminName.charAt(0).toUpperCase()}
@@ -182,7 +168,7 @@ export default function AdminLayout({
                         className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
                     >
                         <LogOut className="w-5 h-5" />
-                        <span className="font-medium">{t('logout')}</span>
+                        <span className="font-medium">Logout</span>
                     </button>
                 </div>
             </aside>
@@ -194,8 +180,8 @@ export default function AdminLayout({
                 {/* Developer Signature */}
                 <footer className="py-4 text-center border-t border-slate-800">
                     <p className="text-sm text-slate-600">
-                        {tc('developedBy')}{' '}
-                        <span className="font-semibold text-slate-500">{tc('devName')}</span>
+                        Developed by{' '}
+                        <span className="font-semibold text-slate-500">Eng/Abdelhmeed Elshorbagy</span>
                     </p>
                     <div className="flex items-center justify-center gap-4 mt-2">
                         <a

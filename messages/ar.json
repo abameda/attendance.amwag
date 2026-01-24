@@ -72,6 +72,8 @@
         "search": "بحث...",
         "loading": "جاري التحميل...",
         "english": "English",
-        "arabic": "العربية"
+        "arabic": "العربية",
+        "developedBy": "تم التطوير بواسطة",
+        "devName": "م/ عبدالحميد الشوربجي"
     }
 }

@@ -72,6 +72,8 @@
         "search": "Search...",
         "loading": "Loading...",
         "english": "English",
-        "arabic": "العربية"
+        "arabic": "العربية",
+        "developedBy": "Developed by",
+        "devName": "Eng/Abdelhmeed Elshorbagy"
     }
 }

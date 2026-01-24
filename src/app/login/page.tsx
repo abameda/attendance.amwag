@@ -6,7 +6,6 @@ import Image from 'next/image';
 import { createClient } from '@/lib/supabase/client';
 import { Button, Input, Card, CardContent, addToast, ToastContainer } from '@/components/ui';
 import { LogIn } from 'lucide-react';
-import { useTranslations } from 'next-intl';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -14,7 +13,6 @@ export default function LoginPage() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const tc = useTranslations('Common');
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -44,8 +42,6 @@ export default function LoginPage() {
                 // Redirect based on role
                 if (profile?.role === 'admin') {
                     router.push('/admin');
-                } else if (profile?.role === 'accountant') {
-                    router.push('/admin/attendance');
                 } else {
                     router.push('/employee');
                 }
@@ -138,7 +134,7 @@ export default function LoginPage() {
             {/* Developer Signature */}
             <div className="absolute bottom-4 left-0 right-0 text-center z-10">
                 <p className="text-sm text-slate-600">
-                    {tc('developedBy')} <span className="font-semibold text-slate-500">{tc('devName')}</span>
+                    Developed by <span className="font-semibold text-slate-500">Eng/Abdelhmeed Elshorbagy</span>
                 </p>
                 <div className="flex items-center justify-center gap-4 mt-2">
                     <a

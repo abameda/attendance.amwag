@@ -11,8 +11,6 @@ import {
     addToast,
     ToastContainer,
 } from '@/components/ui';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { useTranslations } from 'next-intl';
 import { formatTime, formatTimestamp, formatLateness, formatOvertime, getStatusColor } from '@/lib/utils';
 import type { Profile, AttendanceRecord } from '@/types';
 import {
@@ -35,8 +33,6 @@ export default function EmployeePortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
-    const t = useTranslations('Employee');
-    const tc = useTranslations('Common');
 
     // Update current time every second
     useEffect(() => {
@@ -219,19 +215,16 @@ export default function EmployeePortal() {
                     </div>
                     <div>
                         <h1 className="font-bold text-slate-50">Amwag</h1>
-                        <p className="text-xs text-slate-500">{t('title')}</p>
+                        <p className="text-xs text-slate-500">Attendance System</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
-                    <LanguageSwitcher />
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-xl transition-colors"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        <span className="hidden sm:inline">Logout</span>
-                    </button>
-                </div>
+                <button
+                    onClick={handleLogout}
+                    className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-xl transition-colors"
+                >
+                    <LogOut className="w-5 h-5" />
+                    <span className="hidden sm:inline">Logout</span>
+                </button>
             </header>
 
             {/* Main Content */}
@@ -274,7 +267,7 @@ export default function EmployeePortal() {
                                     {(profile?.shift_start || profile?.shift_end) && (
                                         <div className="flex items-center gap-1 text-xs text-slate-400">
                                             <Timer className="w-3 h-3" />
-                                            {formatTime(profile?.shift_start ?? null)} - {formatTime(profile?.shift_end ?? null)}
+                                            {formatTime(profile?.shift_start)} - {formatTime(profile?.shift_end)}
                                         </div>
                                     )}
                                 </div>
@@ -288,23 +281,23 @@ export default function EmployeePortal() {
                     <Card className="mb-3 bg-slate-900/80 backdrop-blur-xl border-slate-800">
                         <CardContent className="p-4">
                             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                                {t('todaysRecord')}
+                                Today&apos;s Record
                             </h3>
                             <div className="grid grid-cols-5 gap-2">
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">{t('checkIn')}</p>
+                                    <p className="text-[10px] text-slate-500">Check In</p>
                                     <p className="font-semibold text-slate-50 text-sm">
                                         {formatTimestamp(todayRecord.check_in_time)}
                                     </p>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">{t('checkOut')}</p>
+                                    <p className="text-[10px] text-slate-500">Check Out</p>
                                     <p className="font-semibold text-slate-50 text-sm">
                                         {formatTimestamp(todayRecord.check_out_time)}
                                     </p>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">{t('status')}</p>
+                                    <p className="text-[10px] text-slate-500">Status</p>
                                     <span
                                         className={`inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-medium capitalize ${getStatusColor(
                                             todayRecord.status
@@ -314,7 +307,7 @@ export default function EmployeePortal() {
                                     </span>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">{t('late')}</p>
+                                    <p className="text-[10px] text-slate-500">Late</p>
                                     <p
                                         className={`font-semibold text-sm ${todayRecord.late_minutes > 0
                                             ? 'text-amber-400'
@@ -325,7 +318,7 @@ export default function EmployeePortal() {
                                     </p>
                                 </div>
                                 <div className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <p className="text-[10px] text-slate-500">{t('overtime')}</p>
+                                    <p className="text-[10px] text-slate-500">Overtime</p>
                                     <p
                                         className={`font-semibold text-sm ${(todayRecord.overtime_minutes || 0) > 0
                                             ? 'text-teal-400'
@@ -353,7 +346,7 @@ export default function EmployeePortal() {
                             ) : (
                                 <>
                                     <LogIn className="w-6 h-6" />
-                                    {t('checkIn')}
+                                    Check In
                                 </>
                             )}
                         </button>
@@ -368,14 +361,14 @@ export default function EmployeePortal() {
                             ) : (
                                 <>
                                     <LogOut className="w-6 h-6" />
-                                    {t('checkOut')}
+                                    Check Out
                                 </>
                             )}
                         </button>
                     ) : (
                         <div className="w-full py-4 bg-gradient-to-r from-slate-700 to-slate-800 text-slate-300 text-lg font-bold rounded-xl flex items-center justify-center gap-3">
                             <CheckCircle2 className="w-6 h-6" />
-                            {t('dayComplete')}
+                            Day Complete
                         </div>
                     )}
                 </div>
@@ -385,16 +378,16 @@ export default function EmployeePortal() {
                     {hasCheckedOut ? (
                         <p className="text-slate-500 flex items-center justify-center gap-2">
                             <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                            {t('shiftCompleted')}
+                            Shift completed for today
                         </p>
                     ) : hasCheckedIn ? (
                         <p className="text-slate-500 flex items-center justify-center gap-2">
                             <Clock className="w-4 h-4 text-teal-500 animate-pulse" />
-                            {t('currentlyOnShift')}
+                            Currently on shift
                         </p>
                     ) : (
                         <p className="text-slate-500">
-                            {t('startYourDay')}
+                            Start your day by checking in
                         </p>
                     )}
                 </div>
@@ -403,7 +396,7 @@ export default function EmployeePortal() {
             {/* Developer Signature */}
             <footer className="relative z-10 py-2 text-center">
                 <p className="text-xs text-slate-600">
-                    {tc('developedBy')} <span className="font-semibold text-slate-500">{tc('devName')}</span>
+                    Developed by <span className="font-semibold text-slate-500">Eng/Abdelhmeed Elshorbagy</span>
                 </p>
                 <div className="flex items-center justify-center gap-4 mt-1">
                     <a
