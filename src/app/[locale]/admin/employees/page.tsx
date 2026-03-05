@@ -9,6 +9,7 @@ import {
     Card,
     CardContent,
     Modal,
+    Skeleton,
     addToast,
 } from '@/components/ui';
 import { BRANCHES } from '@/lib/branches';
@@ -206,8 +207,7 @@ export default function EmployeesPage() {
     );
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
+        <div className="space-y-6 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
@@ -229,7 +229,6 @@ export default function EmployeesPage() {
                 </div>
             </div>
 
-            {/* Search */}
             <div className="relative max-w-md">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                 <Input
@@ -240,13 +239,25 @@ export default function EmployeesPage() {
                 />
             </div>
 
-            {/* Employees Grid */}
             {isLoading ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {[...Array(6)].map((_, i) => (
-                        <Card key={i} className="animate-pulse">
+                        <Card key={i}>
                             <CardContent className="p-6">
-                                <div className="h-16 bg-slate-800 rounded" />
+                                <div className="flex items-start justify-between mb-4">
+                                    <div className="flex items-center gap-3">
+                                        <Skeleton className="w-12 h-12 rounded-xl" />
+                                        <div className="space-y-1.5">
+                                            <Skeleton className="h-4 w-28" />
+                                            <Skeleton className="h-3 w-36" />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="space-y-2.5">
+                                    <Skeleton className="h-3.5 w-24" />
+                                    <Skeleton className="h-3.5 w-32" />
+                                    <Skeleton className="h-3.5 w-28" />
+                                </div>
                             </CardContent>
                         </Card>
                     ))}
@@ -260,9 +271,9 @@ export default function EmployeesPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredEmployees.map((employee) => (
-                        <Card key={employee.id} className="group hover:ring-1 hover:ring-teal-500/30 transition-all">
+                        <Card key={employee.id} interactive className="group">
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
@@ -281,13 +292,13 @@ export default function EmployeesPage() {
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => openEditModal(employee)}
-                                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-teal-400"
+                                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-teal-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 active:scale-[0.95]"
                                         >
                                             <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(employee.id)}
-                                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-400"
+                                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 active:scale-[0.95]"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -332,7 +343,6 @@ export default function EmployeesPage() {
                 </div>
             )}
 
-            {/* Add/Edit Modal */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => {
@@ -452,7 +462,6 @@ export default function EmployeesPage() {
                         />
                     </div>
 
-                    {/* Overtime Toggle */}
                     <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700">
                         <div className="flex items-center gap-3">
                             <Timer className="w-5 h-5 text-teal-400" />
@@ -464,7 +473,7 @@ export default function EmployeesPage() {
                         <button
                             type="button"
                             onClick={() => setFormData((prev) => ({ ...prev, overtime_enabled: !prev.overtime_enabled }))}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${formData.overtime_enabled ? 'bg-teal-500' : 'bg-slate-600'
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 ${formData.overtime_enabled ? 'bg-teal-500' : 'bg-slate-600'
                                 }`}
                         >
                             <span
@@ -492,7 +501,6 @@ export default function EmployeesPage() {
                 </form>
             </Modal>
 
-            {/* Bulk Import Modal */}
             <BulkImportModal
                 isOpen={isBulkImportOpen}
                 onClose={() => setIsBulkImportOpen(false)}

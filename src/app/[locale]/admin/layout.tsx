@@ -69,12 +69,11 @@ export default function AdminLayout({
 
     return (
         <div className="min-h-screen bg-slate-950">
-            {/* Mobile Header */}
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800 z-40 flex items-center justify-between px-4">
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800/60 z-40 flex items-center justify-between px-4">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                        className="p-2 hover:bg-slate-800 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
                     >
                         <Menu className="w-6 h-6 text-slate-400" />
                     </button>
@@ -95,7 +94,6 @@ export default function AdminLayout({
                 </div>
             </header>
 
-            {/* Mobile Overlay */}
             {isSidebarOpen && (
                 <div
                     className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
@@ -103,18 +101,16 @@ export default function AdminLayout({
                 />
             )}
 
-            {/* Sidebar */}
             <aside
                 className={cn(
-                    'fixed top-0 left-0 h-full w-72 bg-slate-900 border-r border-slate-800 z-50 transition-transform duration-300',
+                    'fixed top-0 left-0 h-full w-72 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/60 z-50 transition-transform duration-300',
                     'lg:translate-x-0',
                     isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 )}
             >
-                {/* Sidebar Header */}
-                <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
+                <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800/60">
                     <div className="flex items-center gap-3">
-                        <div className="relative w-10 h-10 bg-white/5 rounded-xl p-1">
+                        <div className="relative w-10 h-10 bg-white/5 rounded-xl p-1 shadow-xl shadow-black/20">
                             <Image
                                 src="/logo.png"
                                 alt="Amwag Transportation"
@@ -129,13 +125,12 @@ export default function AdminLayout({
                     </div>
                     <button
                         onClick={() => setIsSidebarOpen(false)}
-                        className="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors"
+                        className="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
                     >
                         <X className="w-5 h-5 text-slate-500" />
                     </button>
                 </div>
 
-                {/* Navigation */}
                 <nav className="p-4 space-y-1">
                     {navItemsConfig
                         .filter((item) => userRole === 'admin' || !item.adminOnly)
@@ -149,8 +144,8 @@ export default function AdminLayout({
                                     className={cn(
                                         'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
                                         isActive
-                                            ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg shadow-teal-500/20'
-                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800'
+                                            ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg shadow-teal-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900'
+                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 active:scale-[0.98]'
                                     )}
                                 >
                                     <item.icon className="w-5 h-5" />
@@ -161,13 +156,12 @@ export default function AdminLayout({
                         })}
                 </nav>
 
-                {/* Sidebar Footer */}
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800 space-y-2">
+                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800/60 space-y-2">
                     <div className="px-4">
                         <LanguageSwitcher />
                     </div>
                     <div className="flex items-center gap-3 px-4 py-3 mb-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-teal-600 to-teal-700 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0">
+                        <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 shadow-lg shadow-teal-500/20">
                             {adminName.charAt(0).toUpperCase()}
                         </div>
                         <div className="flex-1 min-w-0">
@@ -179,7 +173,7 @@ export default function AdminLayout({
                     </div>
                     <button
                         onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors"
+                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 active:scale-[0.98]"
                     >
                         <LogOut className="w-5 h-5" />
                         <span className="font-medium">{t('logout')}</span>
@@ -187,11 +181,13 @@ export default function AdminLayout({
                 </div>
             </aside>
 
-            {/* Main Content */}
-            <main className="lg:ml-72 pt-16 lg:pt-0 min-h-screen">
-                <div className="p-4 lg:p-8">{children}</div>
+            <main className="lg:ml-72 pt-16 lg:pt-0 min-h-screen relative">
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/[0.03] rounded-full blur-[120px]" />
+                    <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-[400px] h-[400px] bg-teal-600/[0.02] rounded-full blur-[100px]" />
+                </div>
+                <div className="relative p-4 lg:p-8">{children}</div>
 
-                {/* Developer Signature */}
                 <Footer className="py-4 border-t border-slate-800" />
             </main>
 

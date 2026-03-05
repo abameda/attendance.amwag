@@ -6,13 +6,15 @@ import { cn } from '@/lib/utils';
 interface CardProps {
     children: ReactNode;
     className?: string;
+    interactive?: boolean;
 }
 
-export function Card({ children, className }: CardProps) {
+export function Card({ children, className, interactive }: CardProps) {
     return (
         <div
             className={cn(
-                'bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-slate-800/50 shadow-xl shadow-black/20',
+                'bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-slate-800/60 shadow-xl shadow-black/10',
+                interactive && 'transition-all duration-300 hover:border-slate-700/80 hover:shadow-black/20 hover:-translate-y-0.5',
                 className
             )}
         >
@@ -30,7 +32,7 @@ export function CardHeader({ children, className }: CardHeaderProps) {
     return (
         <div
             className={cn(
-                'px-6 py-4 border-b border-slate-800/50',
+                'px-6 py-4 border-b border-slate-800/60',
                 className
             )}
         >

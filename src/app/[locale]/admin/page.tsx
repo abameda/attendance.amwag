@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Card, CardContent, addToast } from '@/components/ui';
+import { Card, CardContent, Skeleton, addToast } from '@/components/ui';
 import { Users, UserCheck, Clock, UserX, TrendingUp, Calendar, AlertTriangle, ClipboardList } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';
@@ -26,23 +26,31 @@ export default function AdminDashboard() {
         try {
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
 
-            const [employeeResult, attendanceResult] = await Promise.all([
+            const [employeeResult, presentResult, lateResult, checkedInResult] = await Promise.all([
                 supabase
                     .from('profiles')
-                    .select('*', { count: 'exact', head: true })
+                    .select('id', { count: 'exact', head: true })
                     .eq('role', 'employee'),
                 supabase
                     .from('attendance')
-                    .select('status')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('date', today)
+                    .eq('status', 'present'),
+                supabase
+                    .from('attendance')
+                    .select('id', { count: 'exact', head: true })
+                    .eq('date', today)
+                    .eq('status', 'late'),
+                supabase
+                    .from('attendance')
+                    .select('id', { count: 'exact', head: true })
                     .eq('date', today),
             ]);
 
             const totalEmployees = employeeResult.count || 0;
-            const todayAttendance = attendanceResult.data;
-
-            const presentToday = todayAttendance?.filter((a) => a.status === 'present').length || 0;
-            const lateToday = todayAttendance?.filter((a) => a.status === 'late').length || 0;
-            const checkedIn = (todayAttendance?.length || 0);
+            const presentToday = presentResult.count || 0;
+            const lateToday = lateResult.count || 0;
+            const checkedIn = checkedInResult.count || 0;
             const absentToday = totalEmployees - checkedIn;
 
             setStats({
@@ -128,8 +136,7 @@ export default function AdminDashboard() {
     }), [locale]);
 
     return (
-        <div className="space-y-8">
-            {/* Header */}
+        <div className="space-y-8 animate-fade-in-up">
             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
@@ -140,7 +147,7 @@ export default function AdminDashboard() {
                         {today}
                     </p>
                 </div>
-                <div className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 rounded-xl border border-teal-500/30">
+                <div className="flex items-center gap-2 px-4 py-2 bg-teal-500/10 rounded-xl border border-teal-500/20 shadow-sm shadow-teal-500/5">
                     <TrendingUp className="w-5 h-5 text-teal-400" />
                     <span className="text-sm font-medium text-teal-300">
                         {t('attendanceRate')}:{' '}
@@ -154,19 +161,22 @@ export default function AdminDashboard() {
                 </div>
             </div>
 
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+            <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
                 {statCards.map((card) => (
-                    <Card key={card.titleKey} className="overflow-hidden">
+                    <Card key={card.titleKey} interactive className="overflow-hidden">
                         <CardContent className="p-6">
                             <div className="flex items-start justify-between">
                                 <div>
                                     <p className="text-sm font-medium text-slate-400">
                                         {t(card.titleKey)}
                                     </p>
-                                    <p className="text-3xl font-bold text-slate-50 mt-2">
-                                        {isLoading ? '-' : card.value}
-                                    </p>
+                                    {isLoading ? (
+                                        <Skeleton className="h-9 w-16 mt-2" />
+                                    ) : (
+                                        <p className="text-3xl font-bold text-slate-50 mt-2">
+                                            {card.value}
+                                        </p>
+                                    )}
                                 </div>
                                 <div
                                     className={`w-12 h-12 bg-gradient-to-br ${card.gradient} rounded-xl flex items-center justify-center shadow-lg ${card.shadowColor}`}
@@ -179,16 +189,15 @@ export default function AdminDashboard() {
                 ))}
             </div>
 
-            {/* Quick Actions */}
-            <Card>
+            <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-800/60">
                 <CardContent className="p-6">
                     <h2 className="text-lg font-semibold text-slate-50 mb-4">
                         {t('quickActions')}
                     </h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="stagger grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <Link
                             href="/admin/employees"
-                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group border border-slate-700/50"
+                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-all group border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
                         >
                             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30 group-hover:scale-110 transition-transform">
                                 <Users className="w-6 h-6 text-white" />
@@ -200,7 +209,7 @@ export default function AdminDashboard() {
                         </Link>
                         <Link
                             href="/admin/attendance"
-                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group border border-slate-700/50"
+                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-all group border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
                         >
                             <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform">
                                 <ClipboardList className="w-6 h-6 text-white" />
@@ -212,7 +221,7 @@ export default function AdminDashboard() {
                         </Link>
                         <Link
                             href="/admin/attendance"
-                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-colors group border border-slate-700/50"
+                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-slate-800 transition-all group border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
                         >
                             <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg shadow-purple-500/30 group-hover:scale-110 transition-transform">
                                 <TrendingUp className="w-6 h-6 text-white" />
@@ -225,7 +234,7 @@ export default function AdminDashboard() {
                         <button
                             onClick={handleMarkAbsences}
                             disabled={isMarkingAbsent}
-                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-red-500/10 transition-colors group text-left disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700/50"
+                            className="flex items-center gap-4 p-4 bg-slate-800/50 rounded-xl hover:bg-red-500/10 transition-all group text-left disabled:opacity-50 disabled:cursor-not-allowed border border-slate-700/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 active:scale-[0.98]"
                         >
                             <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg shadow-red-500/30 group-hover:scale-110 transition-transform">
                                 <AlertTriangle className="w-6 h-6 text-white" />

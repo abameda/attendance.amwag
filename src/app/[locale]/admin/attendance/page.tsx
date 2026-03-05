@@ -6,6 +6,8 @@ import {
     Input,
     Card,
     CardContent,
+    Skeleton,
+    Badge,
     addToast,
 } from '@/components/ui';
 import {
@@ -14,7 +16,6 @@ import {
     formatLateness,
     formatEarlyDeparture,
     formatOvertime,
-    getStatusColor,
     exportToCSV,
 } from '@/lib/utils';
 import type { AttendanceRecord } from '@/types';
@@ -195,8 +196,7 @@ export default function AttendanceLogsPage() {
     }, [fetchAllFilteredRecords]);
 
     return (
-        <div className="space-y-6">
-            {/* Header */}
+        <div className="space-y-6 animate-fade-in-up">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
@@ -218,11 +218,9 @@ export default function AttendanceLogsPage() {
                 </div>
             </div>
 
-            {/* Filters */}
-            <Card>
+            <Card className="bg-slate-900/60 backdrop-blur-sm border-slate-800/60">
                 <CardContent className="p-4">
                     <div className="flex flex-col md:flex-row gap-4">
-                        {/* Search */}
                         <div className="relative flex-1">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                             <Input
@@ -236,7 +234,6 @@ export default function AttendanceLogsPage() {
                             />
                         </div>
 
-                        {/* Date Filter */}
                         <div className="relative w-full md:w-48">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
                             <Input
@@ -250,14 +247,13 @@ export default function AttendanceLogsPage() {
                             />
                         </div>
 
-                        {/* Status Filter */}
                          <select
                              value={statusFilter}
                              onChange={(e) => {
                                  setStatusFilter(e.target.value);
                                  setCurrentPage(1);
                              }}
-                             className="w-full md:w-40 px-4 py-2.5 text-slate-100 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                             className="w-full md:w-40 px-4 py-2.5 text-slate-100 bg-slate-800/50 border border-slate-700 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500 transition-colors hover:border-slate-600"
                          >
                              <option value="" className="bg-slate-800">{t('allStatus')}</option>
                              <option value="present" className="bg-slate-800">{t('present')}</option>
@@ -266,7 +262,6 @@ export default function AttendanceLogsPage() {
                              <option value="missing_checkout" className="bg-slate-800">{t('missingCheckout')}</option>
                          </select>
 
-                        {/* Refresh */}
                         <Button variant="ghost" onClick={fetchAttendance} className="md:w-auto">
                             <RefreshCw className="w-5 h-5" />
                         </Button>
@@ -274,49 +269,48 @@ export default function AttendanceLogsPage() {
                 </CardContent>
             </Card>
 
-            {/* Table */}
-            <Card>
+            <Card className="overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full">
                         <thead>
-                            <tr className="border-b border-slate-800">
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                            <tr className="border-b border-slate-800/60 bg-slate-800/30">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('employee')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('branch')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('date')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('checkIn')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('checkOut')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('lateness')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('earlyLeave')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('overtime')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('status')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('checkInLocation')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('checkInIP')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('checkOutLocation')}
                                 </th>
-                                <th className="text-left px-6 py-4 text-sm font-semibold text-slate-300">
+                                <th className="text-left px-6 py-4 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     {t('checkOutIP')}
                                 </th>
                             </tr>
@@ -325,9 +319,27 @@ export default function AttendanceLogsPage() {
                             {isLoading ? (
                                 [...Array(5)].map((_, i) => (
                                     <tr key={i} className="border-b border-slate-800/50">
-                                        <td colSpan={13} className="px-6 py-4">
-                                            <div className="h-8 bg-slate-800 rounded animate-pulse" />
+                                        <td className="px-6 py-4">
+                                            <div className="flex items-center gap-3">
+                                                <Skeleton className="w-10 h-10 rounded-lg" />
+                                                <div className="space-y-1.5">
+                                                    <Skeleton className="h-4 w-28" />
+                                                    <Skeleton className="h-3 w-36" />
+                                                </div>
+                                            </div>
                                         </td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-20" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-16" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-16" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-14" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-14" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-14" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
+                                        <td className="px-6 py-4"><Skeleton className="h-4 w-24" /></td>
                                     </tr>
                                 ))
                             ) : records.length === 0 ? (
@@ -343,7 +355,7 @@ export default function AttendanceLogsPage() {
                                 records.map((record) => (
                                     <tr
                                         key={record.id}
-                                        className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
+                                        className="border-b border-slate-800/50 hover:bg-slate-800/20 transition-colors"
                                     >
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
@@ -403,13 +415,9 @@ export default function AttendanceLogsPage() {
                                             </span>
                                         </td>
                                         <td className="px-6 py-4">
-                                            <span
-                                                className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium capitalize ${getStatusColor(
-                                                    record.status
-                                                )}`}
-                                            >
+                                            <Badge variant={record.status as 'present' | 'late' | 'absent' | 'missing_checkout'}>
                                                 {record.status}
-                                            </span>
+                                            </Badge>
                                         </td>
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-1.5">
@@ -462,9 +470,8 @@ export default function AttendanceLogsPage() {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 {totalPages > 1 && (
-                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800">
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800/60">
                                 <p className="text-sm text-slate-500">
                                     {t('showing')} {totalRecords === 0 ? 0 : (currentPage - 1) * recordsPerPage + 1} {t('to')}{' '}
                                     {Math.min((currentPage - 1) * recordsPerPage + records.length, totalRecords)} {t('of')}{' '}

@@ -5,3 +5,5 @@ export { Card, CardHeader, CardContent, CardTitle, CardDescription } from './Car
 export { Modal } from './Modal';
 export { ToastContainer, addToast, removeToast } from './Toast';
 export type { ToastType } from './Toast';
+export { Skeleton } from './Skeleton';
+export { Badge } from './Badge';
