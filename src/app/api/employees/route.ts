@@ -1,38 +1,18 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
-
-// Helper to check if user is admin
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-    const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-    return data?.role === 'admin';
-}
+import { isAdmin } from '@/lib/auth';
 
 // GET - List all employees (admin only)
-export async function GET() {
+export async function GET(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
+        const auth = await isAdmin(request);
+        if (!auth.authorized) {
             return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
-
-        if (!(await isAdmin(supabase, user.id))) {
-            return NextResponse.json(
-                { success: false, error: 'Forbidden' },
-                { status: 403 }
+                { success: false, error: auth.error },
+                { status: auth.status }
             );
         }
 
@@ -64,22 +44,11 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
+        const auth = await isAdmin(request);
+        if (!auth.authorized) {
             return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
-
-        if (!(await isAdmin(supabase, user.id))) {
-            return NextResponse.json(
-                { success: false, error: 'Forbidden' },
-                { status: 403 }
+                { success: false, error: auth.error },
+                { status: auth.status }
             );
         }
 

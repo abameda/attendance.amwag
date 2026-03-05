@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { getEgyptNow, getEgyptDate } from '@/lib/timezone';
 
 export async function POST(_request: NextRequest) {
     try {
@@ -32,15 +33,8 @@ export async function POST(_request: NextRequest) {
             .eq('id', user.id)
             .single();
 
-        // Use Egypt timezone (UTC+2) for all time calculations
-        const TIMEZONE = 'Africa/Cairo';
         const now = new Date();
-
-        // Get current time in Egypt timezone
-        const egyptTime = new Date(now.toLocaleString('en-US', { timeZone: TIMEZONE }));
-        const currentHour = egyptTime.getHours();
-        const currentMinute = egyptTime.getMinutes();
-        const currentTotalMinutes = currentHour * 60 + currentMinute;
+        const { date: egyptToday, hours: currentHour, minutes: currentMinute, totalMinutes: currentTotalMinutes } = getEgyptNow();
 
         // Validate check-in window: 1 hour before shift_start to shift_end
         if (profile?.shift_start && profile?.shift_end) {
@@ -143,41 +137,19 @@ export async function POST(_request: NextRequest) {
 
         if (profile?.shift_start) {
             const [shiftHours, shiftMinutes] = profile.shift_start.split(':').map(Number);
-            const shiftStartDate = new Date(now);
-            shiftStartDate.setHours(shiftHours, shiftMinutes, 0, 0);
+            const shiftStartTotalMinutes = shiftHours * 60 + shiftMinutes;
 
-            // If check-in is AFTER shift start, calculate lateness
-            if (now > shiftStartDate) {
-                const diffMs = now.getTime() - shiftStartDate.getTime();
-                const diffMinutes = Math.floor(diffMs / 60000);
-
-                if (diffMinutes > 0) {
-                    lateMinutes = diffMinutes;
-                    status = 'late';
-                }
+            // Use Egypt time for lateness calculation
+            if (currentTotalMinutes > shiftStartTotalMinutes) {
+                lateMinutes = currentTotalMinutes - shiftStartTotalMinutes;
+                status = 'late';
             }
         }
 
-        // Get today's date in YYYY-MM-DD format
-        const today = now.toISOString().split('T')[0];
-
-        // Check if already checked in today
-        const { data: existingRecord } = await supabase
-            .from('attendance')
-            .select('id, check_in_time')
-            .eq('user_id', user.id)
-            .eq('date', today)
-            .single();
-
-        if (existingRecord?.check_in_time) {
-            return NextResponse.json(
-                { success: false, error: 'Already checked in today' },
-                { status: 400 }
-            );
-        }
+        const today = egyptToday;
 
         // Detect location from IP
-        const ipNetwork = ip.split('.').slice(0, 3).join('.');  // Get first 3 octets
+        const ipNetwork = ip.split('.').slice(0, 3).join('.');
         const { data: matchingBranch } = await supabase
             .from('branch_allowed_ips')
             .select('branch_name')
@@ -187,44 +159,26 @@ export async function POST(_request: NextRequest) {
 
         const checkInLocation = matchingBranch?.branch_name || 'خارج الشركة';
 
-        // Insert or update attendance record
-        if (existingRecord) {
-            // Update existing record
-            const { error } = await supabase
-                .from('attendance')
-                .update({
+        const { error } = await supabase
+            .from('attendance')
+            .upsert(
+                {
+                    user_id: user.id,
+                    date: today,
                     check_in_time: now.toISOString(),
                     ip_address: ip,
                     check_in_location: checkInLocation,
                     late_minutes: lateMinutes,
                     status,
-                })
-                .eq('id', existingRecord.id);
+                },
+                { onConflict: 'user_id,date', ignoreDuplicates: true }
+            );
 
-            if (error) {
-                return NextResponse.json(
-                    { success: false, error: error.message },
-                    { status: 500 }
-                );
-            }
-        } else {
-            // Create new record
-            const { error } = await supabase.from('attendance').insert({
-                user_id: user.id,
-                date: today,
-                check_in_time: now.toISOString(),
-                ip_address: ip,
-                check_in_location: checkInLocation,
-                late_minutes: lateMinutes,
-                status,
-            });
-
-            if (error) {
-                return NextResponse.json(
-                    { success: false, error: error.message },
-                    { status: 500 }
-                );
-            }
+        if (error) {
+            return NextResponse.json(
+                { success: false, error: error.message },
+                { status: 500 }
+            );
         }
 
         return NextResponse.json({

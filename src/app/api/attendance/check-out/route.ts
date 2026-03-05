@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
+import { getEgyptNow, getEgyptDate } from '@/lib/timezone';
 
 export async function POST(_request: NextRequest) {
     try {
@@ -25,18 +26,9 @@ export async function POST(_request: NextRequest) {
         const realIp = headersList.get('x-real-ip');
         const currentIp = forwardedFor?.split(',')[0].trim() || realIp || 'Unknown';
 
-        // Use Egypt timezone (UTC+2) for all time calculations
-        const TIMEZONE = 'Africa/Cairo';
         const now = new Date();
-
-        // Get current time in Egypt timezone
-        const egyptTimeStr = now.toLocaleString('en-US', { timeZone: TIMEZONE });
-        const egyptNow = new Date(egyptTimeStr);
-        const currentHour = egyptNow.getHours();
-        const currentMinute = egyptNow.getMinutes();
-        const currentTotalMinutes = currentHour * 60 + currentMinute;
-
-        const today = now.toISOString().split('T')[0];
+        const { date: egyptDate, totalMinutes: currentTotalMinutes } = getEgyptNow();
+        const today = egyptDate;
 
         // Get user's profile for shift info and overtime settings
         const { data: profile } = await supabase
@@ -45,13 +37,32 @@ export async function POST(_request: NextRequest) {
             .eq('id', user.id)
             .single();
 
-        // Get today's attendance record (including check-in IP)
-        const { data: existingRecord } = await supabase
+        // Try today first; fall back to yesterday for overnight shift workers
+        let { data: existingRecord } = await supabase
             .from('attendance')
             .select('id, check_in_time, check_out_time, ip_address')
             .eq('user_id', user.id)
             .eq('date', today)
-            .single();
+            .maybeSingle();
+
+        if (!existingRecord?.check_in_time) {
+            // Overnight shift: worker may have checked in yesterday
+            const yesterday = new Date(now);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const yesterdayDate = getEgyptDate(yesterday);
+
+            const { data: yesterdayRecord } = await supabase
+                .from('attendance')
+                .select('id, check_in_time, check_out_time, ip_address')
+                .eq('user_id', user.id)
+                .eq('date', yesterdayDate)
+                .is('check_out_time', null)
+                .maybeSingle();
+
+            if (yesterdayRecord?.check_in_time) {
+                existingRecord = yesterdayRecord;
+            }
+        }
 
         if (!existingRecord?.check_in_time) {
             return NextResponse.json(
@@ -124,7 +135,7 @@ export async function POST(_request: NextRequest) {
         }
 
         // Update the attendance record with check-out time, IP, location, early departure, and overtime
-        const { error } = await supabase
+        const { data: updatedRecord, error } = await supabase
             .from('attendance')
             .update({
                 check_out_time: now.toISOString(),
@@ -133,7 +144,17 @@ export async function POST(_request: NextRequest) {
                 early_departure_minutes: earlyDepartureMinutes,
                 overtime_minutes: overtimeMinutes,
             })
-            .eq('id', existingRecord.id);
+            .eq('id', existingRecord.id)
+            .is('check_out_time', null)
+            .select('id')
+            .maybeSingle();
+
+        if (!updatedRecord) {
+            return NextResponse.json(
+                { success: false, error: 'Already checked out today' },
+                { status: 400 }
+            );
+        }
 
         if (error) {
             return NextResponse.json(

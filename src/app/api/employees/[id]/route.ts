@@ -1,15 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
-
-// Helper to check if user is admin
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-    const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-    return data?.role === 'admin';
-}
+import { createClient as createAdminClient } from '@supabase/supabase-js';
+import { isAdmin } from '@/lib/auth';
 
 // GET - Get single employee
 export async function GET(
@@ -20,22 +12,11 @@ export async function GET(
         const { id } = await params;
         const supabase = await createClient();
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
+        const auth = await isAdmin(request);
+        if (!auth.authorized) {
             return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
-
-        if (!(await isAdmin(supabase, user.id))) {
-            return NextResponse.json(
-                { success: false, error: 'Forbidden' },
-                { status: 403 }
+                { success: false, error: auth.error },
+                { status: auth.status }
             );
         }
 
@@ -71,27 +52,16 @@ export async function PUT(
         const { id } = await params;
         const supabase = await createClient();
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
+        const auth = await isAdmin(request);
+        if (!auth.authorized) {
             return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
-
-        if (!(await isAdmin(supabase, user.id))) {
-            return NextResponse.json(
-                { success: false, error: 'Forbidden' },
-                { status: 403 }
+                { success: false, error: auth.error },
+                { status: auth.status }
             );
         }
 
         const body = await request.json();
-        const { full_name, branch, job_title, shift_start, shift_end } = body;
+        const { full_name, branch, job_title, shift_start, shift_end, off_day, overtime_enabled } = body;
 
         const { data, error } = await supabase
             .from('profiles')
@@ -101,6 +71,8 @@ export async function PUT(
                 job_title,
                 shift_start,
                 shift_end,
+                off_day: off_day ?? null,
+                overtime_enabled: overtime_enabled ?? true,
             })
             .eq('id', id)
             .select()
@@ -132,22 +104,29 @@ export async function DELETE(
         const { id } = await params;
         const supabase = await createClient();
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
+        const auth = await isAdmin(request);
+        if (!auth.authorized) {
             return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 401 }
+                { success: false, error: auth.error },
+                { status: auth.status }
             );
         }
 
-        if (!(await isAdmin(supabase, user.id))) {
+        // Delete the auth user (removes the login account)
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!url || !serviceKey) {
             return NextResponse.json(
-                { success: false, error: 'Forbidden' },
-                { status: 403 }
+                { success: false, error: 'Service configuration error' },
+                { status: 500 }
+            );
+        }
+        const supabaseAdmin = createAdminClient(url, serviceKey);
+        const { error: authDeleteError } = await supabaseAdmin.auth.admin.deleteUser(id);
+        if (authDeleteError) {
+            return NextResponse.json(
+                { success: false, error: 'Failed to delete user account' },
+                { status: 500 }
             );
         }
 
