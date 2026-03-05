@@ -13,6 +13,7 @@ import {
     Modal,
     addToast,
 } from '@/components/ui';
+import { BRANCHES } from '@/lib/branches';
 import { formatTime } from '@/lib/utils';
 import type { Profile } from '@/types';
 import {
@@ -388,15 +389,7 @@ export default function EmployeesPage() {
                             }
                             options={[
                                 { value: '', label: 'Select Branch' },
-                                { value: 'ملوي', label: 'ملوي' },
-                                { value: 'الأضافيه', label: 'الأضافيه' },
-                                { value: 'شلبي', label: 'شلبي' },
-                                { value: 'بني مزار', label: 'بني مزار' },
-                                { value: 'الجيزه', label: 'الجيزه' },
-                                { value: 'رمسيس', label: 'رمسيس' },
-                                { value: 'محرم بك', label: 'محرم بك' },
-                                { value: 'شرم الشيخ', label: 'شرم الشيخ' },
-                                { value: 'الغردقه', label: 'الغردقه' },
+                                ...BRANCHES.map((b) => ({ value: b, label: b })),
                             ]}
                         />
                         <Input
