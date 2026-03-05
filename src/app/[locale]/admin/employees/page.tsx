@@ -7,9 +7,7 @@ import {
     Input,
     Select,
     Card,
-    CardHeader,
     CardContent,
-    CardTitle,
     Modal,
     addToast,
 } from '@/components/ui';

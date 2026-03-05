@@ -149,17 +149,17 @@ export async function POST(_request: NextRequest) {
             .select('id')
             .maybeSingle();
 
-        if (!updatedRecord) {
-            return NextResponse.json(
-                { success: false, error: 'Already checked out today' },
-                { status: 400 }
-            );
-        }
-
         if (error) {
             return NextResponse.json(
                 { success: false, error: error.message },
                 { status: 500 }
+            );
+        }
+
+        if (!updatedRecord) {
+            return NextResponse.json(
+                { success: false, error: 'Already checked out today' },
+                { status: 400 }
             );
         }
 

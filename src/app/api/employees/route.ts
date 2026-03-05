@@ -42,8 +42,6 @@ export async function GET(request: NextRequest) {
 // POST - Create new employee (admin only)
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createClient();
-
         const auth = await isAdmin(request);
         if (!auth.authorized) {
             return NextResponse.json(

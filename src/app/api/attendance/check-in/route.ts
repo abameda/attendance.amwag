@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
-import { getEgyptNow, getEgyptDate } from '@/lib/timezone';
+import { getEgyptNow } from '@/lib/timezone';
 
 export async function POST(_request: NextRequest) {
     try {
@@ -34,7 +34,7 @@ export async function POST(_request: NextRequest) {
             .single();
 
         const now = new Date();
-        const { date: egyptToday, hours: currentHour, minutes: currentMinute, totalMinutes: currentTotalMinutes } = getEgyptNow();
+        const { date: egyptToday, totalMinutes: currentTotalMinutes } = getEgyptNow();
 
         // Validate check-in window: 1 hour before shift_start to shift_end
         if (profile?.shift_start && profile?.shift_end) {

@@ -5,9 +5,7 @@ import {
     Button,
     Input,
     Card,
-    CardHeader,
     CardContent,
-    CardTitle,
     addToast,
 } from '@/components/ui';
 import {
@@ -23,7 +21,6 @@ import type { AttendanceRecord } from '@/types';
 import {
     Download,
     Search,
-    Filter,
     Calendar,
     RefreshCw,
     ChevronLeft,
@@ -129,7 +126,7 @@ export default function AttendanceLogsPage() {
 
     useEffect(() => {
         fetchAttendance();
-    }, [dateFilter, statusFilter, currentPage, debouncedSearch]);
+    }, [dateFilter, statusFilter, currentPage, debouncedSearch, fetchAttendance]);
 
     // Pagination
     const totalPages = Math.ceil(totalRecords / recordsPerPage);

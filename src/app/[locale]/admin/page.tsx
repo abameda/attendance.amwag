@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { Card, CardContent, Button, addToast } from '@/components/ui';
+import { Card, CardContent, addToast } from '@/components/ui';
 import { Users, UserCheck, Clock, UserX, TrendingUp, Calendar, AlertTriangle, ClipboardList } from 'lucide-react';
 import { useTranslations, useLocale } from 'next-intl';
 import Link from 'next/link';

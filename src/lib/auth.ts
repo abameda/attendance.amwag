@@ -19,7 +19,7 @@ export interface AdminCheckResult {
  *   }
  *   // auth.userId is available here
  */
-export async function isAdmin(request: NextRequest): Promise<AdminCheckResult> {
+export async function isAdmin(_request: NextRequest): Promise<AdminCheckResult> {
   const supabase = await createClient();
 
   const {
