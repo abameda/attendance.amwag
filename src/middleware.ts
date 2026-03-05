@@ -67,28 +67,7 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(url);
     }
 
-    // If user is authenticated and trying to access login page
-    if (user && pathWithoutLocale === '/login') {
-        // Fetch user profile to determine role
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-
-        const url = request.nextUrl.clone();
-        // Redirect based on role
-        if (profile?.role === 'admin') {
-            url.pathname = `/${locale}/admin`;
-        } else if (profile?.role === 'accountant') {
-            url.pathname = `/${locale}/admin/attendance`;
-        } else {
-            url.pathname = `/${locale}/employee`;
-        }
-        return NextResponse.redirect(url);
-    }
-
-    // Role-based route protection
+    // Fetch user profile once if authenticated (used for both login redirect and role-based protection)
     if (user) {
         const { data: profile } = await supabase
             .from('profiles')
@@ -98,6 +77,21 @@ export async function middleware(request: NextRequest) {
 
         const role = profile?.role;
 
+        // If user is authenticated and trying to access login page
+        if (pathWithoutLocale === '/login') {
+            const url = request.nextUrl.clone();
+            // Redirect based on role
+            if (role === 'admin') {
+                url.pathname = `/${locale}/admin`;
+            } else if (role === 'accountant') {
+                url.pathname = `/${locale}/admin/attendance`;
+            } else {
+                url.pathname = `/${locale}/employee`;
+            }
+            return NextResponse.redirect(url);
+        }
+
+        // Role-based route protection
         // Accountant can only access /admin/attendance
         if (role === 'accountant') {
             if (pathWithoutLocale.startsWith('/admin') && !pathWithoutLocale.startsWith('/admin/attendance')) {

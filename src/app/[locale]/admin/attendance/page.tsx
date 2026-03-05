@@ -213,19 +213,20 @@ export default function AttendanceLogsPage() {
                         </div>
 
                         {/* Status Filter */}
-                        <select
-                            value={statusFilter}
-                            onChange={(e) => {
-                                setStatusFilter(e.target.value);
-                                setCurrentPage(1);
-                            }}
-                            className="w-full md:w-40 px-4 py-2.5 text-slate-100 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
-                        >
-                            <option value="" className="bg-slate-800">{t('allStatus')}</option>
-                            <option value="present" className="bg-slate-800">{t('present')}</option>
-                            <option value="late" className="bg-slate-800">{t('late')}</option>
-                            <option value="absent" className="bg-slate-800">{t('absent')}</option>
-                        </select>
+                         <select
+                             value={statusFilter}
+                             onChange={(e) => {
+                                 setStatusFilter(e.target.value);
+                                 setCurrentPage(1);
+                             }}
+                             className="w-full md:w-40 px-4 py-2.5 text-slate-100 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-teal-500"
+                         >
+                             <option value="" className="bg-slate-800">{t('allStatus')}</option>
+                             <option value="present" className="bg-slate-800">{t('present')}</option>
+                             <option value="late" className="bg-slate-800">{t('late')}</option>
+                             <option value="absent" className="bg-slate-800">{t('absent')}</option>
+                             <option value="missing_checkout" className="bg-slate-800">{t('missingCheckout')}</option>
+                         </select>
 
                         {/* Refresh */}
                         <Button variant="ghost" onClick={fetchAttendance} className="md:w-auto">

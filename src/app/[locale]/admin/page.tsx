@@ -24,7 +24,7 @@ export default function AdminDashboard() {
 
     const fetchStats = useCallback(async () => {
         try {
-            const today = new Date().toISOString().split('T')[0];
+            const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
 
             // Get total employees
             const { count: totalEmployees } = await supabase

@@ -1,16 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
-
-// Helper to check if user is admin
-async function isAdmin(supabase: Awaited<ReturnType<typeof createClient>>, userId: string) {
-    const { data } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', userId)
-        .single();
-    return data?.role === 'admin';
-}
+import { isAdmin } from '@/lib/auth';
 
 interface ImportResult {
     email: string;
@@ -22,22 +13,11 @@ export async function POST(request: NextRequest) {
     try {
         const supabase = await createClient();
 
-        const {
-            data: { user },
-            error: authError,
-        } = await supabase.auth.getUser();
-
-        if (authError || !user) {
+        const auth = await isAdmin(request);
+        if (!auth.authorized) {
             return NextResponse.json(
-                { success: false, error: 'Unauthorized' },
-                { status: 401 }
-            );
-        }
-
-        if (!(await isAdmin(supabase, user.id))) {
-            return NextResponse.json(
-                { success: false, error: 'Forbidden' },
-                { status: 403 }
+                { success: false, error: auth.error || 'Forbidden' },
+                { status: auth.status || 403 }
             );
         }
 
@@ -52,10 +32,15 @@ export async function POST(request: NextRequest) {
         }
 
         // Create admin client with service role key
-        const supabaseAdmin = createAdminClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+        const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!supabaseUrl || !serviceRoleKey) {
+            return NextResponse.json(
+                { success: false, error: 'Server configuration error' },
+                { status: 500 }
+            );
+        }
+        const supabaseAdmin = createAdminClient(supabaseUrl, serviceRoleKey);
 
         // Parse CSV data
         const lines = csvData.trim().split('\n').filter(line => line.trim());

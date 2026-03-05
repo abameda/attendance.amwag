@@ -93,6 +93,8 @@ export function getStatusColor(status: string): string {
             return 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400';
         case 'absent':
             return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
+        case 'missing_checkout':
+            return 'bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400';
         default:
             return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400';
     }
@@ -110,7 +112,11 @@ export function exportToCSV(data: Record<string, unknown>[], filename: string) {
             headers
                 .map((header) => {
                     const value = row[header];
-                    const stringValue = value === null || value === undefined ? '' : String(value);
+                    let stringValue = value === null || value === undefined ? '' : String(value);
+                    // Sanitize CSV injection: prefix formula-like values with single quote
+                    if (stringValue.length > 0 && ['=', '+', '-', '@'].includes(stringValue[0])) {
+                        stringValue = "'" + stringValue;
+                    }
                     // Escape quotes and wrap in quotes if contains comma
                     if (stringValue.includes(',') || stringValue.includes('"')) {
                         return `"${stringValue.replace(/"/g, '""')}"`;
