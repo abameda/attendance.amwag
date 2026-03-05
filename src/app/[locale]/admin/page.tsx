@@ -26,25 +26,27 @@ export default function AdminDashboard() {
         try {
             const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
 
-            // Get total employees
-            const { count: totalEmployees } = await supabase
-                .from('profiles')
-                .select('*', { count: 'exact', head: true })
-                .eq('role', 'employee');
+            const [employeeResult, attendanceResult] = await Promise.all([
+                supabase
+                    .from('profiles')
+                    .select('*', { count: 'exact', head: true })
+                    .eq('role', 'employee'),
+                supabase
+                    .from('attendance')
+                    .select('status')
+                    .eq('date', today),
+            ]);
 
-            // Get today's attendance
-            const { data: todayAttendance } = await supabase
-                .from('attendance')
-                .select('status')
-                .eq('date', today);
+            const totalEmployees = employeeResult.count || 0;
+            const todayAttendance = attendanceResult.data;
 
             const presentToday = todayAttendance?.filter((a) => a.status === 'present').length || 0;
             const lateToday = todayAttendance?.filter((a) => a.status === 'late').length || 0;
             const checkedIn = (todayAttendance?.length || 0);
-            const absentToday = (totalEmployees || 0) - checkedIn;
+            const absentToday = totalEmployees - checkedIn;
 
             setStats({
-                totalEmployees: totalEmployees || 0,
+                totalEmployees,
                 presentToday,
                 lateToday,
                 absentToday: absentToday > 0 ? absentToday : 0,
@@ -60,7 +62,7 @@ export default function AdminDashboard() {
         fetchStats();
     }, [fetchStats]);
 
-    const handleMarkAbsences = async () => {
+    const handleMarkAbsences = useCallback(async () => {
         if (!confirm('This will mark all employees who haven\'t checked in today as absent. Continue?')) {
             return;
         }
@@ -85,9 +87,9 @@ export default function AdminDashboard() {
         } finally {
             setIsMarkingAbsent(false);
         }
-    };
+    }, [fetchStats]);
 
-    const statCards = [
+    const statCards = useMemo(() => [
         {
             titleKey: 'totalEmployees',
             value: stats.totalEmployees,
@@ -116,14 +118,14 @@ export default function AdminDashboard() {
             gradient: 'from-red-500 to-red-600',
             shadowColor: 'shadow-red-500/30',
         },
-    ];
+    ], [stats]);
 
-    const today = new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
+    const today = useMemo(() => new Date().toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
-    });
+    }), [locale]);
 
     return (
         <div className="space-y-8">

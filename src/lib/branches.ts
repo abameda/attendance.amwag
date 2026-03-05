@@ -13,6 +13,7 @@ export const BRANCHES = [
   'محرم بك',
   'شرم الشيخ',
   'الغردقه',
+  'IT Department',
 ] as const;
 
 export type Branch = (typeof BRANCHES)[number];
