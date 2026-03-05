@@ -1,4 +1,3 @@
-import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient as createAdminClient } from '@supabase/supabase-js';
 import { isAdmin } from '@/lib/auth';
@@ -11,8 +10,6 @@ interface ImportResult {
 
 export async function POST(request: NextRequest) {
     try {
-        const supabase = await createClient();
-
         const auth = await isAdmin(request);
         if (!auth.authorized) {
             return NextResponse.json(

@@ -1,7 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo, useCallback } from 'react';
-import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState, useCallback } from 'react';
 import {
     Button,
     Input,
@@ -35,126 +34,168 @@ import * as XLSX from 'xlsx';
 import { useTranslations } from 'next-intl';
 
 export default function AttendanceLogsPage() {
-    const supabase = useMemo(() => createClient(), []);
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
+    const [totalRecords, setTotalRecords] = useState(0);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [debouncedSearch, setDebouncedSearch] = useState('');
     const [dateFilter, setDateFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const recordsPerPage = 10;
     const t = useTranslations('AttendanceLogs');
 
-    const fetchAttendance = async () => {
+    const fetchAttendance = useCallback(async () => {
         setIsLoading(true);
         try {
-            let query = supabase
-                .from('attendance')
-                .select(
-                    `
-          *,
-          profiles (
-            full_name,
-            email,
-            branch,
-            job_title
-          )
-        `
-                )
-                .order('date', { ascending: false })
-                .order('check_in_time', { ascending: false });
+            const params = new URLSearchParams({
+                page: String(currentPage),
+                pageSize: String(recordsPerPage),
+            });
 
             if (dateFilter) {
-                query = query.eq('date', dateFilter);
+                params.set('date', dateFilter);
             }
 
             if (statusFilter) {
-                query = query.eq('status', statusFilter);
+                params.set('status', statusFilter);
             }
 
-            const { data, error } = await query;
+            if (debouncedSearch.trim()) {
+                params.set('search', debouncedSearch.trim());
+            }
 
-            if (error) throw error;
-            setRecords(data || []);
+            const response = await fetch(`/api/attendance?${params.toString()}`);
+            const result: {
+                success: boolean;
+                data?: AttendanceRecord[];
+                total?: number;
+                error?: string;
+            } = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Failed to fetch attendance');
+            }
+
+            setRecords(result.data || []);
+            setTotalRecords(result.total || 0);
         } catch (error) {
             console.error('Error fetching attendance:', error);
             addToast('Failed to load attendance records', 'error');
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [currentPage, dateFilter, statusFilter, debouncedSearch]);
+
+    const fetchAllFilteredRecords = useCallback(async () => {
+        const params = new URLSearchParams({
+            page: '1',
+            pageSize: '10000',
+        });
+
+        if (dateFilter) {
+            params.set('date', dateFilter);
+        }
+
+        if (statusFilter) {
+            params.set('status', statusFilter);
+        }
+
+        if (searchQuery.trim()) {
+            params.set('search', searchQuery.trim());
+        }
+
+        const response = await fetch(`/api/attendance?${params.toString()}`);
+        const result: {
+            success: boolean;
+            data?: AttendanceRecord[];
+            error?: string;
+        } = await response.json();
+
+        if (!response.ok || !result.success) {
+            throw new Error(result.error || 'Failed to fetch export data');
+        }
+
+        return result.data || [];
+    }, [dateFilter, statusFilter, searchQuery]);
+
+    useEffect(() => {
+        const debounceTimeout = setTimeout(() => {
+            setDebouncedSearch(searchQuery);
+        }, 300);
+
+        return () => clearTimeout(debounceTimeout);
+    }, [searchQuery]);
 
     useEffect(() => {
         fetchAttendance();
-    }, [dateFilter, statusFilter]);
-
-    const filteredRecords = records.filter((record) => {
-        const profile = record.profiles;
-        const searchLower = searchQuery.toLowerCase();
-        return (
-            profile?.full_name?.toLowerCase().includes(searchLower) ||
-            profile?.branch?.toLowerCase().includes(searchLower) ||
-            profile?.email?.toLowerCase().includes(searchLower)
-        );
-    });
+    }, [dateFilter, statusFilter, currentPage, debouncedSearch]);
 
     // Pagination
-    const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
-    const paginatedRecords = filteredRecords.slice(
-        (currentPage - 1) * recordsPerPage,
-        currentPage * recordsPerPage
-    );
+    const totalPages = Math.ceil(totalRecords / recordsPerPage);
 
-    const handleExportCSV = () => {
-        const exportData = filteredRecords.map((record) => ({
-            'Employee Name': record.profiles?.full_name || '-',
-            Email: record.profiles?.email || '-',
-            Branch: record.profiles?.branch || '-',
-            Date: record.date,
-            'Check In': record.check_in_time
-                ? new Date(record.check_in_time).toLocaleTimeString()
-                : '-',
-            'Check Out': record.check_out_time
-                ? new Date(record.check_out_time).toLocaleTimeString()
-                : '-',
-            'Late Minutes': record.late_minutes,
-            'Early Departure Minutes': record.early_departure_minutes || 0,
-            'Overtime Minutes': record.overtime_minutes || 0,
-            Status: record.status,
-            'Check In Location': record.check_in_location || '-',
-            'Check Out Location': record.check_out_location || '-',
-        }));
+    const handleExportCSV = useCallback(async () => {
+        try {
+            const allFilteredRecords = await fetchAllFilteredRecords();
+            const exportData = allFilteredRecords.map((record) => ({
+                'Employee Name': record.profiles?.full_name || '-',
+                Email: record.profiles?.email || '-',
+                Branch: record.profiles?.branch || '-',
+                Date: record.date,
+                'Check In': record.check_in_time
+                    ? new Date(record.check_in_time).toLocaleTimeString()
+                    : '-',
+                'Check Out': record.check_out_time
+                    ? new Date(record.check_out_time).toLocaleTimeString()
+                    : '-',
+                'Late Minutes': record.late_minutes,
+                'Early Departure Minutes': record.early_departure_minutes || 0,
+                'Overtime Minutes': record.overtime_minutes || 0,
+                Status: record.status,
+                'Check In Location': record.check_in_location || '-',
+                'Check Out Location': record.check_out_location || '-',
+            }));
 
-        exportToCSV(exportData, `attendance_logs_${new Date().toISOString().split('T')[0]}`);
-        addToast('CSV exported successfully', 'success');
-    };
+            exportToCSV(exportData, `attendance_logs_${new Date().toISOString().split('T')[0]}`);
+            addToast('CSV exported successfully', 'success');
+        } catch (error) {
+            console.error('Error exporting CSV:', error);
+            addToast('Failed to export CSV', 'error');
+        }
+    }, [fetchAllFilteredRecords]);
 
-    const handleExportExcel = () => {
-        const exportData = filteredRecords.map((record) => ({
-            'Employee Name': record.profiles?.full_name || '-',
-            Email: record.profiles?.email || '-',
-            Branch: record.profiles?.branch || '-',
-            Date: record.date,
-            'Check In': record.check_in_time
-                ? new Date(record.check_in_time).toLocaleTimeString()
-                : '-',
-            'Check Out': record.check_out_time
-                ? new Date(record.check_out_time).toLocaleTimeString()
-                : '-',
-            'Late Minutes': record.late_minutes,
-            'Early Departure Minutes': record.early_departure_minutes || 0,
-            'Overtime Minutes': record.overtime_minutes || 0,
-            Status: record.status,
-            'Check In Location': record.check_in_location || '-',
-            'Check Out Location': record.check_out_location || '-',
-        }));
+    const handleExportExcel = useCallback(async () => {
+        try {
+            const allFilteredRecords = await fetchAllFilteredRecords();
+            const exportData = allFilteredRecords.map((record) => ({
+                'Employee Name': record.profiles?.full_name || '-',
+                Email: record.profiles?.email || '-',
+                Branch: record.profiles?.branch || '-',
+                Date: record.date,
+                'Check In': record.check_in_time
+                    ? new Date(record.check_in_time).toLocaleTimeString()
+                    : '-',
+                'Check Out': record.check_out_time
+                    ? new Date(record.check_out_time).toLocaleTimeString()
+                    : '-',
+                'Late Minutes': record.late_minutes,
+                'Early Departure Minutes': record.early_departure_minutes || 0,
+                'Overtime Minutes': record.overtime_minutes || 0,
+                Status: record.status,
+                'Check In Location': record.check_in_location || '-',
+                'Check Out Location': record.check_out_location || '-',
+            }));
 
-        const ws = XLSX.utils.json_to_sheet(exportData);
-        const wb = XLSX.utils.book_new();
-        XLSX.utils.book_append_sheet(wb, ws, 'Attendance Logs');
-        XLSX.writeFile(wb, `amwag_attendance_${new Date().toISOString().split('T')[0]}.xlsx`);
-        addToast('Excel exported successfully', 'success');
-    };
+            const ws = XLSX.utils.json_to_sheet(exportData);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'Attendance Logs');
+            XLSX.writeFile(wb, `amwag_attendance_${new Date().toISOString().split('T')[0]}.xlsx`);
+            addToast('Excel exported successfully', 'success');
+        } catch (error) {
+            console.error('Error exporting Excel:', error);
+            addToast('Failed to export Excel', 'error');
+        }
+    }, [fetchAllFilteredRecords]);
 
     return (
         <div className="space-y-6">
@@ -292,7 +333,7 @@ export default function AttendanceLogsPage() {
                                         </td>
                                     </tr>
                                 ))
-                            ) : paginatedRecords.length === 0 ? (
+                            ) : records.length === 0 ? (
                                 <tr>
                                     <td
                                         colSpan={13}
@@ -302,7 +343,7 @@ export default function AttendanceLogsPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                paginatedRecords.map((record) => (
+                                records.map((record) => (
                                     <tr
                                         key={record.id}
                                         className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors"
@@ -426,12 +467,12 @@ export default function AttendanceLogsPage() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                    <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800">
-                        <p className="text-sm text-slate-500">
-                            {t('showing')} {(currentPage - 1) * recordsPerPage + 1} {t('to')}{' '}
-                            {Math.min(currentPage * recordsPerPage, filteredRecords.length)} {t('of')}{' '}
-                            {filteredRecords.length} {t('records')}
-                        </p>
+                            <div className="flex items-center justify-between px-6 py-4 border-t border-slate-800">
+                                <p className="text-sm text-slate-500">
+                                    {t('showing')} {totalRecords === 0 ? 0 : (currentPage - 1) * recordsPerPage + 1} {t('to')}{' '}
+                                    {Math.min((currentPage - 1) * recordsPerPage + records.length, totalRecords)} {t('of')}{' '}
+                                    {totalRecords} {t('records')}
+                                </p>
                         <div className="flex gap-2">
                             <Button
                                 variant="outline"

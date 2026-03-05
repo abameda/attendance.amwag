@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
     Button,
@@ -60,7 +60,7 @@ export default function EmployeesPage() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
 
-    const fetchEmployees = async () => {
+    const fetchEmployees = useCallback(async () => {
         try {
             const { data, error } = await supabase
                 .from('profiles')
@@ -76,11 +76,11 @@ export default function EmployeesPage() {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [supabase]);
 
     useEffect(() => {
         fetchEmployees();
-    }, []);
+    }, [fetchEmployees]);
 
     // Calculate duration from start and end times for editing
     const calculateDurationFromTimes = (startTime: string | null, endTime: string | null): string => {
@@ -189,8 +189,9 @@ export default function EmployeesPage() {
         if (!confirm('Are you sure you want to delete this employee?')) return;
 
         try {
-            const { error } = await supabase.from('profiles').delete().eq('id', id);
-            if (error) throw error;
+            const response = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
+            const result = await response.json();
+            if (!result.success) throw new Error(result.error || 'Failed to delete employee');
             addToast('Employee deleted successfully', 'success');
             fetchEmployees();
         } catch (error) {

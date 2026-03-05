@@ -65,10 +65,15 @@ export async function POST(request: NextRequest) {
 
         // Create admin client with service role key
         // This allows creating users without affecting the current admin session
-        const supabaseAdmin = createAdminClient(
-            process.env.NEXT_PUBLIC_SUPABASE_URL!,
-            process.env.SUPABASE_SERVICE_ROLE_KEY!
-        );
+        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        if (!url || !serviceKey) {
+            return NextResponse.json(
+                { success: false, error: 'Service configuration error' },
+                { status: 500 }
+            );
+        }
+        const supabaseAdmin = createAdminClient(url, serviceKey);
 
         // Use Admin API to create user - this does NOT log out the current user
         const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
@@ -115,4 +120,3 @@ export async function POST(request: NextRequest) {
         );
     }
 }
-
