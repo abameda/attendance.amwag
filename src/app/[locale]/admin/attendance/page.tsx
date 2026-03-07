@@ -196,33 +196,33 @@ export default function AttendanceLogsPage() {
     }, [fetchAllFilteredRecords]);
 
     return (
-        <div className="space-y-6 animate-fade-in-up">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
+        <div className="space-y-4 animate-fade-in-up">
+            <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">
+                    <h1 className="text-xl lg:text-2xl font-bold text-slate-50">
                         {t('title')}
                     </h1>
-                    <p className="text-slate-400 mt-1">
+                    <p className="text-slate-400 text-sm mt-0.5">
                         {t('subtitle')}
                     </p>
                 </div>
-                <div className="flex gap-2 shrink-0 flex-wrap">
-                    <Button variant="outline" onClick={handleExportCSV}>
-                        <Download className="w-4 h-4 me-2" />
+                <div className="flex gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={handleExportCSV}>
+                        <Download className="w-3.5 h-3.5 me-1.5" />
                         CSV
                     </Button>
-                    <Button variant="outline" onClick={handleExportExcel}>
-                        <Download className="w-4 h-4 me-2" />
+                    <Button variant="outline" size="sm" onClick={handleExportExcel}>
+                        <Download className="w-3.5 h-3.5 me-1.5" />
                         Excel
                     </Button>
                 </div>
             </div>
 
             <Card className="premium-card">
-                <CardContent className="p-4 relative z-10">
-                    <div className="flex flex-col md:flex-row gap-4 flex-wrap">
-                        <div className="relative flex-1">
-                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <CardContent className="p-3 relative z-10">
+                    <div className="flex flex-col md:flex-row gap-3 md:flex-nowrap">
+                        <div className="relative flex-1 min-w-0">
+                            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                             <Input
                                 placeholder={t('searchPlaceholder')}
                                 value={searchQuery}
@@ -230,12 +230,12 @@ export default function AttendanceLogsPage() {
                                     setSearchQuery(e.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="pl-10"
+                                className="pl-9"
                             />
                         </div>
 
-                        <div className="relative w-full md:w-48 shrink-0">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                        <div className="relative w-full md:w-44 shrink-0">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                             <Input
                                 type="date"
                                 value={dateFilter}
@@ -243,7 +243,7 @@ export default function AttendanceLogsPage() {
                                     setDateFilter(e.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="pl-10"
+                                className="pl-9"
                             />
                         </div>
 
@@ -253,7 +253,7 @@ export default function AttendanceLogsPage() {
                                 setStatusFilter(e.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="w-full md:w-40 shrink-0 px-4 py-2.5 text-slate-100 bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-xl shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 transition-colors hover:border-white/20"
+                            className="w-full md:w-32 shrink-0 px-3 py-2 text-sm text-slate-100 bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-xl shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 transition-colors hover:border-white/20"
                         >
                             <option value="" className="bg-slate-800">{t('allStatus')}</option>
                             <option value="present" className="bg-slate-800">{t('present')}</option>
@@ -262,8 +262,8 @@ export default function AttendanceLogsPage() {
                             <option value="missing_checkout" className="bg-slate-800">{t('missingCheckout')}</option>
                         </select>
 
-                        <Button variant="ghost" onClick={fetchAttendance} className="md:w-auto shrink-0">
-                            <RefreshCw className="w-5 h-5" />
+                        <Button variant="ghost" size="sm" onClick={fetchAttendance} className="md:w-auto shrink-0">
+                            <RefreshCw className="w-4 h-4" />
                         </Button>
                     </div>
                 </CardContent>
