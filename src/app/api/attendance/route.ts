@@ -126,7 +126,7 @@ export async function GET(request: NextRequest) {
             });
         }
 
-        let realRecords = (dataResponse.data ?? []) as AttendanceRecord[];
+        const realRecords = (dataResponse.data ?? []) as AttendanceRecord[];
         let totalCount = countResponse.count ?? 0;
 
         // --- Frontend Virtualization: inject "pending" rows for today ---

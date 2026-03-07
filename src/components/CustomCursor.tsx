@@ -37,6 +37,7 @@ export default function CustomCursor() {
     const [isHidden, setIsHidden] = useState(false);
     const [isTextHover, setIsTextHover] = useState(false);
     const [isTouchDevice, setIsTouchDevice] = useState(false);
+    const [clickPos, setClickPos] = useState<CursorPosition>({ x: -100, y: -100 });
 
     // Detect touch devices
     useEffect(() => {
@@ -124,7 +125,10 @@ export default function CustomCursor() {
             }
         };
 
-        const handleMouseDown = () => setIsClicking(true);
+        const handleMouseDown = () => {
+            setClickPos({ x: mousePos.current.x, y: mousePos.current.y });
+            setIsClicking(true);
+        };
         const handleMouseUp = () => setIsClicking(false);
         const handleMouseLeave = () => setIsHidden(true);
         const handleMouseEnter = () => setIsHidden(false);
@@ -296,8 +300,8 @@ export default function CustomCursor() {
                     className="fixed pointer-events-none"
                     style={{
                         zIndex: 99998,
-                        left: mousePos.current.x,
-                        top: mousePos.current.y,
+                        left: clickPos.x,
+                        top: clickPos.y,
                         width: 60,
                         height: 60,
                         transform: 'translate(-50%, -50%)',

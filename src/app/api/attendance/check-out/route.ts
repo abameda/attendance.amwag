@@ -48,7 +48,7 @@ export async function POST(_request: NextRequest) {
         const checkOutLocation = matchingBranch.branch_name;
 
         const now = new Date();
-        const { date: egyptDate, totalMinutes: currentTotalMinutes } = getEgyptNow();
+        const { date: egyptDate, totalMinutes: _currentTotalMinutes } = getEgyptNow();
         const today = egyptDate;
 
         // Get user's profile for shift info and overtime settings
