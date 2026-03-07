@@ -101,7 +101,7 @@ export async function GET(request: NextRequest) {
 
         const { data: employees, error: employeesError } = await supabaseAdmin
             .from('profiles')
-            .select('id, full_name, off_day, shift_start, shift_end')
+            .select('id, full_name, off_day, shift_start, shift_end, overtime_enabled')
             .eq('role', 'employee')
             .or(`off_day.is.null,off_day.neq.${dayOfWeek}`);
 
@@ -112,24 +112,26 @@ export async function GET(request: NextRequest) {
             );
         }
 
-        type Employee = { id: string; full_name: string; off_day: string | null; shift_start: string | null; shift_end: string | null };
+        type Employee = { id: string; full_name: string; off_day: string | null; shift_start: string | null; shift_end: string | null; overtime_enabled: boolean };
         const typedEmployees = (employees ?? []) as Employee[];
 
-        const hasShiftEnded = (shiftStart: string | null, shiftEnd: string | null): boolean => {
+        const hasShiftEnded = (shiftStart: string | null, shiftEnd: string | null, overtimeEnabled: boolean): boolean => {
             if (!shiftStart || !shiftEnd) return true;
             const endMin = parseInt(shiftEnd.split(':')[0], 10) * 60 + parseInt(shiftEnd.split(':')[1], 10);
             const startMin = parseInt(shiftStart.split(':')[0], 10) * 60 + parseInt(shiftStart.split(':')[1], 10);
+            const graceMin = overtimeEnabled ? 180 : 0;
+
             if (endMin < startMin) {
-                return egyptTotalMinutes >= endMin && egyptTotalMinutes < startMin;
+                return egyptTotalMinutes >= (endMin + graceMin) && egyptTotalMinutes < startMin;
             }
-            return egyptTotalMinutes >= endMin;
+            return egyptTotalMinutes >= (endMin + graceMin);
         };
 
         const getTargetDate = (shiftStart: string | null, shiftEnd: string | null): string => {
             if (!shiftStart || !shiftEnd) return egyptDate;
             const endMin = parseInt(shiftEnd.split(':')[0], 10) * 60 + parseInt(shiftEnd.split(':')[1], 10);
             const startMin = parseInt(shiftStart.split(':')[0], 10) * 60 + parseInt(shiftStart.split(':')[1], 10);
-            if (endMin < startMin && egyptTotalMinutes >= endMin && egyptTotalMinutes < startMin) {
+            if (endMin < startMin && egyptTotalMinutes < startMin) {
                 const yesterday = new Date(egyptNow);
                 yesterday.setDate(yesterday.getDate() - 1);
                 return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(yesterday);
@@ -137,8 +139,8 @@ export async function GET(request: NextRequest) {
             return egyptDate;
         };
 
-        const shiftEnded = typedEmployees.filter((e) => hasShiftEnded(e.shift_start, e.shift_end));
-        const shiftNotEnded = typedEmployees.filter((e) => !hasShiftEnded(e.shift_start, e.shift_end));
+        const shiftEnded = typedEmployees.filter((e) => hasShiftEnded(e.shift_start, e.shift_end, e.overtime_enabled));
+        const shiftNotEnded = typedEmployees.filter((e) => !hasShiftEnded(e.shift_start, e.shift_end, e.overtime_enabled));
 
         const employeesByDate = new Map<string, Employee[]>();
         for (const emp of shiftEnded) {

@@ -3,7 +3,7 @@
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 
-type BadgeVariant = 'default' | 'present' | 'late' | 'absent' | 'missing_checkout' | 'info';
+type BadgeVariant = 'default' | 'present' | 'late' | 'absent' | 'missing_checkout' | 'pending' | 'info';
 
 interface BadgeProps {
     variant?: BadgeVariant;
@@ -17,6 +17,7 @@ const variantStyles: Record<BadgeVariant, string> = {
     late: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
     absent: 'bg-red-500/15 text-red-400 border-red-500/25',
     missing_checkout: 'bg-orange-500/15 text-orange-400 border-orange-500/25',
+    pending: 'bg-amber-500/15 text-amber-300 border-amber-500/25 animate-pulse',
     info: 'bg-teal-500/15 text-teal-400 border-teal-500/25',
 };
 

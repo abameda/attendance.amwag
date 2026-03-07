@@ -24,7 +24,7 @@ export interface AttendanceRecord {
   check_out_ip: string | null;  // Check-out IP
   check_in_location: string | null;  // Branch name or 'خارج الشركة'
   check_out_location: string | null;  // Branch name or 'خارج الشركة'
-  status: 'present' | 'late' | 'absent' | 'missing_checkout';
+  status: 'present' | 'late' | 'absent' | 'missing_checkout' | 'pending';
   late_minutes: number;
   early_departure_minutes: number;
   overtime_minutes: number;
@@ -84,7 +84,7 @@ export interface AttendanceLogEntry {
   late_minutes: number;
   early_departure_minutes: number;
   overtime_minutes: number;
-  status: 'present' | 'late' | 'absent' | 'missing_checkout';
+  status: 'present' | 'late' | 'absent' | 'missing_checkout' | 'pending';
   ip_address: string | null;  // Check-in IP
   check_out_ip: string | null;  // Check-out IP
 }

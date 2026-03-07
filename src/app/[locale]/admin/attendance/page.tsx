@@ -52,6 +52,7 @@ export default function AttendanceLogsPage() {
             const params = new URLSearchParams({
                 page: String(currentPage),
                 pageSize: String(recordsPerPage),
+                includeExpected: 'true',
             });
 
             if (dateFilter) {
@@ -92,6 +93,7 @@ export default function AttendanceLogsPage() {
         const params = new URLSearchParams({
             page: '1',
             pageSize: '10000',
+            includeExpected: 'true',
         });
 
         if (dateFilter) {
@@ -283,6 +285,7 @@ export default function AttendanceLogsPage() {
                             <option value="late" className="bg-slate-800">{t('late')}</option>
                             <option value="absent" className="bg-slate-800">{t('absent')}</option>
                             <option value="missing_checkout" className="bg-slate-800">{t('missingCheckout')}</option>
+                            <option value="pending" className="bg-slate-800">{t('pending')}</option>
                         </select>
 
                         <Button variant="ghost" size="sm" onClick={fetchAttendance} className="md:w-auto shrink-0">
@@ -438,8 +441,8 @@ export default function AttendanceLogsPage() {
                                             </span>
                                         </td>
                                         <td className="px-3 py-3">
-                                            <Badge variant={record.status as 'present' | 'late' | 'absent' | 'missing_checkout'}>
-                                                {record.status}
+                                            <Badge variant={record.status as 'present' | 'late' | 'absent' | 'missing_checkout' | 'pending'}>
+                                                {record.status === 'pending' ? `⏳ ${t('pending')}` : record.status === 'missing_checkout' ? t('missingCheckout') : t(record.status)}
                                             </Badge>
                                         </td>
                                         <td className="px-3 py-3">

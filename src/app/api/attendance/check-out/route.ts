@@ -20,11 +20,32 @@ export async function POST(_request: NextRequest) {
             );
         }
 
-        // Get client IP address
+        // Get client IP address - Ensure protection from basic Forwarded-For spoofing
         const headersList = await headers();
-        const forwardedFor = headersList.get('x-forwarded-for');
-        const realIp = headersList.get('x-real-ip');
-        const currentIp = forwardedFor?.split(',')[0].trim() || realIp || 'Unknown';
+        const currentIp = headersList.get('x-real-ip') || headersList.get('x-forwarded-for')?.split(',')[0].trim() || 'Unknown';
+
+        // Detect location from IP and enforce strict checks
+        const ipv4Parts = currentIp.split('.');
+        const ipNetwork = ipv4Parts.length === 4 ? ipv4Parts.slice(0, 3).join('.') : currentIp;
+
+        const { data: matchingBranch } = await supabase
+            .from('branch_allowed_ips')
+            .select('branch_name')
+            .eq('ip_network', ipNetwork)
+            .eq('is_active', true)
+            .single();
+
+        if (!matchingBranch) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'You must be connected to the company network (WiFi) to check out.'
+                },
+                { status: 403 }
+            );
+        }
+
+        const checkOutLocation = matchingBranch.branch_name;
 
         const now = new Date();
         const { date: egyptDate, totalMinutes: currentTotalMinutes } = getEgyptNow();
@@ -40,7 +61,7 @@ export async function POST(_request: NextRequest) {
         // Try today first; fall back to yesterday for overnight shift workers
         let { data: existingRecord } = await supabase
             .from('attendance')
-            .select('id, check_in_time, check_out_time, ip_address')
+            .select('id, check_in_time, check_out_time, ip_address, status, late_minutes')
             .eq('user_id', user.id)
             .eq('date', today)
             .maybeSingle();
@@ -53,7 +74,7 @@ export async function POST(_request: NextRequest) {
 
             const { data: yesterdayRecord } = await supabase
                 .from('attendance')
-                .select('id, check_in_time, check_out_time, ip_address')
+                .select('id, check_in_time, check_out_time, ip_address, status, late_minutes')
                 .eq('user_id', user.id)
                 .eq('date', yesterdayDate)
                 .is('check_out_time', null)
@@ -78,60 +99,64 @@ export async function POST(_request: NextRequest) {
             );
         }
 
-        // ⚡ Removed strict IP validation - now we just track location
+        // Calculate expected shift dynamics to define session limits
+        let shiftDurationHours = 9; // Fallback default (8 work + 1 break)
+        if (profile?.shift_start && profile?.shift_end) {
+            const [startH, startM] = profile.shift_start.split(':').map(Number);
+            const [endH, endM] = profile.shift_end.split(':').map(Number);
+            let durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+            if (durationMinutes < 0) durationMinutes += 24 * 60; // Handle overnight shifts
+            shiftDurationHours = durationMinutes / 60;
+        }
 
-        // Detect location from IP
-        const ipNetwork = currentIp.split('.').slice(0, 3).join('.');  // Get first 3 octets
-        const { data: matchingBranch } = await supabase
-            .from('branch_allowed_ips')
-            .select('branch_name')
-            .eq('ip_network', ipNetwork)
-            .eq('is_active', true)
-            .single();
+        // Security check: Hard reject check-outs that happen far past the shift + overtime buffer.
+        // Formula: Max(14 hours, Shift Duration + 5 hours allowance). 
+        // Example for 12hr shift: 12 + 5 = 17 hours max checkout time (covers early check-ins + up to 3h overtime + 1h buffer)
+        const checkInTime = new Date(existingRecord.check_in_time);
+        const hoursSinceCheckIn = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
+        const maxAllowedSessionHours = Math.max(14, shiftDurationHours + 5);
 
-        const checkOutLocation = matchingBranch?.branch_name || 'خارج الشركة';
+        if (hoursSinceCheckIn > maxAllowedSessionHours) {
+            return NextResponse.json(
+                { success: false, error: 'Your session timed out. You forgot to check out of your previous shift.' },
+                { status: 400 }
+            );
+        }
 
-        // Calculate early departure minutes and overtime
+        // Calculate early departure minutes and overtime using exact Date mathematics instead of static minute values
         let earlyDepartureMinutes = 0;
         let overtimeMinutes = 0;
 
         if (profile?.shift_end) {
             const [endH, endM] = profile.shift_end.split(':').map(Number);
-            const shiftEndTotalMinutes = endH * 60 + endM;
-
-            // Handle overnight shifts
-            let adjustedShiftEndMinutes = shiftEndTotalMinutes;
+            const shiftEndDate = new Date(checkInTime);
+            shiftEndDate.setHours(endH, endM, 0, 0);
 
             if (profile?.shift_start) {
                 const [startH, startM] = profile.shift_start.split(':').map(Number);
-                const shiftStartTotalMinutes = startH * 60 + startM;
-
-                // Overnight shift: end time is less than start time (e.g., 2 PM - 2 AM)
-                const isOvernightShift = shiftEndTotalMinutes < shiftStartTotalMinutes;
-
-                if (isOvernightShift) {
-                    // If we're past the shift start (in the evening/night before midnight)
-                    if (currentTotalMinutes >= shiftStartTotalMinutes) {
-                        // Shift end is next day, add 24 hours (1440 minutes)
-                        adjustedShiftEndMinutes = shiftEndTotalMinutes + 1440;
-                    }
-                    // If we're before shift end (early morning after midnight)
-                    // adjustedShiftEndMinutes stays the same
+                // Shift crosses midnight
+                if (endH < startH || (endH === startH && endM < startM)) {
+                    shiftEndDate.setDate(shiftEndDate.getDate() + 1);
                 }
             }
 
-            // Calculate difference: positive = early, negative = overtime
-            const diffMinutes = adjustedShiftEndMinutes - currentTotalMinutes;
+            // Difference in minutes calculated via exact Date differences
+            const diffMinutes = Math.floor((shiftEndDate.getTime() - now.getTime()) / 60000);
 
             if (diffMinutes > 0) {
                 // Left early
                 earlyDepartureMinutes = diffMinutes;
             } else if (diffMinutes < 0 && profile.overtime_enabled) {
-                // Stayed late and overtime is enabled
-                // Calculate overtime (max 180 minutes = 3 hours)
+                // Stayed late and overtime is enabled (max 180 min)
                 const overtimeDiff = Math.abs(diffMinutes);
                 overtimeMinutes = Math.min(overtimeDiff, 180);
             }
+        }
+
+        // Dynamic status reset (Re-evaluates `missing_checkout` to present/late assuming check-out is now happening)
+        let resolvedStatus = existingRecord.status;
+        if (resolvedStatus === 'missing_checkout') {
+            resolvedStatus = (existingRecord.late_minutes && existingRecord.late_minutes > 0) ? 'late' : 'present';
         }
 
         // Update the attendance record with check-out time, IP, location, early departure, and overtime
@@ -143,6 +168,7 @@ export async function POST(_request: NextRequest) {
                 check_out_location: checkOutLocation,
                 early_departure_minutes: earlyDepartureMinutes,
                 overtime_minutes: overtimeMinutes,
+                status: resolvedStatus
             })
             .eq('id', existingRecord.id)
             .is('check_out_time', null)
@@ -170,6 +196,7 @@ export async function POST(_request: NextRequest) {
                 check_out_location: checkOutLocation,
                 early_departure_minutes: earlyDepartureMinutes,
                 overtime_minutes: overtimeMinutes,
+                status: resolvedStatus
             },
         });
     } catch (error) {

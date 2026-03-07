@@ -124,31 +124,34 @@ BEGIN
 
             -- ================================================================
             -- Determine if shift has ended
+            -- We add a 3 hour (180 minute) grace period for overtime if overtime_enabled is true
+            -- to avoid aggressively labelling missing_checkout for valid overtimers.
             -- ================================================================
-            IF shift_end_min < shift_start_min THEN
-                -- Overnight shift (e.g., 22:00-06:00)
-                -- Shift has ended when: current_time >= end AND current_time < start
-                -- (i.e., we're in the morning window between shift_end and shift_start)
-                shift_ended := (cairo_total_min >= shift_end_min AND cairo_total_min < shift_start_min);
-            ELSE
-                -- Regular day shift (e.g., 09:00-17:00)
-                -- Shift has ended when: current_time >= end
-                shift_ended := (cairo_total_min >= shift_end_min);
-            END IF;
+            DECLARE 
+                grace_minutes integer := CASE WHEN emp.overtime_enabled THEN 180 ELSE 0 END;
+            BEGIN
+                IF shift_end_min < shift_start_min THEN
+                    -- Overnight shift (e.g., 22:00-06:00)
+                    -- Shift has ended when: current_time >= end + grace AND current_time < start
+                    shift_ended := (cairo_total_min >= (shift_end_min + grace_minutes) AND cairo_total_min < shift_start_min);
+                ELSE
+                    -- Regular day shift (e.g., 09:00-17:00)
+                    -- Shift has ended when: current_time >= end + grace
+                    shift_ended := (cairo_total_min >= (shift_end_min + grace_minutes));
+                END IF;
 
-            -- ================================================================
-            -- Determine target date
-            -- For overnight shifts checked in the morning: target = yesterday
-            -- ================================================================
-            IF shift_end_min < shift_start_min
-               AND cairo_total_min >= shift_end_min
-               AND cairo_total_min < shift_start_min THEN
-                -- We're in the morning after an overnight shift
-                -- The shift that ended was from YESTERDAY
-                target_date := cairo_date - INTERVAL '1 day';
-            ELSE
-                target_date := cairo_date;
-            END IF;
+                -- ================================================================
+                -- Determine target date
+                -- For overnight shifts checked in the morning: target = yesterday
+                -- ================================================================
+                IF shift_end_min < shift_start_min AND cairo_total_min < shift_start_min THEN
+                    -- We're in the morning after an overnight shift
+                    -- The shift that ended was from YESTERDAY
+                    target_date := cairo_date - INTERVAL '1 day';
+                ELSE
+                    target_date := cairo_date;
+                END IF;
+            END;
         END IF;
 
         -- Skip if shift hasn't ended yet
