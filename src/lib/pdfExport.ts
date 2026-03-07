@@ -155,8 +155,11 @@ function buildReportHTML(
     }).join('');
 
     return `
-    <div id="pdf-report" style="
+    <div id="pdf-report" dir="ltr" style="
         width: 1180px;
+        direction: ltr;
+        text-align: left;
+        unicode-bidi: embed;
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
         background: #ffffff;
         color: #1e293b;
@@ -235,6 +238,9 @@ export async function exportAttendancePDF(
     container.style.left = '-9999px';
     container.style.top = '0';
     container.style.zIndex = '-1';
+    container.dir = 'ltr';
+    container.style.direction = 'ltr';
+    container.style.textAlign = 'left';
     container.innerHTML = buildReportHTML(records, options);
     document.body.appendChild(container);
 
