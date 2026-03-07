@@ -18,9 +18,11 @@ import {
     formatOvertime,
     exportToCSV,
 } from '@/lib/utils';
+import { exportAttendancePDF } from '@/lib/pdfExport';
 import type { AttendanceRecord } from '@/types';
 import {
     Download,
+    FileText,
     Search,
     Calendar,
     RefreshCw,
@@ -29,7 +31,7 @@ import {
     Globe,
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
-import { useTranslations } from 'next-intl';
+import { useTranslations, useLocale } from 'next-intl';
 
 export default function AttendanceLogsPage() {
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
@@ -42,6 +44,7 @@ export default function AttendanceLogsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const recordsPerPage = 10;
     const t = useTranslations('AttendanceLogs');
+    const locale = useLocale();
 
     const fetchAttendance = useCallback(async () => {
         setIsLoading(true);
@@ -195,6 +198,22 @@ export default function AttendanceLogsPage() {
         }
     }, [fetchAllFilteredRecords]);
 
+    const handleExportPDF = useCallback(async () => {
+        try {
+            const allFilteredRecords = await fetchAllFilteredRecords();
+            await exportAttendancePDF(allFilteredRecords, {
+                locale,
+                dateFilter: dateFilter || undefined,
+                statusFilter: statusFilter || undefined,
+                searchQuery: searchQuery.trim() || undefined,
+            });
+            addToast('PDF exported successfully', 'success');
+        } catch (error) {
+            console.error('Error exporting PDF:', error);
+            addToast('Failed to export PDF', 'error');
+        }
+    }, [fetchAllFilteredRecords, locale, dateFilter, statusFilter, searchQuery]);
+
     return (
         <div className="space-y-4 animate-fade-in-up">
             <div className="flex items-center justify-between gap-2">
@@ -207,6 +226,10 @@ export default function AttendanceLogsPage() {
                     </p>
                 </div>
                 <div className="flex gap-2 shrink-0">
+                    <Button variant="outline" size="sm" onClick={handleExportPDF}>
+                        <FileText className="w-3.5 h-3.5 me-1.5" />
+                        PDF
+                    </Button>
                     <Button variant="outline" size="sm" onClick={handleExportCSV}>
                         <Download className="w-3.5 h-3.5 me-1.5" />
                         CSV

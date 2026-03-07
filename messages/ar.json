@@ -49,7 +49,8 @@
         "showing": "عرض",
         "to": "إلى",
         "of": "من",
-        "records": "سجلات"
+        "records": "سجلات",
+        "exportPDF": "PDF"
     },
     "Employee": {
         "title": "نظام الحضور",

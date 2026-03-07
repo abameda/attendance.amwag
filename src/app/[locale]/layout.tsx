@@ -3,6 +3,7 @@ import { DM_Sans } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
+import CustomCursor from '@/components/CustomCursor';
 import "../globals.css";
 
 const dmSans = DM_Sans({
@@ -41,6 +42,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} suppressHydrationWarning>
       <body className={`${dmSans.className} bg-slate-50 text-slate-800 antialiased`}>
+        <CustomCursor />
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
