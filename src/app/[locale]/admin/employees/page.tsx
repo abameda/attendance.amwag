@@ -230,7 +230,7 @@ export default function EmployeesPage() {
             </div>
 
             <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
                 <Input
                     placeholder="Search employees..."
                     value={searchQuery}
@@ -240,9 +240,9 @@ export default function EmployeesPage() {
             </div>
 
             {isLoading ? (
-                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {[...Array(6)].map((_, i) => (
-                        <Card key={i}>
+                        <Card key={i} className="premium-card">
                             <CardContent className="p-6">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
@@ -263,21 +263,21 @@ export default function EmployeesPage() {
                     ))}
                 </div>
             ) : filteredEmployees.length === 0 ? (
-                <Card>
-                    <CardContent className="p-12 text-center">
+                <Card className="premium-card">
+                    <CardContent className="p-12 text-center relative z-10">
                         <p className="text-slate-400">
                             {searchQuery ? 'No employees match your search' : 'No employees found'}
                         </p>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredEmployees.map((employee) => (
-                        <Card key={employee.id} interactive className="group">
-                            <CardContent className="p-6">
+                        <Card key={employee.id} interactive className="group premium-card">
+                            <CardContent className="p-6 relative z-10">
                                 <div className="flex items-start justify-between mb-4">
                                     <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-teal-500/20">
+                                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
                                             {employee.full_name.charAt(0).toUpperCase()}
                                         </div>
                                         <div>
@@ -292,13 +292,13 @@ export default function EmployeesPage() {
                                     <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                                         <button
                                             onClick={() => openEditModal(employee)}
-                                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-teal-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 active:scale-[0.95]"
+                                            className="p-2 hover:bg-slate-800/80 rounded-lg text-slate-400 hover:text-cyan-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 active:scale-[0.95]"
                                         >
                                             <Edit2 className="w-4 h-4" />
                                         </button>
                                         <button
                                             onClick={() => handleDelete(employee.id)}
-                                            className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 active:scale-[0.95]"
+                                            className="p-2 hover:bg-slate-800/80 rounded-lg text-slate-400 hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 active:scale-[0.95]"
                                         >
                                             <Trash2 className="w-4 h-4" />
                                         </button>
@@ -326,13 +326,13 @@ export default function EmployeesPage() {
                                     )}
                                     {employee.off_day && (
                                         <div className="flex items-center gap-2 text-sm text-slate-300">
-                                            <CalendarOff className="w-4 h-4 text-orange-400" />
+                                            <CalendarOff className="w-4 h-4 text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" />
                                             Off: <span className="capitalize">{employee.off_day}</span>
                                         </div>
                                     )}
-                                    <div className="flex items-center gap-2 text-sm">
-                                        <Timer className={`w-4 h-4 ${employee.overtime_enabled ? 'text-teal-400' : 'text-slate-500'}`} />
-                                        <span className={employee.overtime_enabled ? 'text-teal-400' : 'text-slate-500'}>
+                                    <div className="flex items-center gap-2 text-sm pt-2 border-t border-white/5">
+                                        <Timer className={`w-4 h-4 ${employee.overtime_enabled ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'text-slate-500'}`} />
+                                        <span className={employee.overtime_enabled ? 'text-cyan-400 font-medium' : 'text-slate-500'}>
                                             Overtime: {employee.overtime_enabled ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </div>
@@ -462,9 +462,9 @@ export default function EmployeesPage() {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 bg-slate-800/50 rounded-xl border border-slate-700">
+                    <div className="flex items-center justify-between p-4 glass rounded-xl border border-white/5">
                         <div className="flex items-center gap-3">
-                            <Timer className="w-5 h-5 text-teal-400" />
+                            <Timer className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]" />
                             <div>
                                 <p className="text-sm font-medium text-slate-200">Overtime Tracking</p>
                                 <p className="text-xs text-slate-400">Allow overtime calculation for this employee (max 3 hours)</p>
@@ -473,7 +473,7 @@ export default function EmployeesPage() {
                         <button
                             type="button"
                             onClick={() => setFormData((prev) => ({ ...prev, overtime_enabled: !prev.overtime_enabled }))}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 ${formData.overtime_enabled ? 'bg-teal-500' : 'bg-slate-600'
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${formData.overtime_enabled ? 'bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : 'bg-slate-700'
                                 }`}
                         >
                             <span
@@ -483,7 +483,7 @@ export default function EmployeesPage() {
                         </button>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-slate-700">
+                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
                         <Button
                             type="button"
                             variant="outline"

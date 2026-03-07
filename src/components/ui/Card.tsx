@@ -13,8 +13,8 @@ export function Card({ children, className, interactive }: CardProps) {
     return (
         <div
             className={cn(
-                'bg-slate-900/50 backdrop-blur-sm rounded-2xl border border-slate-800/60 shadow-xl shadow-black/10',
-                interactive && 'transition-all duration-300 hover:border-slate-700/80 hover:shadow-black/20 hover:-translate-y-0.5',
+                'glass rounded-2xl shadow-xl shadow-black/20',
+                interactive && 'transition-all duration-300 hover:bg-slate-800/60 hover:shadow-black/40 hover:-translate-y-1 hover:border-cyan-500/30',
                 className
             )}
         >

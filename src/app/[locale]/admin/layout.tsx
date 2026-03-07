@@ -68,17 +68,24 @@ export default function AdminLayout({
     }, [supabase, router]);
 
     return (
-        <div className="min-h-screen bg-slate-950">
-            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 bg-slate-900/95 backdrop-blur-xl border-b border-slate-800/60 z-40 flex items-center justify-between px-4">
+        <div className="min-h-screen text-slate-100 flex relative overflow-x-hidden">
+            {/* Background Elements */}
+            <div className="absolute inset-0 z-0 pointer-events-none">
+                <div className="absolute top-0 left-0 w-full h-[500px] bg-gradient-to-b from-blue-900/10 to-transparent"></div>
+                <div className="absolute bottom-0 right-0 w-[800px] h-[800px] bg-purple-900/10 blur-[120px] rounded-full mix-blend-screen opacity-50"></div>
+            </div>
+
+            {/* Mobile Header */}
+            <header className="lg:hidden fixed top-0 left-0 right-0 h-16 glass !rounded-none !border-x-0 !border-t-0 z-40 flex items-center justify-between px-4">
                 <div className="flex items-center gap-3">
                     <button
                         onClick={() => setIsSidebarOpen(true)}
-                        className="p-2 hover:bg-slate-800 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
+                        className="p-2 hover:bg-white/10 rounded-lg transition-colors focus-ring"
                     >
-                        <Menu className="w-6 h-6 text-slate-400" />
+                        <Menu className="w-6 h-6 text-slate-200" />
                     </button>
                     <div className="flex items-center gap-2">
-                        <div className="relative w-8 h-8">
+                        <div className="relative w-8 h-8 drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
                             <Image
                                 src="/logo.png"
                                 alt="Amwag"
@@ -86,7 +93,7 @@ export default function AdminLayout({
                                 className="object-contain"
                             />
                         </div>
-                        <span className="font-semibold text-slate-50">Admin</span>
+                        <span className="font-semibold text-white tracking-wide">Admin</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-2">
@@ -94,47 +101,53 @@ export default function AdminLayout({
                 </div>
             </header>
 
+            {/* Mobile Sidebar Overlay */}
             {isSidebarOpen && (
                 <div
-                    className="lg:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-40"
+                    className="lg:hidden fixed inset-0 bg-slate-950/80 backdrop-blur-md z-40 transition-opacity"
                     onClick={() => setIsSidebarOpen(false)}
                 />
             )}
 
+            {/* Sidebar (Floating Pill on Desktop) */}
             <aside
                 className={cn(
-                    'fixed top-0 left-0 h-full w-72 bg-slate-900/95 backdrop-blur-xl border-r border-slate-800/60 z-50 transition-transform duration-300',
-                    'lg:translate-x-0',
-                    isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+                    'fixed lg:inset-y-4 lg:start-4 inset-y-0 start-0 w-72 glass lg:rounded-3xl z-50 transition-transform duration-500 cubic-bezier(0.16, 1, 0.3, 1) flex flex-col shadow-[0_8px_32px_-4px_rgba(0,0,0,0.5)]',
+                    isSidebarOpen
+                        ? 'translate-x-0 rtl:-translate-x-0'
+                        : '-translate-x-[110%] rtl:translate-x-[110%] lg:translate-x-0 lg:rtl:-translate-x-0'
                 )}
             >
-                <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800/60">
-                    <div className="flex items-center gap-3">
-                        <div className="relative w-10 h-10 bg-white/5 rounded-xl p-1 shadow-xl shadow-black/20">
+                <div className="h-24 flex flex-shrink-0 items-center justify-between px-6 border-b border-white/5 relative overflow-hidden">
+                    {/* Subtle Top Glow in Sidebar */}
+                    <div className="absolute -top-10 -left-10 w-32 h-32 bg-cyan-500/20 blur-[40px] rounded-full pointer-events-none"></div>
+
+                    <div className="flex items-center gap-4 relative z-10">
+                        <div className="relative w-12 h-12 premium-surface rounded-2xl p-2 flex items-center justify-center border-white/10 shadow-lg shadow-cyan-500/5">
                             <Image
                                 src="/logo.png"
                                 alt="Amwag Transportation"
                                 fill
-                                className="object-contain"
+                                className="object-contain p-1 drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]"
                             />
                         </div>
                         <div>
-                            <h1 className="font-bold text-slate-50">Amwag</h1>
-                            <p className="text-xs text-slate-500">{t('adminPanel')}</p>
+                            <h1 className="font-bold text-white tracking-widest uppercase text-sm">Amwag</h1>
+                            <p className="text-xs font-medium text-cyan-400 capitalize">{t('adminPanel')}</p>
                         </div>
                     </div>
                     <button
                         onClick={() => setIsSidebarOpen(false)}
-                        className="lg:hidden p-2 hover:bg-slate-800 rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50"
+                        className="lg:hidden p-2 hover:bg-white/10 rounded-xl transition-colors focus-ring"
                     >
-                        <X className="w-5 h-5 text-slate-500" />
+                        <X className="w-5 h-5 text-slate-300" />
                     </button>
                 </div>
 
-                <nav className="p-4 space-y-1">
+                <nav className="p-4 space-y-2 flex-1 overflow-y-auto custom-scrollbar relative z-10">
                     {navItemsConfig
                         .filter((item) => userRole === 'admin' || !item.adminOnly)
-                        .map((item) => {
+                        .map((item, i) => {
                             const isActive = pathname === item.href;
                             return (
                                 <Link
@@ -142,53 +155,63 @@ export default function AdminLayout({
                                     href={item.href}
                                     onClick={() => setIsSidebarOpen(false)}
                                     className={cn(
-                                        'flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200',
+                                        'flex items-center gap-3 px-4 py-3.5 mx-2 rounded-xl transition-all duration-300 focus-ring stagger group',
                                         isActive
-                                            ? 'bg-gradient-to-r from-teal-600 to-teal-700 text-white shadow-lg shadow-teal-500/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900'
-                                            : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-500/50 focus-visible:ring-offset-1 focus-visible:ring-offset-slate-900 active:scale-[0.98]'
+                                            ? 'bg-white/10 border border-white/10 shadow-[0_8px_20px_-4px_rgba(6,182,212,0.15)] text-white font-semibold'
+                                            : 'text-slate-400 hover:text-white hover:bg-white/5 hover:border-white/5 border border-transparent'
                                     )}
+                                    style={{ animationDelay: `${i * 100}ms` }}
                                 >
-                                    <item.icon className="w-5 h-5" />
-                                    <span className="font-medium">{t(item.labelKey)}</span>
-                                    {isActive && <ChevronRight className="w-4 h-4 ml-auto" />}
+                                    <div className={cn(
+                                        "p-1.5 rounded-lg transition-colors",
+                                        isActive ? "bg-cyan-500/20 text-cyan-300" : "bg-transparent text-slate-400 group-hover:text-cyan-300"
+                                    )}>
+                                        <item.icon className="w-5 h-5" />
+                                    </div>
+                                    <span>{t(item.labelKey)}</span>
+                                    {isActive && (
+                                        <ChevronRight className="w-4 h-4 ml-auto text-cyan-400 opacity-60" />
+                                    )}
                                 </Link>
                             );
                         })}
                 </nav>
 
-                <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-slate-800/60 space-y-2">
-                    <div className="px-4">
+                <div className="p-5 border-t border-white/5 space-y-4 mt-auto flex-shrink-0 relative z-10 bg-slate-900/20 lg:rounded-b-3xl">
+                    <div className="px-2">
                         <LanguageSwitcher />
                     </div>
-                    <div className="flex items-center gap-3 px-4 py-3 mb-2">
-                        <div className="w-10 h-10 bg-gradient-to-br from-teal-500 to-teal-600 rounded-full flex items-center justify-center text-white font-semibold flex-shrink-0 shadow-lg shadow-teal-500/20">
-                            {adminName.charAt(0).toUpperCase()}
+
+                    <div className="premium-surface border border-white/5 rounded-2xl p-4 flex flex-col gap-3 shadow-md shadow-black/20">
+                        <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-600 to-blue-500 flex items-center justify-center text-white font-bold shadow-lg shadow-cyan-500/20 border border-white/20 flex-shrink-0">
+                                {adminName.charAt(0).toUpperCase() || 'A'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="font-semibold text-white text-sm tracking-wide break-words">
+                                    {adminName || 'Admin'}
+                                </p>
+                                <p className="text-[11px] text-cyan-300/80 font-medium truncate uppercase tracking-wider">{adminJobTitle || 'Administrator'}</p>
+                            </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                            <p className="font-medium text-slate-50 text-sm">
-                                {adminName || 'Admin'}
-                            </p>
-                            <p className="text-xs text-slate-500">{adminJobTitle || 'Administrator'}</p>
-                        </div>
+
+                        <button
+                            onClick={handleLogout}
+                            className="w-full flex items-center justify-center gap-2 px-4 py-2 mt-1 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800/50 hover:bg-red-500/80 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] border border-white/5 hover:border-red-400/50 rounded-lg transition-all duration-300 focus-ring"
+                        >
+                            <LogOut className="w-3.5 h-3.5" />
+                            <span>{t('logout')}</span>
+                        </button>
                     </div>
-                    <button
-                        onClick={handleLogout}
-                        className="w-full flex items-center gap-3 px-4 py-3 text-red-400 hover:bg-red-500/10 rounded-xl transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 active:scale-[0.98]"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        <span className="font-medium">{t('logout')}</span>
-                    </button>
                 </div>
             </aside>
 
-            <main className="lg:ml-72 pt-16 lg:pt-0 min-h-screen relative">
-                <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                    <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/[0.03] rounded-full blur-[120px]" />
-                    <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-[400px] h-[400px] bg-teal-600/[0.02] rounded-full blur-[100px]" />
+            {/* Main Content Area */}
+            <main className="flex-1 lg:ms-[19rem] pt-20 lg:pt-4 min-h-screen relative p-4 lg:pe-8 lg:pb-8 z-10 w-full transition-all duration-300">
+                <div className="relative h-full flex flex-col max-w-7xl mx-auto animate-fade-in">
+                    <div className="flex-1">{children}</div>
+                    <Footer className="py-6 mt-12 border-t border-white/5 text-slate-400" />
                 </div>
-                <div className="relative p-4 lg:p-8">{children}</div>
-
-                <Footer className="py-4 border-t border-slate-800" />
             </main>
 
             <ToastContainer />
