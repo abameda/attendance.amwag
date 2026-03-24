@@ -188,7 +188,7 @@ export default function EmployeePortal() {
 
     if (isLoading) {
         return (
-            <div className="min-h-screen h-screen flex flex-col bg-slate-950">
+            <div className="min-h-dvh flex min-h-screen flex-col bg-slate-950">
                 <div className="p-4 flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Skeleton className="w-10 h-10 rounded-xl" />
@@ -203,7 +203,7 @@ export default function EmployeePortal() {
                     </div>
                 </div>
 
-                <div className="flex-1 px-4 max-w-lg mx-auto w-full flex flex-col justify-center py-2">
+                <div className="flex-1 px-4 max-w-lg mx-auto w-full flex flex-col justify-center py-4 sm:py-6">
                     <div className="text-center py-3">
                         <Skeleton className="h-4 w-48 mx-auto rounded mb-2" />
                         <Skeleton className="h-12 w-56 mx-auto rounded-lg" />
@@ -238,15 +238,15 @@ export default function EmployeePortal() {
     }
 
     return (
-        <div className="min-h-screen h-screen flex flex-col bg-slate-950 overflow-hidden relative">
+        <div className="min-h-dvh flex min-h-screen flex-col bg-slate-950 relative">
             <div className="absolute inset-0 overflow-hidden pointer-events-none">
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/[0.04] rounded-full blur-[120px]" />
                 <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-[400px] h-[400px] bg-teal-600/[0.03] rounded-full blur-[100px]" />
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:72px_72px]" />
             </div>
 
-            <header className="relative z-10 p-4 flex items-center justify-between animate-fade-in-up">
-                <div className="flex items-center gap-3">
+            <header className="relative z-10 p-4 flex flex-wrap items-center justify-between gap-3 animate-fade-in-up">
+                <div className="flex min-w-0 items-center gap-3">
                     <div className="relative w-10 h-10 bg-slate-900/80 backdrop-blur-sm rounded-xl p-1 border border-slate-800/60 shadow-xl shadow-black/20">
                         <Image
                             src="/logo.png"
@@ -255,16 +255,16 @@ export default function EmployeePortal() {
                             className="object-contain"
                         />
                     </div>
-                    <div>
+                    <div className="min-w-0">
                         <h1 className="font-bold text-slate-50">Amwag</h1>
                         <p className="text-xs text-slate-500">{t('title')}</p>
                     </div>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex w-full items-center justify-end gap-2 sm:w-auto">
                     <LanguageSwitcher />
                     <button
                         onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-xl transition-all duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
+                        className="flex min-h-11 items-center gap-2 rounded-xl px-4 py-2 text-slate-400 transition-all duration-200 hover:bg-slate-800/50 hover:text-slate-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
                     >
                         <LogOut className="w-5 h-5" />
                         <span className="hidden sm:inline">Logout</span>
@@ -272,14 +272,14 @@ export default function EmployeePortal() {
                 </div>
             </header>
 
-            <main className="relative z-10 flex-1 px-4 max-w-lg mx-auto w-full flex flex-col justify-center py-2">
+            <main className="relative z-10 flex-1 px-4 max-w-lg mx-auto w-full flex flex-col justify-center py-4 sm:py-6">
                 <div className="stagger">
-                    <div className="text-center py-3">
-                        <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mb-1">
+                    <div className="py-3 text-center">
+                        <div className="mb-1 flex items-center justify-center gap-2 text-sm text-slate-500">
                             <Calendar className="w-4 h-4" />
-                            <span>{formattedDate}</span>
+                            <span className="max-w-full break-words">{formattedDate}</span>
                         </div>
-                        <div className="text-4xl sm:text-5xl font-bold text-slate-50 tracking-tight font-mono">
+                        <div className="font-mono text-3xl font-bold tracking-tight text-slate-50 sm:text-5xl">
                             {formattedTime}
                         </div>
                     </div>
@@ -298,23 +298,25 @@ export default function EmployeePortal() {
                                     <h2 className="text-lg font-bold text-slate-50 truncate">
                                         {profile?.full_name || 'Employee'}
                                     </h2>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                                <div className="flex flex-wrap gap-x-4 gap-y-1">
                                         {profile?.job_title && (
-                                            <div className="flex items-center gap-1 text-xs text-slate-400">
+                                            <div className="flex min-w-0 items-center gap-1 text-xs text-slate-400">
                                                 <Briefcase className="w-3 h-3 flex-shrink-0" />
                                                 <span className="truncate">{profile.job_title}</span>
                                             </div>
                                         )}
                                         {profile?.branch && (
-                                            <div className="flex items-center gap-1 text-xs text-slate-400">
+                                            <div className="flex min-w-0 items-center gap-1 text-xs text-slate-400">
                                                 <MapPin className="w-3 h-3 flex-shrink-0" />
                                                 <span className="truncate">{profile.branch}</span>
                                             </div>
                                         )}
                                         {(profile?.shift_start || profile?.shift_end) && (
-                                            <div className="flex items-center gap-1 text-xs text-slate-400">
+                                            <div className="flex min-w-0 items-center gap-1 text-xs text-slate-400">
                                                 <Timer className="w-3 h-3 flex-shrink-0" />
-                                                {formatTime(profile?.shift_start ?? null)} - {formatTime(profile?.shift_end ?? null)}
+                                                <span className="truncate">
+                                                    {formatTime(profile?.shift_start ?? null)} - {formatTime(profile?.shift_end ?? null)}
+                                                </span>
                                             </div>
                                         )}
                                     </div>
@@ -329,7 +331,7 @@ export default function EmployeePortal() {
                                 <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
                                     {t('todaysRecord')}
                                 </h3>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                                <div className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 sm:grid-cols-3 lg:grid-cols-5">
                                     <div className="p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/40">
                                         <p className="text-[10px] text-slate-500 mb-0.5">{t('checkIn')}</p>
                                         <p className="font-semibold text-slate-50 text-sm">

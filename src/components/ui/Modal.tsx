@@ -55,19 +55,19 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
             />
 
             {/* Centering wrapper */}
-            <div className="flex min-h-full items-center justify-center p-4">
+            <div className="flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
                 {/* Modal */}
                 <div
                     ref={modalRef}
                     className={cn(
-                        'relative w-full glass premium-surface rounded-2xl shadow-2xl shadow-black/80',
+                        'relative w-full overflow-hidden rounded-2xl glass premium-surface shadow-2xl shadow-black/80',
                         'animate-scale-in',
                         sizes[size]
                     )}
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-                        <h2 className="text-lg font-semibold text-slate-50">
+                    <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 sm:px-6">
+                        <h2 className="pr-4 text-base font-semibold text-slate-50 sm:text-lg">
                             {title}
                         </h2>
                         <button
@@ -79,11 +79,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
                     </div>
 
                     {/* Content */}
-                    <div className="p-6 max-h-[85vh] overflow-y-auto">{children}</div>
+                    <div className="max-h-[min(85dvh,calc(100vh-5rem))] overflow-y-auto p-4 sm:p-6">{children}</div>
                 </div>
             </div>
         </div>,
         document.body
     );
 }
-

@@ -5,7 +5,7 @@ import { Calendar, ChevronLeft, ChevronRight, FileText, Globe, RefreshCw, Search
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, Button, Card, CardContent, Input, Skeleton, addToast } from '@/components/ui';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
-import { exportAttendancePDF } from '@/lib/pdfExport';
+import { exportAttendancePDF, exportAttendancePremiumPDF } from '@/lib/pdfExport';
 import type { AttendanceRecord } from '@/types';
 
 const RECORDS_PER_PAGE = 10;
@@ -140,10 +140,14 @@ export default function AttendanceLogsPage() {
         return result.data ?? [];
     }
 
-    async function handleExportPDF() {
+    async function handleExportPDF(variant: 'classic' | 'premium' = 'classic') {
         try {
             const allFilteredRecords = await fetchAllFilteredRecords();
-            await exportAttendancePDF(allFilteredRecords, {
+            const exportFn = variant === 'premium'
+                ? exportAttendancePremiumPDF
+                : exportAttendancePDF;
+
+            await exportFn(allFilteredRecords, {
                 locale,
                 dateFilter,
                 statusFilter: statusFilter || undefined,
@@ -166,20 +170,33 @@ export default function AttendanceLogsPage() {
                     <h1 className="text-xl lg:text-2xl font-bold text-slate-50">{t('title')}</h1>
                     <p className="text-slate-400 text-sm mt-0.5">{t('subtitle')}</p>
                 </div>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleExportPDF}
-                    disabled={(!dateFilter && !showAllHistory) || isLoading}
-                >
-                    <FileText className="w-3.5 h-3.5 me-1.5" />
-                    PDF
-                </Button>
+                <div className="grid w-full grid-cols-1 gap-2 sm:w-auto sm:grid-cols-2">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleExportPDF('classic')}
+                        disabled={(!dateFilter && !showAllHistory) || isLoading}
+                        className="w-full sm:w-auto"
+                    >
+                        <FileText className="w-3.5 h-3.5 me-1.5" />
+                        Classic PDF
+                    </Button>
+                    <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleExportPDF('premium')}
+                        disabled={(!dateFilter && !showAllHistory) || isLoading}
+                        className="w-full shadow-[0_12px_30px_rgba(234,179,8,0.18)] sm:w-auto"
+                    >
+                        <FileText className="w-3.5 h-3.5 me-1.5" />
+                        Premium PDF
+                    </Button>
+                </div>
             </div>
 
             <Card className="premium-card">
                 <CardContent className="p-3 relative z-10">
-                    <div className="flex flex-col md:flex-row gap-3">
+                    <div className="grid grid-cols-1 gap-3 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_auto_auto_auto]">
                         <div className="relative flex-1 min-w-0">
                             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                             <Input
@@ -193,7 +210,7 @@ export default function AttendanceLogsPage() {
                             />
                         </div>
 
-                        <div className="relative w-full md:w-48 shrink-0">
+                        <div className="relative min-w-0">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
                             <Input
                                 type="date"
@@ -214,7 +231,7 @@ export default function AttendanceLogsPage() {
                                 setShowAllHistory((currentValue) => !currentValue);
                                 setCurrentPage(1);
                             }}
-                            className="shrink-0"
+                            className="w-full shrink-0 xl:w-auto"
                         >
                             {t('allHistory')}
                         </Button>
@@ -225,7 +242,7 @@ export default function AttendanceLogsPage() {
                                 setStatusFilter(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="w-full md:w-40 shrink-0 px-3 py-2 text-sm text-slate-100 bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-xl shadow-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 transition-colors hover:border-white/20"
+                            className="w-full shrink-0 rounded-xl border border-white/10 bg-slate-900/40 px-3 py-2 text-sm text-slate-100 shadow-inner transition-colors hover:border-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 xl:w-40"
                         >
                             <option value="" className="bg-slate-800">{t('allStatus')}</option>
                             <option value="present" className="bg-slate-800">{t('present')}</option>
@@ -243,7 +260,7 @@ export default function AttendanceLogsPage() {
                                 setRefreshKey((value) => value + 1);
                                 setCurrentPage(1);
                             }}
-                            className="md:w-auto shrink-0"
+                            className="w-full shrink-0 xl:w-auto"
                         >
                             <RefreshCw className="w-4 h-4" />
                         </Button>
@@ -261,7 +278,101 @@ export default function AttendanceLogsPage() {
                 </Card>
             ) : (
                 <Card className="premium-card">
-                    <div className="overflow-x-auto relative z-10 custom-scrollbar">
+                    <div className="relative z-10 md:hidden">
+                        {isLoading ? (
+                            <div className="space-y-3 p-3">
+                                {[...Array(4)].map((_, index) => (
+                                    <div key={index} className="rounded-2xl border border-white/5 bg-slate-900/30 p-4">
+                                        <Skeleton className="h-5 w-40" />
+                                        <Skeleton className="mt-2 h-4 w-24" />
+                                        <div className="mt-4 grid grid-cols-2 gap-2">
+                                            {[...Array(6)].map((__, metricIndex) => (
+                                                <Skeleton key={metricIndex} className="h-14 w-full rounded-xl" />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : records.length === 0 ? (
+                            <div className="px-3 py-12 text-center text-slate-500">
+                                {showAllHistory ? t('noRecords') : t('noRecordsForDate')}
+                            </div>
+                        ) : (
+                            <div className="space-y-3 p-3">
+                                {records.map((record) => (
+                                    <div key={record.id} className="rounded-2xl border border-white/5 bg-slate-900/30 p-4 shadow-lg shadow-black/10">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <div className="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500 to-blue-600 font-semibold text-white shadow-lg shadow-cyan-500/20">
+                                                    {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <p className="truncate font-medium text-slate-100">{record.profiles?.full_name || '-'}</p>
+                                                    <p className="truncate text-sm text-slate-500">{record.profiles?.email || '-'}</p>
+                                                </div>
+                                            </div>
+                                            <Badge variant={record.status}>
+                                                {record.status === 'missing_checkout'
+                                                    ? t('missingCheckout')
+                                                    : record.status === 'pending'
+                                                        ? t('pending')
+                                                        : t(record.status)}
+                                            </Badge>
+                                        </div>
+
+                                        <div className="mt-4 grid grid-cols-2 gap-2">
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('branch')}</p>
+                                                <p className="mt-1 text-sm text-slate-200 break-words">{record.profiles?.branch || '-'}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('date')}</p>
+                                                <p className="mt-1 text-sm text-slate-200">{formatDate(record.date)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('checkIn')}</p>
+                                                <p className="mt-1 text-sm text-slate-200">{formatTimestamp(record.check_in_time)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('checkOut')}</p>
+                                                <p className="mt-1 text-sm text-slate-200">{formatTimestamp(record.check_out_time)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('lateness')}</p>
+                                                <p className="mt-1 text-sm text-slate-200">{formatLateness(record.late_minutes)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('earlyLeave')}</p>
+                                                <p className="mt-1 text-sm text-slate-200">{formatEarlyDeparture(record.early_departure_minutes || 0)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('overtime')}</p>
+                                                <p className="mt-1 text-sm text-slate-200">{formatOvertime(record.overtime_minutes || 0)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('checkInIP')}</p>
+                                                <p className="mt-1 break-all font-mono text-xs text-slate-300">{record.ip_address || '-'}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('checkInLocation')}</p>
+                                                <p className="mt-1 text-sm text-slate-200 break-words">{record.check_in_location || '-'}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('checkOutLocation')}</p>
+                                                <p className="mt-1 text-sm text-slate-200 break-words">{record.check_out_location || '-'}</p>
+                                            </div>
+                                            <div className="col-span-2 rounded-xl border border-white/5 bg-slate-950/40 p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-slate-500">{t('checkOutIP')}</p>
+                                                <p className="mt-1 break-all font-mono text-xs text-slate-300">{record.check_out_ip || '-'}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+                    <div className="relative z-10 hidden overflow-x-auto custom-scrollbar md:block">
                         <table className="w-full min-w-[900px]">
                             <thead>
                                 <tr className="border-b border-white/5 bg-slate-900/40">
@@ -360,18 +471,19 @@ export default function AttendanceLogsPage() {
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="flex items-center justify-between px-3 py-3 border-t border-white/5 relative z-10">
+                        <div className="relative z-10 flex flex-col gap-3 border-t border-white/5 px-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-sm text-slate-500">
                                 {t('showing')} {totalRecords === 0 ? 0 : (currentPage - 1) * RECORDS_PER_PAGE + 1} {t('to')}{' '}
                                 {Math.min((currentPage - 1) * RECORDS_PER_PAGE + records.length, totalRecords)} {t('of')}{' '}
                                 {totalRecords} {t('records')}
                             </p>
-                            <div className="flex gap-2">
+                            <div className="grid grid-cols-2 gap-2 sm:flex">
                                 <Button
                                     variant="outline"
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
+                                    className="w-full sm:w-auto"
                                 >
                                     <ChevronLeft className="w-4 h-4" />
                                 </Button>
@@ -380,6 +492,7 @@ export default function AttendanceLogsPage() {
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                     disabled={currentPage === totalPages}
+                                    className="w-full sm:w-auto"
                                 >
                                     <ChevronRight className="w-4 h-4" />
                                 </Button>

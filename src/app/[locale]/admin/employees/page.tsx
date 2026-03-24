@@ -216,7 +216,7 @@ export default function EmployeesPage() {
 
     return (
         <div className="space-y-6 animate-fade-in-up">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                     <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
                         Employees
@@ -225,12 +225,12 @@ export default function EmployeesPage() {
                         Manage your workforce
                     </p>
                 </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="w-full">
                         <Upload className="w-5 h-5 mr-2" />
                         Bulk Import
                     </Button>
-                    <Button onClick={openAddModal}>
+                    <Button onClick={openAddModal} className="w-full">
                         <UserPlus className="w-5 h-5 mr-2" />
                         Add Employee
                     </Button>
@@ -248,7 +248,7 @@ export default function EmployeesPage() {
             </div>
 
             {isLoading ? (
-                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="stagger grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {[...Array(6)].map((_, i) => (
                         <Card key={i} className="premium-card">
                             <CardContent className="p-6">
@@ -279,28 +279,28 @@ export default function EmployeesPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="stagger grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
                     {filteredEmployees.map((employee) => (
                         <Card key={employee.id} interactive className="group premium-card">
                             <CardContent className="p-6 relative z-10">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
+                                <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                    <div className="flex min-w-0 items-center gap-3">
                                         <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
                                             {employee.full_name.charAt(0).toUpperCase()}
                                         </div>
-                                        <div>
-                                            <h3 className="font-semibold text-slate-100">
+                                        <div className="min-w-0">
+                                            <h3 className="truncate font-semibold text-slate-100">
                                                 {employee.full_name}
                                             </h3>
-                                            <p className="text-sm text-slate-400">
+                                            <p className="truncate text-sm text-slate-400">
                                                 {employee.email}
                                             </p>
                                         </div>
                                     </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <div className="flex gap-1 self-end opacity-100 transition-opacity sm:self-auto sm:opacity-0 sm:group-hover:opacity-100">
                                         <button
                                             onClick={() => openEditModal(employee)}
-                                            className="p-2 hover:bg-slate-800/80 rounded-lg text-slate-400 hover:text-cyan-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 active:scale-[0.95]"
+                                            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-800/80 hover:text-cyan-400 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 active:scale-[0.95]"
                                         >
                                             <Edit2 className="w-4 h-4" />
                                         </button>
@@ -313,17 +313,17 @@ export default function EmployeesPage() {
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
+                                <div className="space-y-2 break-words">
                                     {employee.job_title && (
                                         <div className="flex items-center gap-2 text-sm text-slate-300">
                                             <Briefcase className="w-4 h-4 text-slate-500" />
-                                            {employee.job_title}
+                                            <span className="break-words">{employee.job_title}</span>
                                         </div>
                                     )}
                                     {employee.branch && (
                                         <div className="flex items-center gap-2 text-sm text-slate-300">
                                             <MapPin className="w-4 h-4 text-slate-500" />
-                                            {employee.branch}
+                                            <span className="break-words">{employee.branch}</span>
                                         </div>
                                     )}
                                     {(employee.shift_start || employee.shift_end) && (
@@ -361,7 +361,7 @@ export default function EmployeesPage() {
                 size="lg"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Input
                             id="full_name"
                             label="Full Name"
@@ -473,7 +473,7 @@ export default function EmployeesPage() {
                         />
                     </div>
 
-                    <div className="flex flex-wrap items-start justify-between gap-3 overflow-hidden p-4 glass rounded-xl border border-white/5">
+                    <div className="flex flex-col gap-3 overflow-hidden rounded-xl border border-white/5 p-4 glass sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                             <Timer className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]" />
                             <div className="min-w-0">
@@ -494,7 +494,7 @@ export default function EmployeesPage() {
                         </button>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <div className="flex flex-col-reverse gap-3 border-t border-white/10 pt-4 sm:flex-row sm:justify-end">
                         <Button
                             type="button"
                             variant="outline"
@@ -505,7 +505,7 @@ export default function EmployeesPage() {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" isLoading={isSubmitting}>
+                        <Button type="submit" isLoading={isSubmitting} className="w-full sm:w-auto">
                             {editingEmployee ? 'Update Employee' : 'Create Employee'}
                         </Button>
                     </div>
