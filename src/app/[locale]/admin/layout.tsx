@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { createClient } from '@/lib/supabase/client';
 import { ToastContainer } from '@/components/ui';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,7 @@ export default function AdminLayout({
 }) {
     const router = useRouter();
     const pathname = usePathname();
+    const locale = useLocale();
     const supabase = useMemo(() => createClient(), []);
     const t = useTranslations('Sidebar');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -63,9 +64,9 @@ export default function AdminLayout({
 
     const handleLogout = useCallback(async () => {
         await supabase.auth.signOut();
-        router.push('/login');
+        router.push(`/${locale}/login`);
         router.refresh();
-    }, [supabase, router]);
+    }, [locale, supabase, router]);
 
     return (
         <div className="min-h-screen text-slate-100 flex relative overflow-x-hidden">
@@ -148,11 +149,12 @@ export default function AdminLayout({
                     {navItemsConfig
                         .filter((item) => userRole === 'admin' || !item.adminOnly)
                         .map((item, i) => {
-                            const isActive = pathname === item.href;
+                            const localizedHref = `/${locale}${item.href}`;
+                            const isActive = pathname === localizedHref;
                             return (
                                 <Link
                                     key={item.href}
-                                    href={item.href}
+                                    href={localizedHref}
                                     onClick={() => setIsSidebarOpen(false)}
                                     className={cn(
                                         'flex items-center gap-3 px-4 py-3.5 mx-2 rounded-xl transition-all duration-300 focus-ring stagger group',

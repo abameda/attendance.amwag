@@ -7,9 +7,11 @@ import { createClient } from '@/lib/supabase/client';
 import { Button, Input, Card, CardContent, addToast, ToastContainer } from '@/components/ui';
 import { LogIn, Mail, Lock } from 'lucide-react';
 import Footer from '@/components/Footer';
+import { useLocale } from 'next-intl';
 
 export default function LoginPage() {
     const router = useRouter();
+    const locale = useLocale();
     const supabase = createClient();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
@@ -40,11 +42,11 @@ export default function LoginPage() {
                 addToast('Login successful!', 'success');
 
                 if (profile?.role === 'admin') {
-                    router.push('/admin');
+                    router.push(`/${locale}/admin`);
                 } else if (profile?.role === 'accountant') {
-                    router.push('/admin/attendance');
+                    router.push(`/${locale}/admin/attendance`);
                 } else {
-                    router.push('/employee');
+                    router.push(`/${locale}/employee`);
                 }
                 router.refresh();
             }

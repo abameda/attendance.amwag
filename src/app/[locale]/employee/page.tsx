@@ -13,7 +13,7 @@ import {
     ToastContainer,
 } from '@/components/ui';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { formatTime, formatTimestamp, formatLateness, formatOvertime } from '@/lib/utils';
 import type { Profile, AttendanceRecord } from '@/types';
 import {
@@ -37,6 +37,7 @@ export default function EmployeePortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const locale = useLocale();
     const t = useTranslations('Employee');
 
     useEffect(() => {
@@ -54,7 +55,7 @@ export default function EmployeePortal() {
                 } = await supabase.auth.getUser();
 
                 if (!user) {
-                    router.push('/login');
+                    router.push(`/${locale}/login`);
                     return;
                 }
 
@@ -83,7 +84,7 @@ export default function EmployeePortal() {
         };
 
         fetchData();
-    }, [supabase, router]);
+    }, [locale, supabase, router]);
 
     const handleCheckIn = async () => {
         setIsCheckingIn(true);
@@ -163,7 +164,7 @@ export default function EmployeePortal() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        router.push('/login');
+        router.push(`/${locale}/login`);
         router.refresh();
     };
 

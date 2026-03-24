@@ -4,14 +4,19 @@ export const dynamic = 'force-dynamic';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
 
-export default async function Home() {
+export default async function Home({
+  params,
+}: {
+  params: Promise<{ locale: string }>;
+}) {
+  const { locale } = await params;
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect('/login');
+    redirect(`/${locale}/login`);
   }
 
   // Check user role and redirect accordingly
@@ -22,8 +27,8 @@ export default async function Home() {
     .single();
 
   if (profile?.role === 'admin') {
-    redirect('/admin');
+    redirect(`/${locale}/admin`);
   } else {
-    redirect('/employee');
+    redirect(`/${locale}/employee`);
   }
 }
