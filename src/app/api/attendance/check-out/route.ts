@@ -95,7 +95,7 @@ export async function POST(_request: NextRequest) {
         if (existingRecord.check_out_time) {
             return NextResponse.json(
                 { success: false, error: 'Already checked out today' },
-                { status: 400 }
+                { status: 409 }
             );
         }
 
@@ -185,7 +185,7 @@ export async function POST(_request: NextRequest) {
         if (!updatedRecord) {
             return NextResponse.json(
                 { success: false, error: 'Already checked out today' },
-                { status: 400 }
+                { status: 409 }
             );
         }
 

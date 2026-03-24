@@ -127,20 +127,47 @@ export async function POST(_request: NextRequest) {
 
         const today = egyptToday;
 
+        const { data: existingAttendance, error: existingAttendanceError } = await supabase
+            .from('attendance')
+            .select('id, status, check_in_time, check_out_time')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .maybeSingle();
+
+        if (existingAttendanceError) {
+            throw existingAttendanceError;
+        }
+
+        if (existingAttendance?.check_in_time) {
+            return NextResponse.json(
+                { success: false, error: 'Duplicate check-in is not allowed for the same work date' },
+                { status: 409 }
+            );
+        }
+
+        if (existingAttendance) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: existingAttendance.status === 'absent'
+                        ? 'Attendance for this work date has already been finalized'
+                        : 'Attendance already exists for this work date',
+                },
+                { status: 409 }
+            );
+        }
+
         const { error } = await supabase
             .from('attendance')
-            .upsert(
-                {
-                    user_id: user.id,
-                    date: today,
-                    check_in_time: now.toISOString(),
-                    ip_address: currentIp,
-                    check_in_location: checkInLocation,
-                    late_minutes: lateMinutes,
-                    status,
-                },
-                { onConflict: 'user_id,date', ignoreDuplicates: true }
-            );
+            .insert({
+                user_id: user.id,
+                date: today,
+                check_in_time: now.toISOString(),
+                ip_address: currentIp,
+                check_in_location: checkInLocation,
+                late_minutes: lateMinutes,
+                status,
+            });
 
         if (error) {
             return NextResponse.json(

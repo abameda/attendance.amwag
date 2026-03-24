@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState, useMemo } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import {
     Button,
@@ -58,6 +58,7 @@ export default function EmployeesPage() {
     };
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+    const deferredSearchQuery = useDeferredValue(searchQuery);
 
     const fetchEmployees = useCallback(async () => {
         try {
@@ -199,12 +200,19 @@ export default function EmployeesPage() {
         }
     };
 
-    const filteredEmployees = employees.filter(
-        (emp) =>
-            emp.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            emp.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            emp.branch?.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+    const filteredEmployees = useMemo(() => {
+        const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
+        if (!normalizedQuery) {
+            return employees;
+        }
+
+        return employees.filter(
+            (employee) =>
+                employee.full_name.toLowerCase().includes(normalizedQuery) ||
+                employee.email.toLowerCase().includes(normalizedQuery) ||
+                employee.branch?.toLowerCase().includes(normalizedQuery)
+        );
+    }, [employees, deferredSearchQuery]);
 
     return (
         <div className="space-y-6 animate-fade-in-up">
@@ -410,15 +418,28 @@ export default function EmployeesPage() {
                                 setFormData((prev) => ({ ...prev, job_title: e.target.value }))
                             }
                         />
-                        <Input
-                            id="shift_start"
-                            label="Shift Start Time"
-                            type="time"
-                            value={formData.shift_start}
-                            onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, shift_start: e.target.value }))
-                            }
-                        />
+                        <div className="space-y-2">
+                            <Input
+                                id="shift_start"
+                                label="Shift Start Time"
+                                type="time"
+                                value={formData.shift_start}
+                                onChange={(e) =>
+                                    setFormData((prev) => ({ ...prev, shift_start: e.target.value }))
+                                }
+                            />
+                            {formData.shift_start && (
+                                <div className="flex items-center gap-2 text-sm text-slate-400 min-h-5">
+                                    <Clock className="w-4 h-4 shrink-0" />
+                                    <span>
+                                        Shift ends at:{' '}
+                                        <span className="text-teal-400 font-medium">
+                                            {calculateShiftEnd(formData.shift_start, formData.shift_duration) || '--:--'}
+                                        </span>
+                                    </span>
+                                </div>
+                            )}
+                        </div>
                         <Select
                             id="shift_duration"
                             label="Shift Duration"
@@ -432,16 +453,6 @@ export default function EmployeesPage() {
                                 { value: '12', label: '12 Hours' },
                             ]}
                         />
-                        {formData.shift_start && (
-                            <div className="flex items-center gap-2 text-sm text-slate-400 md:col-span-2">
-                                <Clock className="w-4 h-4" />
-                                <span>
-                                    Shift ends at: <span className="text-teal-400 font-medium">
-                                        {calculateShiftEnd(formData.shift_start, formData.shift_duration) || '--:--'}
-                                    </span>
-                                </span>
-                            </div>
-                        )}
                         <Select
                             id="off_day"
                             label="Off Day"
@@ -462,10 +473,10 @@ export default function EmployeesPage() {
                         />
                     </div>
 
-                    <div className="flex items-center justify-between p-4 glass rounded-xl border border-white/5">
-                        <div className="flex items-center gap-3">
+                    <div className="flex flex-wrap items-start justify-between gap-3 overflow-hidden p-4 glass rounded-xl border border-white/5">
+                        <div className="flex min-w-0 flex-1 items-start gap-3">
                             <Timer className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]" />
-                            <div>
+                            <div className="min-w-0">
                                 <p className="text-sm font-medium text-slate-200">Overtime Tracking</p>
                                 <p className="text-xs text-slate-400">Allow overtime calculation for this employee (max 3 hours)</p>
                             </div>
@@ -473,11 +484,11 @@ export default function EmployeesPage() {
                         <button
                             type="button"
                             onClick={() => setFormData((prev) => ({ ...prev, overtime_enabled: !prev.overtime_enabled }))}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${formData.overtime_enabled ? 'bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : 'bg-slate-700'
+                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${formData.overtime_enabled ? 'bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : 'bg-slate-700'
                                 }`}
                         >
                             <span
-                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${formData.overtime_enabled ? 'translate-x-6' : 'translate-x-1'
+                                className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${formData.overtime_enabled ? 'switch-thumb-on' : 'switch-thumb-off'
                                     }`}
                             />
                         </button>

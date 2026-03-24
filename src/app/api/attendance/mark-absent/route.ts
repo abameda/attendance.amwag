@@ -1,6 +1,8 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextRequest, NextResponse } from 'next/server';
 import { isAdmin } from '@/lib/auth';
+import { executeAttendanceFinalization } from '@/lib/attendanceFinalization';
+import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js';
+import { getEgyptDate, getEgyptDayName, getEgyptNow } from '@/lib/timezone';
 
 function getSupabaseAdmin() {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -8,7 +10,7 @@ function getSupabaseAdmin() {
     if (!url || !key) {
         throw new Error('Missing Supabase service role configuration');
     }
-    return createClient(url, key);
+    return createSupabaseAdminClient(url, key);
 }
 
 /**
@@ -24,38 +26,8 @@ export async function POST(request: NextRequest) {
             return NextResponse.json({ error: auth.error }, { status: auth.status });
         }
 
-        const supabaseAdmin = getSupabaseAdmin();
-
-        const { data, error } = await supabaseAdmin.rpc('mark_absent_employees');
-
-        if (error) {
-            console.error('Error calling mark_absent_employees RPC:', error);
-            return NextResponse.json(
-                { success: false, error: 'Failed to execute mark-absent function' },
-                { status: 500 },
-            );
-        }
-
-        const rpcResult = data as Record<string, unknown> | null;
-
-        if (rpcResult?.skipped) {
-            return NextResponse.json(
-                { success: false, error: 'Another execution is already running. Try again shortly.' },
-                { status: 409 },
-            );
-        }
-
-        return NextResponse.json({
-            success: true,
-            message: rpcResult?.message ?? 'Completed',
-            markedAbsent: rpcResult?.markedAbsent ?? 0,
-            markedMissingCheckout: rpcResult?.markedMissingCheckout ?? 0,
-            alreadyRecorded: rpcResult?.alreadyRecorded ?? 0,
-            skippedShiftNotEnded: rpcResult?.skippedShiftNotEnded ?? 0,
-            currentTime: rpcResult?.currentTime ?? '',
-            absentEmployees: rpcResult?.absentEmployees ?? [],
-            missingCheckoutEmployees: rpcResult?.missingCheckoutEmployees ?? [],
-        });
+        const result = await executeAttendanceFinalization();
+        return NextResponse.json(result.body, { status: result.status });
     } catch (error) {
         console.error('Error in mark-absent:', error);
         return NextResponse.json(
@@ -81,23 +53,9 @@ export async function GET(request: NextRequest) {
         const supabaseAdmin = getSupabaseAdmin();
 
         const egyptNow = new Date();
-        const egyptDate = new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(egyptNow);
-
-        const timeParts = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Africa/Cairo',
-            hour: 'numeric',
-            minute: 'numeric',
-            hour12: false,
-        }).formatToParts(egyptNow);
-
-        const hours = parseInt(timeParts.find((p) => p.type === 'hour')?.value ?? '0', 10);
-        const minutes = parseInt(timeParts.find((p) => p.type === 'minute')?.value ?? '0', 10);
-        const egyptTotalMinutes = hours * 60 + minutes;
-
-        const dayOfWeek = new Intl.DateTimeFormat('en-US', {
-            timeZone: 'Africa/Cairo',
-            weekday: 'long',
-        }).format(egyptNow).toLowerCase();
+        const egyptDate = getEgyptDate(egyptNow);
+        const { totalMinutes: egyptTotalMinutes } = getEgyptNow();
+        const dayOfWeek = getEgyptDayName(egyptNow);
 
         const { data: employees, error: employeesError } = await supabaseAdmin
             .from('profiles')
@@ -134,7 +92,7 @@ export async function GET(request: NextRequest) {
             if (endMin < startMin && egyptTotalMinutes < startMin) {
                 const yesterday = new Date(egyptNow);
                 yesterday.setDate(yesterday.getDate() - 1);
-                return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(yesterday);
+                return getEgyptDate(yesterday);
             }
             return egyptDate;
         };

@@ -1,6 +1,6 @@
 import { isAdmin } from '@/lib/auth';
 import { createClient } from '@/lib/supabase/server';
-import { getEgyptDate } from '@/lib/timezone';
+import { getEgyptDate, isValidISODateString } from '@/lib/timezone';
 import type { AttendanceRecord, Profile } from '@/types';
 import { NextRequest, NextResponse } from 'next/server';
 
@@ -39,6 +39,13 @@ export async function GET(request: NextRequest) {
         if (status && !VALID_STATUSES.includes(status as AttendanceRecord['status'])) {
             return NextResponse.json(
                 { success: false, error: 'Invalid status filter' },
+                { status: 400 }
+            );
+        }
+
+        if (date && !isValidISODateString(date)) {
+            return NextResponse.json(
+                { success: false, error: 'Invalid date format' },
                 { status: 400 }
             );
         }
@@ -131,7 +138,7 @@ export async function GET(request: NextRequest) {
 
         // --- Frontend Virtualization: inject "pending" rows for today ---
         const egyptToday = getEgyptDate();
-        const isViewingToday = !date || date === egyptToday;
+        const isViewingToday = date === egyptToday;
         const shouldVirtualize = includeExpected && isViewingToday && (!status || status === 'pending');
 
         if (shouldVirtualize) {

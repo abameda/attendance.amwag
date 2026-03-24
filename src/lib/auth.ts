@@ -1,9 +1,16 @@
+import { timingSafeEqual } from 'node:crypto';
 import { type NextRequest } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 
 export interface AdminCheckResult {
   authorized: boolean;
   userId?: string;
+  error?: string;
+  status?: number;
+}
+
+export interface InternalAuthResult {
+  authorized: boolean;
   error?: string;
   status?: number;
 }
@@ -46,4 +53,33 @@ export async function isAdmin(_request: NextRequest): Promise<AdminCheckResult> 
   }
 
   return { authorized: true, userId: user.id };
+}
+
+export function authorizeInternalScheduler(request: NextRequest): InternalAuthResult {
+  const expectedToken = process.env.INTERNAL_SCHEDULER_SECRET;
+  if (!expectedToken) {
+    return {
+      authorized: false,
+      error: 'Internal scheduler secret is not configured',
+      status: 500,
+    };
+  }
+
+  const authorizationHeader = request.headers.get('authorization')?.trim();
+  if (!authorizationHeader?.startsWith('Bearer ')) {
+    return { authorized: false, error: 'Unauthorized', status: 401 };
+  }
+
+  const providedToken = authorizationHeader.slice('Bearer '.length);
+  const expectedBuffer = Buffer.from(expectedToken);
+  const providedBuffer = Buffer.from(providedToken);
+
+  if (
+    expectedBuffer.length !== providedBuffer.length ||
+    !timingSafeEqual(expectedBuffer, providedBuffer)
+  ) {
+    return { authorized: false, error: 'Forbidden', status: 403 };
+  }
+
+  return { authorized: true };
 }

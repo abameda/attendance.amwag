@@ -24,7 +24,7 @@ export interface AttendanceRecord {
   check_out_ip: string | null;  // Check-out IP
   check_in_location: string | null;  // Branch name or 'خارج الشركة'
   check_out_location: string | null;  // Branch name or 'خارج الشركة'
-  status: 'present' | 'late' | 'absent' | 'missing_checkout' | 'pending';
+  status: AttendanceStatus;
   late_minutes: number;
   early_departure_minutes: number;
   overtime_minutes: number;
@@ -84,15 +84,47 @@ export interface AttendanceLogEntry {
   late_minutes: number;
   early_departure_minutes: number;
   overtime_minutes: number;
-  status: 'present' | 'late' | 'absent' | 'missing_checkout' | 'pending';
+  status: AttendanceStatus;
   ip_address: string | null;  // Check-in IP
   check_out_ip: string | null;  // Check-out IP
 }
 
 // Dashboard Stats
-export interface DashboardStats {
-  totalEmployees: number;
-  presentToday: number;
-  lateToday: number;
-  absentToday: number;
+export type AttendanceStatus =
+  | 'present'
+  | 'late'
+  | 'absent'
+  | 'missing_checkout'
+  | 'pending';
+
+export interface DashboardSummaryTopBranch {
+  name: string;
+  attendanceRate: number;
+}
+
+export interface DashboardSummary {
+  date: string;
+  periodType?: 'day' | 'month';
+  expectedEmployees: number;
+  presentCount: number;
+  lateCount: number;
+  absentCount: number;
+  missingCheckoutCount: number;
+  attendanceRate: number;
+  departureCompletionRate: number;
+  topBranch: DashboardSummaryTopBranch | null;
+}
+
+export interface InternalFinalizationResult {
+  success: boolean;
+  message: string;
+  markedAbsent: number;
+  markedMissingCheckout: number;
+  alreadyRecorded: number;
+  skippedShiftNotEnded: number;
+  currentTime: string;
+  currentDate: string;
+  dayOfWeek: string;
+  absentEmployees?: string[];
+  missingCheckoutEmployees?: string[];
 }

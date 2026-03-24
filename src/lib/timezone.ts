@@ -15,6 +15,10 @@ export function getEgyptDate(date: Date = new Date()): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(date);
 }
 
+export function getEgyptMonth(date: Date = new Date()): string {
+  return getEgyptDate(date).slice(0, 7);
+}
+
 /**
  * Returns hours, minutes, and totalMinutes for a given date in Egypt time.
  */
@@ -50,6 +54,28 @@ export function getEgyptNow(): {
     date: getEgyptDate(now),
     ...getEgyptTime(now),
   };
+}
+
+export function getEgyptDayName(date: Date = new Date()): string {
+  return new Intl.DateTimeFormat('en-US', {
+    timeZone: TIMEZONE,
+    weekday: 'long',
+  })
+    .format(date)
+    .toLowerCase();
+}
+
+export function isValidISODateString(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+export function isValidISOMonthString(value: string): boolean {
+  return /^\d{4}-\d{2}$/.test(value);
+}
+
+export function getEgyptDayNameFromISODate(date: string): string {
+  const normalizedDate = new Date(`${date}T12:00:00Z`);
+  return getEgyptDayName(normalizedDate);
 }
 
 /**

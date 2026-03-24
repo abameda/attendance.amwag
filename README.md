@@ -1,37 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Amwag Attendance
 
-## Getting Started
+Next.js attendance management app for Amwag with Supabase-backed employee, attendance, and admin workflows.
 
-First, run the development server:
+## Development
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Environment
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Required app variables:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+INTERNAL_SCHEDULER_SECRET=
+```
 
-## Learn More
+`INTERNAL_SCHEDULER_SECRET` protects the internal attendance finalization endpoint used by server-side schedulers.
 
-To learn more about Next.js, take a look at the following resources:
+## Attendance Finalization
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The app now centralizes end-of-shift finalization in the `mark_absent_employees()` Postgres function and exposes two execution paths:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. Admin manual trigger: `POST /api/attendance/mark-absent`
+2. Internal scheduler trigger: `POST /api/internal/attendance/finalize`
 
-## Deploy on Vercel
+The internal route requires:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```http
+Authorization: Bearer <INTERNAL_SCHEDULER_SECRET>
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-# attendance.amwag
+Example `systemd` service command:
+
+```bash
+curl -X POST \
+  -H "Authorization: Bearer ${INTERNAL_SCHEDULER_SECRET}" \
+  https://your-domain.example/api/internal/attendance/finalize
+```
+
+Recommended `systemd` timer cadence: every 15 minutes, matching the SQL `pg_cron` schedule.
+
+## Validation
+
+```bash
+npm run lint
+```
