@@ -64,7 +64,7 @@ function buildReportHTML(
         day: 'numeric',
     });
 
-    // Report date (the filtered date, or "All Dates" if no filter)
+    // Report date is aligned with the date-first admin flow.
     const reportDateLabel = dateFilter
         ? new Date(dateFilter + 'T00:00:00').toLocaleDateString('en-US', {
             weekday: 'long',
@@ -72,7 +72,7 @@ function buildReportHTML(
             month: 'long',
             day: 'numeric',
         })
-        : 'All Dates';
+        : 'Selected date required';
 
     const filters: string[] = [];
     if (statusFilter) filters.push(`Status: ${statusFilter}`);

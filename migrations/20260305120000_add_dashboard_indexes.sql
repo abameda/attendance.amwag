@@ -11,9 +11,16 @@
 -- We drop it to avoid wasted write amplification on inserts/updates.
 -- =============================================
 
--- Add composite index: covers eq(date, today).eq(status, 'present') etc.
+-- Add composite indexes for selected-date admin views.
 CREATE INDEX IF NOT EXISTS idx_attendance_date_status
   ON public.attendance(date, status);
+
+CREATE INDEX IF NOT EXISTS idx_attendance_date_user
+  ON public.attendance(date, user_id);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_employee_offday_branch
+  ON public.profiles(role, off_day, branch)
+  WHERE role = 'employee';
 
 -- Drop the now-redundant single-column date index
 DROP INDEX IF EXISTS idx_attendance_date;

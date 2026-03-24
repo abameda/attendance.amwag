@@ -260,6 +260,22 @@ body {
   animation-delay: 70ms;
 }
 
+.switch-thumb-off {
+  transform: translateX(0.25rem);
+}
+
+.switch-thumb-on {
+  transform: translateX(1.5rem);
+}
+
+html[dir="rtl"] .switch-thumb-off {
+  transform: translateX(-0.25rem);
+}
+
+html[dir="rtl"] .switch-thumb-on {
+  transform: translateX(-1.5rem);
+}
+
 .stagger>*:nth-child(3) {
   animation-delay: 140ms;
 }

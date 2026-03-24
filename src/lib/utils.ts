@@ -1,5 +1,6 @@
 import { type ClassValue, clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import type { DashboardSummary, DashboardSummaryTopBranch } from '@/types';
 
 // Utility to merge Tailwind classes
 export function cn(...inputs: ClassValue[]) {
@@ -100,41 +101,6 @@ export function getStatusColor(status: string): string {
     }
 }
 
-// Export to CSV
-export function exportToCSV(data: Record<string, unknown>[], filename: string) {
-    if (data.length === 0) return;
-
-    const headers = Object.keys(data[0]);
-
-    const csvRows = [
-        headers.join(','),
-        ...data.map((row) =>
-            headers
-                .map((header) => {
-                    const value = row[header];
-                    let stringValue = value === null || value === undefined ? '' : String(value);
-                    // Sanitize CSV injection: prefix formula-like values with single quote
-                    if (stringValue.length > 0 && ['=', '+', '-', '@'].includes(stringValue[0])) {
-                        stringValue = "'" + stringValue;
-                    }
-                    // Escape quotes and wrap in quotes if contains comma
-                    if (stringValue.includes(',') || stringValue.includes('"')) {
-                        return `"${stringValue.replace(/"/g, '""')}"`;
-                    }
-                    return stringValue;
-                })
-                .join(',')
-        ),
-    ];
-
-    const csvContent = csvRows.join('\n');
-    const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${filename}.csv`;
-    link.click();
-}
-
 // Get current date in YYYY-MM-DD format
 export function getCurrentDate(): string {
     return new Date().toISOString().split('T')[0];
@@ -212,3 +178,57 @@ export function formatOvertime(minutes: number): string {
     return `${mins}m`;
 }
 
+export interface AttendanceSummaryBranchMetrics {
+    branch: string;
+    expectedEmployees: number;
+    presentCount: number;
+    lateCount: number;
+}
+
+export interface AttendanceSummaryMetrics {
+    date: string;
+    expectedEmployees: number;
+    presentCount: number;
+    lateCount: number;
+    absentCount: number;
+    missingCheckoutCount: number;
+    branchMetrics: AttendanceSummaryBranchMetrics[];
+}
+
+function toPercent(numerator: number, denominator: number): number {
+    if (denominator <= 0) return 0;
+    return Number(((numerator / denominator) * 100).toFixed(2));
+}
+
+export function buildDashboardSummary(metrics: AttendanceSummaryMetrics): DashboardSummary {
+    const topBranch: DashboardSummaryTopBranch | null = metrics.branchMetrics
+        .filter((branch) => branch.expectedEmployees > 0)
+        .map((branch) => ({
+            name: branch.branch,
+            attendanceRate: toPercent(
+                branch.presentCount + branch.lateCount,
+                branch.expectedEmployees
+            ),
+        }))
+        .sort((left, right) => right.attendanceRate - left.attendanceRate)[0] ?? null;
+
+    const checkedInCount = metrics.presentCount + metrics.lateCount + metrics.missingCheckoutCount;
+    const departureCompletedCount = metrics.presentCount + metrics.lateCount;
+
+    return {
+        date: metrics.date,
+        periodType: metrics.date.length === 7 ? 'month' : 'day',
+        expectedEmployees: metrics.expectedEmployees,
+        presentCount: metrics.presentCount,
+        lateCount: metrics.lateCount,
+        absentCount: metrics.absentCount,
+        missingCheckoutCount: metrics.missingCheckoutCount,
+        attendanceRate: toPercent(checkedInCount, metrics.expectedEmployees),
+        departureCompletionRate: toPercent(departureCompletedCount, checkedInCount),
+        topBranch,
+    };
+}
+
+export function getDashboardSummaryCacheKey(date: string): string {
+    return `attendance-summary:${date}`;
+}
