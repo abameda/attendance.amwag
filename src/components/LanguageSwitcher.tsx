@@ -22,9 +22,9 @@ export default function LanguageSwitcher() {
             variant="outline"
             size="sm"
             onClick={toggleLanguage}
-            className="flex items-center gap-2 bg-[rgba(255,255,255,0.78)]"
+            className="flex items-center gap-2 border-[var(--line)] bg-[var(--surface)] text-[var(--foreground-soft)] hover:bg-[var(--surface-hover)] hover:text-[var(--foreground)]"
         >
-            <Globe className="h-4 w-4" />
+            <Globe className="h-4 w-4 text-[var(--accent)]" />
             <span>{locale === 'en' ? 'العربية' : 'English'}</span>
         </Button>
     );

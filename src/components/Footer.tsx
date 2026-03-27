@@ -17,13 +17,13 @@ export default function Footer({ className, compact = false }: FooterProps) {
 
     return (
         <footer className={cn('text-center', className)}>
-            <p className={`${textSize} text-[#7b6a6f]`}>
+            <p className={`${textSize} text-[var(--muted)]`}>
                 {tc('developedBy')}{' '}
                 <a
                     href="https://www.shorbagy.space/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-[#5a474f] transition-colors hover:text-[#9d174d]"
+                    className="font-semibold text-[var(--foreground-soft)] transition-colors hover:text-[var(--accent)]"
                 >
                     {tc('devName')}
                 </a>
@@ -33,7 +33,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://github.com/abameda"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#8e7b83] transition-colors hover:text-[#241d22]"
+                    className="text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
                     title="GitHub"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">
@@ -44,7 +44,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://www.instagram.com/abamedax/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#8e7b83] transition-colors hover:text-[#ec4899]"
+                    className="text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
                     title="Instagram"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://www.linkedin.com/in/abameda/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[#8e7b83] transition-colors hover:text-[#9d174d]"
+                    className="text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
                     title="LinkedIn"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">

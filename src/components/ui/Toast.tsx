@@ -47,24 +47,24 @@ export function removeToast(id: string) {
 }
 
 const icons: Record<ToastType, React.ReactNode> = {
-    success: <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />,
-    error: <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />,
-    info: <Info className="h-5 w-5 shrink-0 text-sky-600" />,
-    warning: <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />,
+    success: <CheckCircle className="h-5 w-5 shrink-0 text-[var(--success)]" />,
+    error: <AlertCircle className="h-5 w-5 shrink-0 text-[var(--danger)]" />,
+    info: <Info className="h-5 w-5 shrink-0 text-[var(--accent)]" />,
+    warning: <AlertTriangle className="h-5 w-5 shrink-0 text-[var(--warning)]" />,
 };
 
-const backgrounds: Record<ToastType, string> = {
-    success: 'bg-[rgba(255,255,255,0.86)] border-emerald-200',
-    error: 'bg-[rgba(255,255,255,0.86)] border-rose-200',
-    info: 'bg-[rgba(255,255,255,0.86)] border-sky-200',
-    warning: 'bg-[rgba(255,255,255,0.86)] border-amber-200',
+const accentColors: Record<ToastType, string> = {
+    success: 'bg-[var(--success)]',
+    error: 'bg-[var(--danger)]',
+    info: 'bg-[var(--accent)]',
+    warning: 'bg-[var(--warning)]',
 };
 
 const progressColors: Record<ToastType, string> = {
-    success: 'bg-emerald-400/70',
-    error: 'bg-rose-400/70',
-    info: 'bg-sky-400/70',
-    warning: 'bg-amber-400/70',
+    success: 'bg-[var(--success)]/40',
+    error: 'bg-[var(--danger)]/40',
+    info: 'bg-[var(--accent)]/40',
+    warning: 'bg-[var(--warning)]/40',
 };
 
 export function ToastContainer() {
@@ -86,28 +86,29 @@ export function ToastContainer() {
     if (localToasts.length === 0) return null;
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm flex-col gap-2">
+        <div className="fixed bottom-4 end-4 z-50 flex max-w-sm flex-col gap-2">
             {localToasts.map((toast) => (
                 <div
                     key={toast.id}
                     className={cn(
-                        'relative flex items-center gap-3 overflow-hidden rounded-[1.4rem] border px-4 py-3 text-[#241d22] shadow-[0_24px_48px_-28px_rgba(72,47,56,0.55)] backdrop-blur-xl',
-                        toast.exiting ? 'animate-slide-out-right' : 'animate-slide-in-right',
-                        backgrounds[toast.type]
+                        'relative flex items-center gap-3 overflow-hidden rounded-[1.4rem] border border-[var(--line)] px-4 py-3 text-[var(--foreground)] bg-[var(--surface-elevated)] backdrop-blur-2xl shadow-[var(--shadow-md)]',
+                        toast.exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'
                     )}
                 >
+                    {/* Status accent bar */}
+                    <div className={cn('absolute inset-y-0 start-0 w-0.5 rounded-full', accentColors[toast.type])} />
                     {icons[toast.type]}
                     <p className="flex-1 text-sm font-medium">{toast.message}</p>
                     <button
                         onClick={() => handleDismiss(toast.id)}
-                        className="ml-1 shrink-0 rounded-full p-1 text-[#8f7f84] hover:bg-[rgba(36,29,34,0.06)] hover:text-[#241d22]"
+                        className="ms-1 shrink-0 rounded-full p-1 text-[var(--muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>
                     {!toast.exiting && (
                         <div
                             className={cn(
-                                'absolute bottom-0 left-0 h-0.5 w-full origin-left',
+                                'absolute bottom-0 start-0 h-0.5 w-full origin-left',
                                 progressColors[toast.type]
                             )}
                             style={{ animation: `progress-shrink ${TOAST_DURATION}ms linear forwards` }}

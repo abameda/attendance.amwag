@@ -112,8 +112,8 @@ export default function SettingsPage() {
             min: 0,
             max: 180,
             unit: t('minutes'),
-            accent: 'text-emerald-600',
-            accentBg: 'bg-emerald-50',
+            accent: 'text-[var(--success)]',
+            accentBg: 'bg-[var(--success-soft)]',
         },
         {
             key: 'late_grace_minutes',
@@ -124,8 +124,8 @@ export default function SettingsPage() {
             min: 0,
             max: 60,
             unit: t('minutes'),
-            accent: 'text-amber-600',
-            accentBg: 'bg-amber-50',
+            accent: 'text-[var(--warning)]',
+            accentBg: 'bg-[var(--warning-soft)]',
         },
         {
             key: 'checkout_window_minutes',
@@ -136,8 +136,8 @@ export default function SettingsPage() {
             min: 0,
             max: 300,
             unit: t('minutes'),
-            accent: 'text-blue-600',
-            accentBg: 'bg-blue-50',
+            accent: 'text-[var(--accent)]',
+            accentBg: 'bg-[var(--accent-soft)]',
         },
         {
             key: 'max_overtime_minutes',
@@ -148,8 +148,8 @@ export default function SettingsPage() {
             min: 0,
             max: 480,
             unit: t('minutes'),
-            accent: 'text-purple-600',
-            accentBg: 'bg-purple-50',
+            accent: 'text-[var(--secondary)]',
+            accentBg: 'bg-[var(--secondary-soft)]',
         },
     ];
 
@@ -159,19 +159,15 @@ export default function SettingsPage() {
                 <div className="flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 items-center justify-center rounded-[1.3rem] bg-[#171419] text-white shadow-[0_22px_42px_-26px_rgba(23,20,25,0.6)]">
+                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--accent-soft)] text-[var(--accent)] shadow-[var(--shadow-glow-blue)]">
                                 <ShieldCheck className="h-5 w-5" />
                             </div>
                             <div>
-                                <p className="section-kicker">{t('kicker')}</p>
-                                <h1 className="display-serif text-3xl text-[#1e191d] sm:text-4xl">
-                                    {t('title')}
-                                </h1>
+                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('kicker')}</p>
+                                <h1 className="gradient-text text-3xl font-bold sm:text-4xl">{t('title')}</h1>
                             </div>
                         </div>
-                        <p className="mt-3 max-w-xl text-sm leading-7 text-[#6f6268]">
-                            {t('subtitle')}
-                        </p>
+                        <p className="mt-3 max-w-xl text-sm leading-7 text-[var(--muted)]">{t('subtitle')}</p>
                     </div>
                     <Button
                         onClick={handleSave}
@@ -188,17 +184,17 @@ export default function SettingsPage() {
             <StaggerGroup className="grid gap-6 sm:grid-cols-2" delayChildren={0.08}>
                 {settingsCards.map((card) => (
                     <StaggerItem key={card.key}>
-                        <Card className="rounded-[2.2rem]">
+                        <Card className="rounded-2xl">
                             <CardContent className="flex h-full flex-col space-y-5 p-6">
                                 <div className="flex items-start gap-3">
-                                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-[1.2rem] ${card.accentBg} ${card.accent}`}>
+                                    <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl ${card.accentBg} ${card.accent}`}>
                                         <card.icon className="h-5 w-5" />
                                     </div>
                                     <div className="min-w-0">
-                                        <h3 className="text-base font-semibold text-[#241d22]">
+                                        <h3 className="text-base font-semibold text-[var(--foreground)]">
                                             {card.title}
                                         </h3>
-                                        <p className="mt-1 text-xs leading-5 text-[#88797f]">
+                                        <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
                                             {card.description}
                                         </p>
                                     </div>
@@ -222,11 +218,11 @@ export default function SettingsPage() {
                                             }}
                                             className="text-center text-lg font-semibold"
                                         />
-                                        <span className="shrink-0 text-sm font-medium text-[#75676d]">
+                                        <span className="shrink-0 text-sm font-medium text-[var(--muted)]">
                                             {card.unit}
                                         </span>
                                     </div>
-                                    <div className="flex justify-between text-[0.68rem] uppercase tracking-[0.2em] text-[#a08d95]">
+                                    <div className="flex justify-between text-[0.68rem] uppercase tracking-[0.2em] text-[var(--muted)]">
                                         <span>{t('min')}: {card.min}</span>
                                         <span>{t('max')}: {card.max}</span>
                                     </div>
@@ -241,12 +237,12 @@ export default function SettingsPage() {
                 <Card className="rounded-[2rem]">
                     <CardContent className="p-6">
                         <div className="flex items-start gap-3">
-                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[rgba(255,255,255,0.72)] text-[#9d174d]">
+                            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--accent-soft)] text-[var(--accent)]">
                                 <Clock className="h-4 w-4" />
                             </div>
                             <div>
-                                <h3 className="text-sm font-semibold text-[#241d22]">{t('howItWorksTitle')}</h3>
-                                <p className="mt-2 text-xs leading-6 text-[#75676d]">
+                                <h3 className="text-sm font-semibold text-[var(--foreground)]">{t('howItWorksTitle')}</h3>
+                                <p className="mt-2 text-xs leading-6 text-[var(--muted)]">
                                     {t('howItWorksBody')}
                                 </p>
                             </div>

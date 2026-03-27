@@ -1,7 +1,7 @@
 'use client';
 
 import type { HTMLMotionProps, Variants } from 'framer-motion';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 const ease = [0.16, 1, 0.3, 1] as const;
 
@@ -117,4 +117,4 @@ export function StaggerItem({
     );
 }
 
-export { motion };
+export { AnimatePresence, motion };

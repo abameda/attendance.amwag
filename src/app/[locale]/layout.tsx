@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { DM_Sans, Playfair_Display } from "next/font/google";
+import { DM_Sans, Space_Grotesk } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -11,7 +11,7 @@ const dmSans = DM_Sans({
   variable: "--font-body",
 });
 
-const playfairDisplay = Playfair_Display({
+const spaceGrotesk = Space_Grotesk({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-display",
@@ -47,7 +47,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${playfairDisplay.variable} bg-background text-foreground antialiased`}>
+      <body className={`${dmSans.variable} ${spaceGrotesk.variable} bg-background text-foreground antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>

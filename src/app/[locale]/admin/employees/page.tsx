@@ -23,8 +23,10 @@ import {
     Button,
     Card,
     CardContent,
+    GlowingCard,
     Input,
     Modal,
+    AnimatedCounter,
     PageReveal,
     Select,
     Skeleton,
@@ -229,14 +231,14 @@ export default function EmployeesPage() {
     return (
         <div className="space-y-6">
             <PageReveal className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <Card className="editorial-frame rounded-[2.5rem] border-[rgba(66,42,50,0.08)]">
-                    <CardContent className="space-y-6 p-6 sm:p-8">
+                <GlowingCard>
+                    <div className="space-y-6 p-6 sm:p-8">
                         <div className="space-y-3">
-                            <p className="section-kicker">Workforce</p>
-                            <h1 className="display-serif text-4xl text-[#1d181c] sm:text-5xl">
+                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Workforce</p>
+                            <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
                                 Employee roster, styled for clarity
                             </h1>
-                            <p className="max-w-2xl text-sm leading-7 text-[#6f6367]">
+                            <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
                                 Keep branch assignments, shift planning, and overtime settings in a
                                 single calm workspace instead of a noisy admin table.
                             </p>
@@ -246,21 +248,21 @@ export default function EmployeesPage() {
                             {stats.map((stat) => (
                                 <div
                                     key={stat.label}
-                                    className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4"
+                                    className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
                                 >
-                                    <p className="section-kicker">{stat.label}</p>
-                                    <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
-                                        {isLoading ? '...' : stat.value}
+                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{stat.label}</p>
+                                    <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
+                                        {isLoading ? '...' : <AnimatedCounter value={stat.value} />}
                                     </p>
                                 </div>
                             ))}
                         </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </GlowingCard>
 
-                <Card className="rounded-[2.3rem]">
+                <Card className="rounded-2xl">
                     <CardContent className="space-y-4 p-6">
-                        <p className="section-kicker">Actions</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Actions</p>
                         <div className="grid gap-3">
                             <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="justify-between">
                                 <span>Bulk Import</span>
@@ -271,7 +273,7 @@ export default function EmployeesPage() {
                                 <UserPlus className="h-4 w-4" />
                             </Button>
                         </div>
-                        <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4 text-sm leading-6 text-[#72656a]">
+                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm leading-6 text-[var(--muted)]">
                             Search by name, email, or branch to move quickly through large rosters.
                         </div>
                     </CardContent>
@@ -279,15 +281,15 @@ export default function EmployeesPage() {
             </PageReveal>
 
             <PageReveal delay={0.08}>
-                <Card className="rounded-[2.2rem]">
+                <Card className="rounded-2xl">
                     <CardContent className="p-4 sm:p-5">
                         <div className="relative">
-                            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a7a86]" />
+                            <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                             <Input
                                 placeholder="Search employees..."
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
-                                className="pl-11"
+                                className="ps-11"
                             />
                         </div>
                     </CardContent>
@@ -297,7 +299,7 @@ export default function EmployeesPage() {
             {isLoading ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {Array.from({ length: 6 }).map((_, index) => (
-                        <Card key={index} className="rounded-[2.1rem]">
+                        <Card key={index} className="rounded-2xl">
                             <CardContent className="space-y-4 p-6">
                                 <div className="flex items-center gap-3">
                                     <Skeleton className="h-14 w-14 rounded-[1.2rem]" />
@@ -314,12 +316,12 @@ export default function EmployeesPage() {
                     ))}
                 </div>
             ) : filteredEmployees.length === 0 ? (
-                <Card className="rounded-[2.2rem]">
+                <Card className="rounded-2xl">
                     <CardContent className="p-12 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(255,255,255,0.72)] text-[#9d174d]">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-strong)] text-[var(--muted)]">
                             <Users className="h-6 w-6" />
                         </div>
-                        <h2 className="mt-4 text-xl font-semibold text-[#1f1a1e]">
+                        <h2 className="mt-4 text-xl font-semibold text-[var(--foreground)]">
                             {searchQuery ? 'No employees match your search' : 'No employees found'}
                         </h2>
                     </CardContent>
@@ -328,18 +330,22 @@ export default function EmployeesPage() {
                 <StaggerGroup className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {filteredEmployees.map((employee) => (
                         <StaggerItem key={employee.id}>
-                            <Card interactive className="group rounded-[2.1rem]">
+                            <Card interactive className="group rounded-2xl">
                                 <CardContent className="space-y-5 p-6">
                                     <div className="flex items-start justify-between gap-4">
                                         <div className="flex min-w-0 items-center gap-3">
-                                            <div className="flex h-14 w-14 items-center justify-center rounded-[1.4rem] bg-[#171419] text-lg font-semibold text-white">
-                                                {employee.full_name.charAt(0).toUpperCase()}
+                                            {/* Avatar with gradient border ring */}
+                                            <div className="relative flex-shrink-0">
+                                                <div className="absolute -inset-[2px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--secondary)] opacity-70" />
+                                                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-lg font-semibold text-[var(--foreground)]">
+                                                    {employee.full_name.charAt(0).toUpperCase()}
+                                                </div>
                                             </div>
                                             <div className="min-w-0">
-                                                <h3 className="truncate text-lg font-semibold text-[#1f1a1e]">
+                                                <h3 className="truncate text-lg font-semibold text-[var(--foreground)]">
                                                     {employee.full_name}
                                                 </h3>
-                                                <p className="truncate text-sm text-[#73666a]">
+                                                <p className="truncate text-sm text-[var(--muted)]">
                                                     {employee.email}
                                                 </p>
                                             </div>
@@ -347,54 +353,55 @@ export default function EmployeesPage() {
                                         <div className="flex gap-1">
                                             <button
                                                 onClick={() => openEditModal(employee)}
-                                                className="focus-ring rounded-full p-2 text-[#7e6e74] hover:bg-[rgba(255,255,255,0.72)] hover:text-[#241d22]"
+                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] transition-colors"
                                             >
                                                 <Edit2 className="h-4 w-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(employee.id)}
-                                                className="focus-ring rounded-full p-2 text-[#7e6e74] hover:bg-rose-50 hover:text-rose-700"
+                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] transition-colors"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
                                         </div>
                                     </div>
 
-                                    <div className="grid gap-3">
+                                    <div className="grid gap-2">
                                         {employee.job_title && (
-                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
-                                                <Briefcase className="h-4 w-4 text-[#9d174d]" />
+                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                                                <Briefcase className="h-4 w-4 text-[var(--accent)]" />
                                                 <span>{employee.job_title}</span>
                                             </div>
                                         )}
                                         {employee.branch && (
-                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
-                                                <MapPin className="h-4 w-4 text-[#9d174d]" />
+                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                                                <MapPin className="h-4 w-4 text-[var(--accent)]" />
                                                 <span>{employee.branch}</span>
                                             </div>
                                         )}
                                         {(employee.shift_start || employee.shift_end) && (
-                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
-                                                <Clock className="h-4 w-4 text-[#9d174d]" />
+                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                                                <Clock className="h-4 w-4 text-[var(--accent)]" />
                                                 <span>
                                                     {formatTime(employee.shift_start)} - {formatTime(employee.shift_end)}
                                                 </span>
                                             </div>
                                         )}
                                         {employee.off_day && (
-                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
-                                                <CalendarOff className="h-4 w-4 text-amber-700" />
+                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
+                                                <CalendarOff className="h-4 w-4 text-[var(--warning)]" />
                                                 <span className="capitalize">Off day: {employee.off_day}</span>
                                             </div>
                                         )}
                                     </div>
 
-                                    <div className="flex items-center justify-between rounded-[1.5rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3">
-                                        <div className="flex items-center gap-3 text-sm text-[#4f4549]">
-                                            <Timer className="h-4 w-4 text-[#9d174d]" />
+                                    {/* Overtime toggle */}
+                                    <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                                        <div className="flex items-center gap-3 text-sm text-[var(--foreground-soft)]">
+                                            <Timer className="h-4 w-4 text-[var(--accent)]" />
                                             <span>Overtime tracking</span>
                                         </div>
-                                        <span className={`text-sm font-semibold ${employee.overtime_enabled ? 'text-emerald-700' : 'text-[#8e7d83]'}`}>
+                                        <span className={`text-sm font-semibold ${employee.overtime_enabled ? 'text-[var(--success)]' : 'text-[var(--muted)]'}`}>
                                             {employee.overtime_enabled ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </div>
@@ -483,11 +490,11 @@ export default function EmployeesPage() {
                                 }
                             />
                             {formData.shift_start && (
-                                <div className="flex items-center gap-2 text-sm text-[#6f6468]">
-                                    <Clock className="h-4 w-4 shrink-0 text-[#9d174d]" />
+                                <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                    <Clock className="h-4 w-4 shrink-0 text-[var(--accent)]" />
                                     <span>
                                         Shift ends at{' '}
-                                        <span className="font-semibold text-[#241d22]">
+                                        <span className="font-semibold text-[var(--foreground-soft)]">
                                             {calculateShiftEnd(formData.shift_start, formData.shift_duration) || '--:--'}
                                         </span>
                                     </span>
@@ -531,12 +538,12 @@ export default function EmployeesPage() {
                         />
                     </div>
 
-                    <div className="flex flex-col gap-3 rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
-                            <Timer className="mt-1 h-5 w-5 text-[#9d174d]" />
+                            <Timer className="mt-1 h-5 w-5 text-[var(--accent)]" />
                             <div className="min-w-0">
-                                <p className="text-sm font-medium text-[#241d22]">Overtime Tracking</p>
-                                <p className="text-xs leading-6 text-[#72656a]">
+                                <p className="text-sm font-medium text-[var(--foreground)]">Overtime Tracking</p>
+                                <p className="text-xs leading-6 text-[var(--muted)]">
                                     Allow overtime calculation for this employee, up to the existing system maximum.
                                 </p>
                             </div>
@@ -544,7 +551,7 @@ export default function EmployeesPage() {
                         <button
                             type="button"
                             onClick={() => setFormData((prev) => ({ ...prev, overtime_enabled: !prev.overtime_enabled }))}
-                            className={`focus-ring relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${formData.overtime_enabled ? 'bg-[#9d174d]' : 'bg-[#cbbac0]'}`}
+                            className={`focus-ring relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${formData.overtime_enabled ? 'bg-[var(--accent)]' : 'bg-[var(--surface-strong)]'}`}
                         >
                             <span
                                 className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${formData.overtime_enabled ? 'switch-thumb-on' : 'switch-thumb-off'}`}
@@ -552,7 +559,7 @@ export default function EmployeesPage() {
                         </button>
                     </div>
 
-                    <div className="flex flex-col-reverse gap-3 border-t border-[rgba(66,42,50,0.08)] pt-4 sm:flex-row sm:justify-end">
+                    <div className="flex flex-col-reverse gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:justify-end">
                         <Button
                             type="button"
                             variant="outline"

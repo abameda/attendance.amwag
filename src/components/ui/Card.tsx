@@ -13,8 +13,9 @@ export function Card({ children, className, interactive }: CardProps) {
     return (
         <div
             className={cn(
-                'premium-card rounded-[2rem]',
-                interactive && 'card-hover',
+                'bg-[var(--surface)] border border-[var(--line)] backdrop-blur-2xl rounded-2xl',
+                interactive &&
+                    'cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--line-strong)] hover:shadow-[var(--shadow-md)]',
                 className
             )}
         >
@@ -30,7 +31,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className }: CardHeaderProps) {
     return (
-        <div className={cn('border-b border-[rgba(66,42,50,0.08)] px-6 py-4', className)}>
+        <div className={cn('border-b border-[var(--line)] px-6 py-4', className)}>
             {children}
         </div>
     );
@@ -52,7 +53,7 @@ interface CardTitleProps {
 
 export function CardTitle({ children, className }: CardTitleProps) {
     return (
-        <h3 className={cn('display-serif text-xl font-semibold text-[#1e191d]', className)}>
+        <h3 className={cn('text-xl font-semibold text-[var(--foreground)]', className)}>
             {children}
         </h3>
     );
@@ -65,7 +66,7 @@ interface CardDescriptionProps {
 
 export function CardDescription({ children, className }: CardDescriptionProps) {
     return (
-        <p className={cn('mt-1 text-sm text-[#73666a]', className)}>
+        <p className={cn('mt-1 text-sm text-[var(--muted)]', className)}>
             {children}
         </p>
     );

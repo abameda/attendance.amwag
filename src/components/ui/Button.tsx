@@ -5,7 +5,7 @@ import { Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
-    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger' | 'success';
     size?: 'sm' | 'md' | 'lg' | 'xl';
     isLoading?: boolean;
 }
@@ -13,19 +13,21 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
         const baseStyles =
-            'focus-ring inline-flex items-center justify-center gap-2 rounded-full border text-sm font-semibold tracking-[0.02em] transition-all duration-300 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.985]';
+            'inline-flex items-center justify-center gap-2 rounded-full border text-sm font-semibold tracking-[0.02em] transition-all duration-200 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-primary)]';
 
         const variants = {
             primary:
-                'border-transparent bg-[#171419] text-[#fff9f5] shadow-[0_18px_40px_-22px_rgba(23,20,25,0.8)] hover:-translate-y-0.5 hover:bg-[#281e26] hover:shadow-[0_24px_44px_-20px_rgba(23,20,25,0.72)]',
+                'border-transparent bg-[var(--accent)] text-white shadow-[var(--shadow-glow-blue)] hover:-translate-y-0.5 hover:bg-[var(--accent-strong)] hover:shadow-[0_0_28px_rgba(59,130,246,0.35)]',
             secondary:
-                'border-[rgba(236,72,153,0.16)] bg-[#fff4f8] text-[#9d174d] shadow-[0_16px_30px_-24px_rgba(157,23,77,0.45)] hover:-translate-y-0.5 hover:bg-[#ffe7f2]',
+                'border-[var(--secondary)]/20 bg-[var(--secondary-soft)] text-[#A78BFA] hover:-translate-y-0.5 hover:bg-[rgba(139,92,246,0.22)]',
             outline:
-                'border-[rgba(66,42,50,0.12)] bg-[rgba(255,255,255,0.54)] text-[#231c21] shadow-[0_12px_28px_-24px_rgba(72,47,56,0.42)] hover:-translate-y-0.5 hover:border-[rgba(157,23,77,0.18)] hover:bg-[rgba(255,255,255,0.82)]',
+                'border-[var(--line)] bg-transparent text-[var(--foreground-soft)] hover:-translate-y-0.5 hover:bg-[var(--surface)] hover:border-[var(--line-strong)]',
             ghost:
-                'border-transparent bg-transparent text-[#675d62] hover:bg-[rgba(255,255,255,0.6)] hover:text-[#241d22]',
+                'border-transparent bg-transparent text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)]',
             danger:
-                'border-transparent bg-[#8b1f28] text-white shadow-[0_16px_36px_-22px_rgba(139,31,40,0.72)] hover:-translate-y-0.5 hover:bg-[#a62430]',
+                'border-transparent bg-[var(--danger)] text-white shadow-[0_0_20px_rgba(239,68,68,0.15)] hover:-translate-y-0.5 hover:bg-[#dc2626] hover:shadow-[0_0_28px_rgba(239,68,68,0.3)]',
+            success:
+                'border-transparent bg-[var(--success)] text-white shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:-translate-y-0.5 hover:bg-[#059669] hover:shadow-[0_0_28px_rgba(16,185,129,0.3)]',
         };
 
         const sizes = {
@@ -35,6 +37,9 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
             xl: 'min-h-14 px-8 py-4 text-lg',
         };
 
+        const filledVariants = ['primary', 'danger', 'success'];
+        const spinnerClass = filledVariants.includes(variant) ? 'text-white' : 'text-[var(--accent)]';
+
         return (
             <button
                 ref={ref}
@@ -42,7 +47,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 disabled={disabled || isLoading}
                 {...props}
             >
-                {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isLoading && <Loader2 className={cn('h-4 w-4 animate-spin', spinnerClass)} />}
                 {children}
             </button>
         );
