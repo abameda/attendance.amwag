@@ -117,10 +117,10 @@ BEGIN
             shift_ended := true;
             target_date := cairo_date;
         ELSE
-            shift_start_min := SPLIT_PART(emp.shift_start, ':', 1)::integer * 60
-                             + SPLIT_PART(emp.shift_start, ':', 2)::integer;
-            shift_end_min   := SPLIT_PART(emp.shift_end, ':', 1)::integer * 60
-                             + SPLIT_PART(emp.shift_end, ':', 2)::integer;
+            shift_start_min := EXTRACT(HOUR FROM emp.shift_start)::integer * 60
+                             + EXTRACT(MINUTE FROM emp.shift_start)::integer;
+            shift_end_min   := EXTRACT(HOUR FROM emp.shift_end)::integer * 60
+                             + EXTRACT(MINUTE FROM emp.shift_end)::integer;
 
             -- ================================================================
             -- Determine if shift has ended
