@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { getEgyptNow, getEgyptDate } from '@/lib/timezone';
+import { getGlobalSettings } from '@/lib/globalSettings';
 
 export async function POST(_request: NextRequest) {
     try {
@@ -123,6 +124,37 @@ export async function POST(_request: NextRequest) {
             );
         }
 
+        // Fetch global time window settings
+        const settings = await getGlobalSettings();
+
+        // Validate checkout window: employee must check out within checkout_window_minutes after shift_end
+        // Overtime-enabled employees get the overtime cap (180 min) as their window instead
+        if (profile?.shift_start && profile?.shift_end) {
+            const [endH, endM] = profile.shift_end.split(':').map(Number);
+            const [startH, startM] = profile.shift_start.split(':').map(Number);
+
+            const shiftEndRef = new Date(checkInTime);
+            shiftEndRef.setHours(endH, endM, 0, 0);
+
+            // Shift crosses midnight
+            if (endH < startH || (endH === startH && endM < startM)) {
+                shiftEndRef.setDate(shiftEndRef.getDate() + 1);
+            }
+
+            const windowMinutes = profile.overtime_enabled ? settings.max_overtime_minutes : settings.checkout_window_minutes;
+            const windowEnd = new Date(shiftEndRef.getTime() + windowMinutes * 60000);
+
+            if (now.getTime() > windowEnd.getTime()) {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        error: `Check-out window has expired. You had ${windowMinutes} minutes after your shift ended to check out.`
+                    },
+                    { status: 400 }
+                );
+            }
+        }
+
         // Calculate early departure minutes and overtime using exact Date mathematics instead of static minute values
         let earlyDepartureMinutes = 0;
         let overtimeMinutes = 0;
@@ -149,7 +181,7 @@ export async function POST(_request: NextRequest) {
             } else if (diffMinutes < 0 && profile.overtime_enabled) {
                 // Stayed late and overtime is enabled (max 180 min)
                 const overtimeDiff = Math.abs(diffMinutes);
-                overtimeMinutes = Math.min(overtimeDiff, 180);
+                overtimeMinutes = Math.min(overtimeDiff, settings.max_overtime_minutes);
             }
         }
 

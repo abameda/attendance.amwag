@@ -10,6 +10,7 @@ import {
     LayoutDashboard,
     LogOut,
     Menu,
+    Settings,
     Users,
     X,
 } from 'lucide-react';
@@ -24,6 +25,7 @@ const navItemsConfig = [
     { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard', adminOnly: true },
     { href: '/admin/employees', icon: Users, labelKey: 'employees', adminOnly: true },
     { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs', adminOnly: false },
+    { href: '/admin/settings', icon: Settings, labelKey: 'settings', adminOnly: true },
 ];
 
 export default function AdminLayout({

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { getEgyptNow, isWithinTimeWindow } from '@/lib/timezone';
+import { getGlobalSettings } from '@/lib/globalSettings';
 
 export async function POST(_request: NextRequest) {
     try {
@@ -68,20 +69,23 @@ export async function POST(_request: NextRequest) {
             return `${displayHour}:${m.toString().padStart(2, '0')} ${period}`;
         };
 
-        // Validate check-in window: 1 hour before shift_start to shift_end
+        // Fetch global time window settings
+        const settings = await getGlobalSettings();
+
+        // Validate check-in window: [shift_start - early_checkin_minutes] to [shift_end]
         if (profile?.shift_start && profile?.shift_end) {
             const [startH, startM] = profile.shift_start.split(':').map(Number);
             const [endH, endM] = profile.shift_end.split(':').map(Number);
 
-            // Window opens 1 hour before shift start
-            let windowStartH = startH - 1;
-            const windowStartM = startM;
-            if (windowStartH < 0) {
-                windowStartH += 24; // Wrap to previous day (e.g., shift at 00:30 -> window starts at 23:30)
-            }
+            // Window opens early_checkin_minutes before shift start
+            const shiftStartMinutes = startH * 60 + startM;
+            let windowStartMinutes = shiftStartMinutes - settings.early_checkin_minutes;
+            if (windowStartMinutes < 0) windowStartMinutes += 1440;
 
-            const windowStartMinutes = windowStartH * 60 + windowStartM;
             const shiftEndMinutes = endH * 60 + endM;
+
+            const windowStartH = Math.floor(windowStartMinutes / 60) % 24;
+            const windowStartM = windowStartMinutes % 60;
 
             const isWithinWindow = isWithinTimeWindow(
                 currentTotalMinutes,
@@ -90,8 +94,6 @@ export async function POST(_request: NextRequest) {
             );
 
             if (!isWithinWindow) {
-                // Not in window. Let's provide a clear message.
-                // Reconstruct exactly if they are early or late in relation to bounds.
                 return NextResponse.json(
                     {
                         success: false,
@@ -102,7 +104,7 @@ export async function POST(_request: NextRequest) {
             }
         }
 
-        // Calculate lateness and status
+        // Calculate lateness and status (respects late_grace_minutes from global settings)
         let lateMinutes = 0;
         let status: 'present' | 'late' = 'present';
 
@@ -110,16 +112,14 @@ export async function POST(_request: NextRequest) {
             const [shiftHours, shiftMinutes] = profile.shift_start.split(':').map(Number);
             const shiftStartTotalMinutes = shiftHours * 60 + shiftMinutes;
 
-            // If we've passed the exact start minute within the window, compute lateness.
             // Be mindful of overnight wrapping (e.g. shift starts at 23:00 and it's 00:30)
             let diff = currentTotalMinutes - shiftStartTotalMinutes;
             if (diff < -720) {
-                // e.g. current = 30 (00:30 AM), start = 1380 (23:00) => diff = -1350
-                // Meaning they are 90 minutes late the next morning
                 diff += 1440;
             }
 
-            if (diff > 0) {
+            // Apply late grace period: arrival within grace minutes is not considered late
+            if (diff > settings.late_grace_minutes) {
                 lateMinutes = diff;
                 status = 'late';
             }
