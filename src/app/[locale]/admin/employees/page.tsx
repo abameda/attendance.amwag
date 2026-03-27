@@ -58,19 +58,22 @@ export default function EmployeesPage() {
     const calculateShiftEnd = (startTime: string, durationHours: string): string => {
         if (!startTime) return '';
         const [hours, minutes] = startTime.split(':').map(Number);
-        const duration = parseInt(durationHours, 10);
-        const endHours = (hours + duration) % 24;
-        return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+        const duration = parseFloat(durationHours);
+        const totalMinutes = hours * 60 + minutes + duration * 60;
+        const endHours = Math.floor(totalMinutes / 60) % 24;
+        const endMinutes = Math.floor(totalMinutes % 60);
+        return `${endHours.toString().padStart(2, '0')}:${endMinutes.toString().padStart(2, '0')}`;
     };
 
     const calculateDurationFromTimes = (startTime: string | null, endTime: string | null): string => {
         if (!startTime || !endTime) return '8';
-        const [startHours] = startTime.split(':').map(Number);
-        const [endHours] = endTime.split(':').map(Number);
-        let duration = endHours - startHours;
-        if (duration < 0) duration += 24;
-        if (duration === 10) return '10';
-        if (duration === 12) return '12';
+        const [startH, startM] = startTime.split(':').map(Number);
+        const [endH, endM] = endTime.split(':').map(Number);
+        let durationMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+        if (durationMinutes < 0) durationMinutes += 24 * 60;
+        const durationHours = durationMinutes / 60;
+        const validDurations = [0.5, 1, 2, 4, 8, 10, 12];
+        if (validDurations.includes(durationHours)) return String(durationHours);
         return '8';
     };
 
@@ -499,6 +502,10 @@ export default function EmployeesPage() {
                                 setFormData((prev) => ({ ...prev, shift_duration: event.target.value }))
                             }
                             options={[
+                                { value: '0.5', label: '30 Minutes (Testing)' },
+                                { value: '1', label: '1 Hour (Testing)' },
+                                { value: '2', label: '2 Hours (Testing)' },
+                                { value: '4', label: '4 Hours' },
                                 { value: '8', label: '8 Hours' },
                                 { value: '10', label: '10 Hours' },
                                 { value: '12', label: '12 Hours' },
