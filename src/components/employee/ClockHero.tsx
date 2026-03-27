@@ -69,18 +69,22 @@ export function ClockHero({
         const currentMinute = currentTime.getMinutes();
         if (currentMinute !== prevMinute.current) {
             prevMinute.current = currentMinute;
-            setTimeAnnouncement(
-                `Current time: ${currentTime.getHours().toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`
-            );
+            const announcement = `Current time: ${currentTime.getHours().toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+            const t = setTimeout(() => setTimeAnnouncement(announcement), 0);
+            return () => clearTimeout(t);
         }
     }, [currentTime]);
 
     // Trigger burst when transitioning to complete
     useEffect(() => {
         if (prevStatus.current !== 'complete' && shiftStatus === 'complete') {
-            setShowBurst(true);
-            const timer = setTimeout(() => setShowBurst(false), 700);
-            return () => clearTimeout(timer);
+            const onTimer = setTimeout(() => setShowBurst(true), 0);
+            const offTimer = setTimeout(() => setShowBurst(false), 700);
+            prevStatus.current = shiftStatus;
+            return () => {
+                clearTimeout(onTimer);
+                clearTimeout(offTimer);
+            };
         }
         prevStatus.current = shiftStatus;
     }, [shiftStatus]);
