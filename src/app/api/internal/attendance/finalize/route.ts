@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { authorizeInternalScheduler } from '@/lib/auth';
 import { executeAttendanceFinalization } from '@/lib/attendanceFinalization';
 
-export async function POST(request: NextRequest) {
+async function handleFinalization(request: NextRequest) {
     const auth = authorizeInternalScheduler(request);
     if (!auth.authorized) {
         return NextResponse.json(
@@ -21,4 +21,14 @@ export async function POST(request: NextRequest) {
             { status: 500 }
         );
     }
+}
+
+/** GET: Vercel Cron hits this endpoint with a GET request */
+export async function GET(request: NextRequest) {
+    return handleFinalization(request);
+}
+
+/** POST: External schedulers (systemd, curl) hit this endpoint with POST */
+export async function POST(request: NextRequest) {
+    return handleFinalization(request);
 }

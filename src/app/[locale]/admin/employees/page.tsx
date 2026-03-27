@@ -1,33 +1,37 @@
 'use client';
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import {
-    Button,
-    Input,
-    Select,
-    Card,
-    CardContent,
-    Modal,
-    Skeleton,
-    addToast,
-} from '@/components/ui';
+    Briefcase,
+    CalendarOff,
+    Clock,
+    Edit2,
+    MapPin,
+    Search,
+    Timer,
+    Trash2,
+    Upload,
+    UserPlus,
+    Users,
+} from 'lucide-react';
+import BulkImportModal from '@/components/BulkImportModal';
+import { createClient } from '@/lib/supabase/client';
 import { BRANCHES } from '@/lib/branches';
 import { formatTime } from '@/lib/utils';
 import type { Profile } from '@/types';
 import {
-    UserPlus,
-    Edit2,
-    Trash2,
-    Search,
-    Clock,
-    MapPin,
-    Briefcase,
-    CalendarOff,
-    Upload,
-    Timer,
-} from 'lucide-react';
-import BulkImportModal from '@/components/BulkImportModal';
+    Button,
+    Card,
+    CardContent,
+    Input,
+    Modal,
+    PageReveal,
+    Select,
+    Skeleton,
+    StaggerGroup,
+    StaggerItem,
+    addToast,
+} from '@/components/ui';
 
 export default function EmployeesPage() {
     const supabase = useMemo(() => createClient(), []);
@@ -43,12 +47,14 @@ export default function EmployeesPage() {
         branch: '',
         job_title: '',
         shift_start: '',
-        shift_duration: '8', // 8, 10, or 12 hours
+        shift_duration: '8',
         off_day: '',
         overtime_enabled: true,
     });
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+    const deferredSearchQuery = useDeferredValue(searchQuery);
 
-    // Calculate shift_end from shift_start and shift_duration
     const calculateShiftEnd = (startTime: string, durationHours: string): string => {
         if (!startTime) return '';
         const [hours, minutes] = startTime.split(':').map(Number);
@@ -56,9 +62,17 @@ export default function EmployeesPage() {
         const endHours = (hours + duration) % 24;
         return `${endHours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
     };
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
-    const deferredSearchQuery = useDeferredValue(searchQuery);
+
+    const calculateDurationFromTimes = (startTime: string | null, endTime: string | null): string => {
+        if (!startTime || !endTime) return '8';
+        const [startHours] = startTime.split(':').map(Number);
+        const [endHours] = endTime.split(':').map(Number);
+        let duration = endHours - startHours;
+        if (duration < 0) duration += 24;
+        if (duration === 10) return '10';
+        if (duration === 12) return '12';
+        return '8';
+    };
 
     const fetchEmployees = useCallback(async () => {
         try {
@@ -81,18 +95,6 @@ export default function EmployeesPage() {
     useEffect(() => {
         fetchEmployees();
     }, [fetchEmployees]);
-
-    // Calculate duration from start and end times for editing
-    const calculateDurationFromTimes = (startTime: string | null, endTime: string | null): string => {
-        if (!startTime || !endTime) return '8';
-        const [startHours] = startTime.split(':').map(Number);
-        const [endHours] = endTime.split(':').map(Number);
-        let duration = endHours - startHours;
-        if (duration < 0) duration += 24; // Handle overnight shifts
-        if (duration === 10) return '10';
-        if (duration === 12) return '12';
-        return '8';
-    };
 
     const resetForm = () => {
         setFormData({
@@ -130,13 +132,12 @@ export default function EmployeesPage() {
         setIsModalOpen(true);
     };
 
-    const handleSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleSubmit = async (event: React.FormEvent) => {
+        event.preventDefault();
         setIsSubmitting(true);
 
         try {
             if (editingEmployee) {
-                // Update existing employee
                 const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
                 const { error } = await supabase
                     .from('profiles')
@@ -154,7 +155,6 @@ export default function EmployeesPage() {
                 if (error) throw error;
                 addToast('Employee updated successfully', 'success');
             } else {
-                // Create new employee
                 const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
                 const submitData = {
                     ...formData,
@@ -202,9 +202,7 @@ export default function EmployeesPage() {
 
     const filteredEmployees = useMemo(() => {
         const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
-        if (!normalizedQuery) {
-            return employees;
-        }
+        if (!normalizedQuery) return employees;
 
         return employees.filter(
             (employee) =>
@@ -214,141 +212,194 @@ export default function EmployeesPage() {
         );
     }, [employees, deferredSearchQuery]);
 
-    return (
-        <div className="space-y-6 animate-fade-in-up">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl lg:text-3xl font-bold text-slate-50">
-                        Employees
-                    </h1>
-                    <p className="text-slate-400 mt-1">
-                        Manage your workforce
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <Button variant="outline" onClick={() => setIsBulkImportOpen(true)}>
-                        <Upload className="w-5 h-5 mr-2" />
-                        Bulk Import
-                    </Button>
-                    <Button onClick={openAddModal}>
-                        <UserPlus className="w-5 h-5 mr-2" />
-                        Add Employee
-                    </Button>
-                </div>
-            </div>
+    const stats = useMemo(() => {
+        const branchCount = new Set(employees.map((employee) => employee.branch).filter(Boolean)).size;
+        const overtimeEnabledCount = employees.filter((employee) => employee.overtime_enabled).length;
 
-            <div className="relative max-w-md">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-                <Input
-                    placeholder="Search employees..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-10"
-                />
-            </div>
+        return [
+            { label: 'Employees', value: employees.length },
+            { label: 'Branches', value: branchCount },
+            { label: 'Overtime enabled', value: overtimeEnabledCount },
+        ];
+    }, [employees]);
+
+    return (
+        <div className="space-y-6">
+            <PageReveal className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <Card className="editorial-frame rounded-[2.5rem] border-[rgba(66,42,50,0.08)]">
+                    <CardContent className="space-y-6 p-6 sm:p-8">
+                        <div className="space-y-3">
+                            <p className="section-kicker">Workforce</p>
+                            <h1 className="display-serif text-4xl text-[#1d181c] sm:text-5xl">
+                                Employee roster, styled for clarity
+                            </h1>
+                            <p className="max-w-2xl text-sm leading-7 text-[#6f6367]">
+                                Keep branch assignments, shift planning, and overtime settings in a
+                                single calm workspace instead of a noisy admin table.
+                            </p>
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            {stats.map((stat) => (
+                                <div
+                                    key={stat.label}
+                                    className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4"
+                                >
+                                    <p className="section-kicker">{stat.label}</p>
+                                    <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
+                                        {isLoading ? '...' : stat.value}
+                                    </p>
+                                </div>
+                            ))}
+                        </div>
+                    </CardContent>
+                </Card>
+
+                <Card className="rounded-[2.3rem]">
+                    <CardContent className="space-y-4 p-6">
+                        <p className="section-kicker">Actions</p>
+                        <div className="grid gap-3">
+                            <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="justify-between">
+                                <span>Bulk Import</span>
+                                <Upload className="h-4 w-4" />
+                            </Button>
+                            <Button onClick={openAddModal} className="justify-between">
+                                <span>Add Employee</span>
+                                <UserPlus className="h-4 w-4" />
+                            </Button>
+                        </div>
+                        <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4 text-sm leading-6 text-[#72656a]">
+                            Search by name, email, or branch to move quickly through large rosters.
+                        </div>
+                    </CardContent>
+                </Card>
+            </PageReveal>
+
+            <PageReveal delay={0.08}>
+                <Card className="rounded-[2.2rem]">
+                    <CardContent className="p-4 sm:p-5">
+                        <div className="relative">
+                            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9a7a86]" />
+                            <Input
+                                placeholder="Search employees..."
+                                value={searchQuery}
+                                onChange={(event) => setSearchQuery(event.target.value)}
+                                className="pl-11"
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+            </PageReveal>
 
             {isLoading ? (
-                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {[...Array(6)].map((_, i) => (
-                        <Card key={i} className="premium-card">
-                            <CardContent className="p-6">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <Skeleton className="w-12 h-12 rounded-xl" />
-                                        <div className="space-y-1.5">
-                                            <Skeleton className="h-4 w-28" />
-                                            <Skeleton className="h-3 w-36" />
-                                        </div>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    {Array.from({ length: 6 }).map((_, index) => (
+                        <Card key={index} className="rounded-[2.1rem]">
+                            <CardContent className="space-y-4 p-6">
+                                <div className="flex items-center gap-3">
+                                    <Skeleton className="h-14 w-14 rounded-[1.2rem]" />
+                                    <div className="space-y-2">
+                                        <Skeleton className="h-4 w-32" />
+                                        <Skeleton className="h-3 w-44" />
                                     </div>
                                 </div>
-                                <div className="space-y-2.5">
-                                    <Skeleton className="h-3.5 w-24" />
-                                    <Skeleton className="h-3.5 w-32" />
-                                    <Skeleton className="h-3.5 w-28" />
-                                </div>
+                                {Array.from({ length: 4 }).map((__, metricIndex) => (
+                                    <Skeleton key={metricIndex} className="h-12 rounded-[1.2rem]" />
+                                ))}
                             </CardContent>
                         </Card>
                     ))}
                 </div>
             ) : filteredEmployees.length === 0 ? (
-                <Card className="premium-card">
-                    <CardContent className="p-12 text-center relative z-10">
-                        <p className="text-slate-400">
+                <Card className="rounded-[2.2rem]">
+                    <CardContent className="p-12 text-center">
+                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[rgba(255,255,255,0.72)] text-[#9d174d]">
+                            <Users className="h-6 w-6" />
+                        </div>
+                        <h2 className="mt-4 text-xl font-semibold text-[#1f1a1e]">
                             {searchQuery ? 'No employees match your search' : 'No employees found'}
-                        </p>
+                        </h2>
                     </CardContent>
                 </Card>
             ) : (
-                <div className="stagger grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <StaggerGroup className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {filteredEmployees.map((employee) => (
-                        <Card key={employee.id} interactive className="group premium-card">
-                            <CardContent className="p-6 relative z-10">
-                                <div className="flex items-start justify-between mb-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg shadow-cyan-500/20 group-hover:scale-110 transition-transform duration-300">
-                                            {employee.full_name.charAt(0).toUpperCase()}
+                        <StaggerItem key={employee.id}>
+                            <Card interactive className="group rounded-[2.1rem]">
+                                <CardContent className="space-y-5 p-6">
+                                    <div className="flex items-start justify-between gap-4">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-[1.4rem] bg-[#171419] text-lg font-semibold text-white">
+                                                {employee.full_name.charAt(0).toUpperCase()}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <h3 className="truncate text-lg font-semibold text-[#1f1a1e]">
+                                                    {employee.full_name}
+                                                </h3>
+                                                <p className="truncate text-sm text-[#73666a]">
+                                                    {employee.email}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div>
-                                            <h3 className="font-semibold text-slate-100">
-                                                {employee.full_name}
-                                            </h3>
-                                            <p className="text-sm text-slate-400">
-                                                {employee.email}
-                                            </p>
+                                        <div className="flex gap-1">
+                                            <button
+                                                onClick={() => openEditModal(employee)}
+                                                className="focus-ring rounded-full p-2 text-[#7e6e74] hover:bg-[rgba(255,255,255,0.72)] hover:text-[#241d22]"
+                                            >
+                                                <Edit2 className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(employee.id)}
+                                                className="focus-ring rounded-full p-2 text-[#7e6e74] hover:bg-rose-50 hover:text-rose-700"
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </button>
                                         </div>
                                     </div>
-                                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <button
-                                            onClick={() => openEditModal(employee)}
-                                            className="p-2 hover:bg-slate-800/80 rounded-lg text-slate-400 hover:text-cyan-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 active:scale-[0.95]"
-                                        >
-                                            <Edit2 className="w-4 h-4" />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(employee.id)}
-                                            className="p-2 hover:bg-slate-800/80 rounded-lg text-slate-400 hover:text-red-400 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50 active:scale-[0.95]"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
-                                    </div>
-                                </div>
 
-                                <div className="space-y-2">
-                                    {employee.job_title && (
-                                        <div className="flex items-center gap-2 text-sm text-slate-300">
-                                            <Briefcase className="w-4 h-4 text-slate-500" />
-                                            {employee.job_title}
+                                    <div className="grid gap-3">
+                                        {employee.job_title && (
+                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
+                                                <Briefcase className="h-4 w-4 text-[#9d174d]" />
+                                                <span>{employee.job_title}</span>
+                                            </div>
+                                        )}
+                                        {employee.branch && (
+                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
+                                                <MapPin className="h-4 w-4 text-[#9d174d]" />
+                                                <span>{employee.branch}</span>
+                                            </div>
+                                        )}
+                                        {(employee.shift_start || employee.shift_end) && (
+                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
+                                                <Clock className="h-4 w-4 text-[#9d174d]" />
+                                                <span>
+                                                    {formatTime(employee.shift_start)} - {formatTime(employee.shift_end)}
+                                                </span>
+                                            </div>
+                                        )}
+                                        {employee.off_day && (
+                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3 text-sm text-[#4f4549]">
+                                                <CalendarOff className="h-4 w-4 text-amber-700" />
+                                                <span className="capitalize">Off day: {employee.off_day}</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="flex items-center justify-between rounded-[1.5rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] px-4 py-3">
+                                        <div className="flex items-center gap-3 text-sm text-[#4f4549]">
+                                            <Timer className="h-4 w-4 text-[#9d174d]" />
+                                            <span>Overtime tracking</span>
                                         </div>
-                                    )}
-                                    {employee.branch && (
-                                        <div className="flex items-center gap-2 text-sm text-slate-300">
-                                            <MapPin className="w-4 h-4 text-slate-500" />
-                                            {employee.branch}
-                                        </div>
-                                    )}
-                                    {(employee.shift_start || employee.shift_end) && (
-                                        <div className="flex items-center gap-2 text-sm text-slate-300">
-                                            <Clock className="w-4 h-4 text-slate-500" />
-                                            {formatTime(employee.shift_start)} - {formatTime(employee.shift_end)}
-                                        </div>
-                                    )}
-                                    {employee.off_day && (
-                                        <div className="flex items-center gap-2 text-sm text-slate-300">
-                                            <CalendarOff className="w-4 h-4 text-orange-400 drop-shadow-[0_0_8px_rgba(249,115,22,0.4)]" />
-                                            Off: <span className="capitalize">{employee.off_day}</span>
-                                        </div>
-                                    )}
-                                    <div className="flex items-center gap-2 text-sm pt-2 border-t border-white/5">
-                                        <Timer className={`w-4 h-4 ${employee.overtime_enabled ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]' : 'text-slate-500'}`} />
-                                        <span className={employee.overtime_enabled ? 'text-cyan-400 font-medium' : 'text-slate-500'}>
-                                            Overtime: {employee.overtime_enabled ? 'Enabled' : 'Disabled'}
+                                        <span className={`text-sm font-semibold ${employee.overtime_enabled ? 'text-emerald-700' : 'text-[#8e7d83]'}`}>
+                                            {employee.overtime_enabled ? 'Enabled' : 'Disabled'}
                                         </span>
                                     </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                                </CardContent>
+                            </Card>
+                        </StaggerItem>
                     ))}
-                </div>
+                </StaggerGroup>
             )}
 
             <Modal
@@ -361,14 +412,14 @@ export default function EmployeesPage() {
                 size="lg"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Input
                             id="full_name"
                             label="Full Name"
                             placeholder="John Doe"
                             value={formData.full_name}
-                            onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, full_name: e.target.value }))
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, full_name: event.target.value }))
                             }
                             required
                         />
@@ -378,8 +429,8 @@ export default function EmployeesPage() {
                             type="email"
                             placeholder="john@company.com"
                             value={formData.email}
-                            onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, email: e.target.value }))
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, email: event.target.value }))
                             }
                             disabled={!!editingEmployee}
                             required
@@ -391,8 +442,8 @@ export default function EmployeesPage() {
                                 type="password"
                                 placeholder="••••••••"
                                 value={formData.password}
-                                onChange={(e) =>
-                                    setFormData((prev) => ({ ...prev, password: e.target.value }))
+                                onChange={(event) =>
+                                    setFormData((prev) => ({ ...prev, password: event.target.value }))
                                 }
                                 required
                             />
@@ -401,12 +452,12 @@ export default function EmployeesPage() {
                             id="branch"
                             label="Branch"
                             value={formData.branch}
-                            onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, branch: e.target.value }))
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, branch: event.target.value }))
                             }
                             options={[
                                 { value: '', label: 'Select Branch' },
-                                ...BRANCHES.map((b) => ({ value: b, label: b })),
+                                ...BRANCHES.map((branch) => ({ value: branch, label: branch })),
                             ]}
                         />
                         <Input
@@ -414,8 +465,8 @@ export default function EmployeesPage() {
                             label="Job Title"
                             placeholder="Driver"
                             value={formData.job_title}
-                            onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, job_title: e.target.value }))
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, job_title: event.target.value }))
                             }
                         />
                         <div className="space-y-2">
@@ -424,16 +475,16 @@ export default function EmployeesPage() {
                                 label="Shift Start Time"
                                 type="time"
                                 value={formData.shift_start}
-                                onChange={(e) =>
-                                    setFormData((prev) => ({ ...prev, shift_start: e.target.value }))
+                                onChange={(event) =>
+                                    setFormData((prev) => ({ ...prev, shift_start: event.target.value }))
                                 }
                             />
                             {formData.shift_start && (
-                                <div className="flex items-center gap-2 text-sm text-slate-400 min-h-5">
-                                    <Clock className="w-4 h-4 shrink-0" />
+                                <div className="flex items-center gap-2 text-sm text-[#6f6468]">
+                                    <Clock className="h-4 w-4 shrink-0 text-[#9d174d]" />
                                     <span>
-                                        Shift ends at:{' '}
-                                        <span className="text-teal-400 font-medium">
+                                        Shift ends at{' '}
+                                        <span className="font-semibold text-[#241d22]">
                                             {calculateShiftEnd(formData.shift_start, formData.shift_duration) || '--:--'}
                                         </span>
                                     </span>
@@ -444,8 +495,8 @@ export default function EmployeesPage() {
                             id="shift_duration"
                             label="Shift Duration"
                             value={formData.shift_duration}
-                            onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, shift_duration: e.target.value }))
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, shift_duration: event.target.value }))
                             }
                             options={[
                                 { value: '8', label: '8 Hours' },
@@ -457,8 +508,8 @@ export default function EmployeesPage() {
                             id="off_day"
                             label="Off Day"
                             value={formData.off_day}
-                            onChange={(e) =>
-                                setFormData((prev) => ({ ...prev, off_day: e.target.value }))
+                            onChange={(event) =>
+                                setFormData((prev) => ({ ...prev, off_day: event.target.value }))
                             }
                             options={[
                                 { value: '', label: 'No off day' },
@@ -473,28 +524,28 @@ export default function EmployeesPage() {
                         />
                     </div>
 
-                    <div className="flex flex-wrap items-start justify-between gap-3 overflow-hidden p-4 glass rounded-xl border border-white/5">
+                    <div className="flex flex-col gap-3 rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
-                            <Timer className="w-5 h-5 text-cyan-400 drop-shadow-[0_0_8px_rgba(6,182,212,0.5)]" />
+                            <Timer className="mt-1 h-5 w-5 text-[#9d174d]" />
                             <div className="min-w-0">
-                                <p className="text-sm font-medium text-slate-200">Overtime Tracking</p>
-                                <p className="text-xs text-slate-400">Allow overtime calculation for this employee (max 3 hours)</p>
+                                <p className="text-sm font-medium text-[#241d22]">Overtime Tracking</p>
+                                <p className="text-xs leading-6 text-[#72656a]">
+                                    Allow overtime calculation for this employee, up to the existing system maximum.
+                                </p>
                             </div>
                         </div>
                         <button
                             type="button"
                             onClick={() => setFormData((prev) => ({ ...prev, overtime_enabled: !prev.overtime_enabled }))}
-                            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 ${formData.overtime_enabled ? 'bg-cyan-500 shadow-[0_0_12px_rgba(6,182,212,0.4)]' : 'bg-slate-700'
-                                }`}
+                            className={`focus-ring relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${formData.overtime_enabled ? 'bg-[#9d174d]' : 'bg-[#cbbac0]'}`}
                         >
                             <span
-                                className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${formData.overtime_enabled ? 'switch-thumb-on' : 'switch-thumb-off'
-                                    }`}
+                                className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${formData.overtime_enabled ? 'switch-thumb-on' : 'switch-thumb-off'}`}
                             />
                         </button>
                     </div>
 
-                    <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <div className="flex flex-col-reverse gap-3 border-t border-[rgba(66,42,50,0.08)] pt-4 sm:flex-row sm:justify-end">
                         <Button
                             type="button"
                             variant="outline"
@@ -505,7 +556,7 @@ export default function EmployeesPage() {
                         >
                             Cancel
                         </Button>
-                        <Button type="submit" isLoading={isSubmitting}>
+                        <Button type="submit" isLoading={isSubmitting} className="w-full sm:w-auto">
                             {editingEmployee ? 'Update Employee' : 'Create Employee'}
                         </Button>
                     </div>

@@ -1,8 +1,8 @@
 'use client';
 
 import { forwardRef, ButtonHTMLAttributes } from 'react';
-import { cn } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
     variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
@@ -13,26 +13,26 @@ interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', isLoading, children, disabled, ...props }, ref) => {
         const baseStyles =
-            'inline-flex items-center justify-center font-semibold rounded-xl transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none active:scale-[0.97]';
+            'focus-ring inline-flex items-center justify-center gap-2 rounded-full border text-sm font-semibold tracking-[0.02em] transition-all duration-300 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 active:scale-[0.985]';
 
         const variants = {
             primary:
-                'bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white shadow-lg shadow-cyan-500/20 hover:shadow-cyan-500/30 focus-visible:ring-cyan-500',
+                'border-transparent bg-[#171419] text-[#fff9f5] shadow-[0_18px_40px_-22px_rgba(23,20,25,0.8)] hover:-translate-y-0.5 hover:bg-[#281e26] hover:shadow-[0_24px_44px_-20px_rgba(23,20,25,0.72)]',
             secondary:
-                'glass hover:bg-slate-800/80 text-slate-100 border border-white/10 hover:border-white/20 focus-visible:ring-slate-500',
+                'border-[rgba(236,72,153,0.16)] bg-[#fff4f8] text-[#9d174d] shadow-[0_16px_30px_-24px_rgba(157,23,77,0.45)] hover:-translate-y-0.5 hover:bg-[#ffe7f2]',
             outline:
-                'border border-white/10 hover:border-cyan-500/50 hover:bg-cyan-500/5 bg-transparent text-slate-200 focus-visible:ring-cyan-500',
+                'border-[rgba(66,42,50,0.12)] bg-[rgba(255,255,255,0.54)] text-[#231c21] shadow-[0_12px_28px_-24px_rgba(72,47,56,0.42)] hover:-translate-y-0.5 hover:border-[rgba(157,23,77,0.18)] hover:bg-[rgba(255,255,255,0.82)]',
             ghost:
-                'bg-transparent hover:bg-slate-800/80 text-slate-300 hover:text-slate-100 focus-visible:ring-slate-500',
+                'border-transparent bg-transparent text-[#675d62] hover:bg-[rgba(255,255,255,0.6)] hover:text-[#241d22]',
             danger:
-                'bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 text-white shadow-lg shadow-red-500/20 hover:shadow-red-500/30 focus-visible:ring-red-500',
+                'border-transparent bg-[#8b1f28] text-white shadow-[0_16px_36px_-22px_rgba(139,31,40,0.72)] hover:-translate-y-0.5 hover:bg-[#a62430]',
         };
 
         const sizes = {
-            sm: 'text-sm px-3 py-1.5 gap-1.5',
-            md: 'text-sm px-4 py-2.5 gap-2',
-            lg: 'text-base px-6 py-3 gap-2',
-            xl: 'text-lg px-8 py-4 gap-2.5',
+            sm: 'min-h-10 px-4 py-2 text-sm',
+            md: 'min-h-11 px-5 py-2.5 text-sm',
+            lg: 'min-h-12 px-6 py-3 text-base',
+            xl: 'min-h-14 px-8 py-4 text-lg',
         };
 
         return (
@@ -42,7 +42,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
                 disabled={disabled || isLoading}
                 {...props}
             >
-                {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
+                {isLoading && <Loader2 className="h-4 w-4 animate-spin" />}
                 {children}
             </button>
         );

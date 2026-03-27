@@ -4,9 +4,7 @@ import { useTranslations } from 'next-intl';
 import { cn } from '@/lib/utils';
 
 interface FooterProps {
-    /** Extra classes for the outer `<footer>` wrapper */
     className?: string;
-    /** Smaller text & icons — used on the employee portal */
     compact?: boolean;
 }
 
@@ -19,13 +17,13 @@ export default function Footer({ className, compact = false }: FooterProps) {
 
     return (
         <footer className={cn('text-center', className)}>
-            <p className={`${textSize} text-slate-600`}>
+            <p className={`${textSize} text-[#7b6a6f]`}>
                 {tc('developedBy')}{' '}
                 <a
                     href="https://www.shorbagy.space/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-slate-500 hover:text-teal-400 transition-colors"
+                    className="font-semibold text-[#5a474f] transition-colors hover:text-[#9d174d]"
                 >
                     {tc('devName')}
                 </a>
@@ -35,7 +33,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://github.com/abameda"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-slate-600 hover:text-white transition-colors"
+                    className="text-[#8e7b83] transition-colors hover:text-[#241d22]"
                     title="GitHub"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">
@@ -46,7 +44,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://www.instagram.com/abamedax/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-slate-600 hover:text-pink-400 transition-colors"
+                    className="text-[#8e7b83] transition-colors hover:text-[#ec4899]"
                     title="Instagram"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">
@@ -57,7 +55,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://www.linkedin.com/in/abameda/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-slate-600 hover:text-teal-400 transition-colors"
+                    className="text-[#8e7b83] transition-colors hover:text-[#9d174d]"
                     title="LinkedIn"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">

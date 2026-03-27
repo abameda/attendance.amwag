@@ -16,7 +16,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 {label && (
                     <label
                         htmlFor={id}
-                        className="block text-sm font-medium text-slate-300 mb-1.5"
+                        className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#7b6670]"
                     >
                         {label}
                     </label>
@@ -25,24 +25,24 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     ref={ref}
                     id={id}
                     className={cn(
-                        'w-full px-4 py-2.5 text-slate-100 bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-xl shadow-inner',
-                        'focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-transparent focus:bg-slate-800/60',
+                        'focus-ring w-full cursor-pointer appearance-none rounded-[1.4rem] border border-[rgba(66,42,50,0.1)] bg-[rgba(255,255,255,0.72)] px-4 py-3 text-[0.95rem] text-[#221c21] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-sm',
+                        'hover:border-[rgba(66,42,50,0.16)] hover:bg-[rgba(255,255,255,0.88)]',
+                        'focus:border-[rgba(157,23,77,0.18)] focus:bg-white',
                         'transition-all duration-200',
-                        'disabled:opacity-50 disabled:cursor-not-allowed',
-                        'appearance-none cursor-pointer',
-                        error && 'border-red-500 focus:ring-red-500',
+                        'disabled:cursor-not-allowed disabled:opacity-50',
+                        error && 'border-red-400 focus:border-red-500',
                         className
                     )}
                     {...props}
                 >
                     {options.map((option) => (
-                        <option key={option.value} value={option.value} className="bg-slate-800">
+                        <option key={option.value} value={option.value} className="bg-white text-[#221c21]">
                             {option.label}
                         </option>
                     ))}
                 </select>
                 {error && (
-                    <p className="mt-1 text-sm text-red-400">{error}</p>
+                    <p className="mt-1 text-sm text-red-600">{error}</p>
                 )}
             </div>
         );

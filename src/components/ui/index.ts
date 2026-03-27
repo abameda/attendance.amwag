@@ -7,3 +7,4 @@ export { ToastContainer, addToast, removeToast } from './Toast';
 export type { ToastType } from './Toast';
 export { Skeleton } from './Skeleton';
 export { Badge } from './Badge';
+export { PageReveal, StaggerGroup, StaggerItem, motion } from './Motion';

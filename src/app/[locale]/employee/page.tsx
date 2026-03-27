@@ -1,32 +1,35 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 import {
-    Card,
-    CardContent,
-    Skeleton,
-    Badge,
-    addToast,
-    ToastContainer,
-} from '@/components/ui';
-import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { useTranslations } from 'next-intl';
-import { formatTime, formatTimestamp, formatLateness, formatOvertime } from '@/lib/utils';
-import type { Profile, AttendanceRecord } from '@/types';
-import {
-    LogIn,
-    LogOut,
-    Clock,
+    Briefcase,
     Calendar,
     CheckCircle2,
-    Timer,
+    LogIn,
+    LogOut,
     MapPin,
-    Briefcase,
+    Timer,
 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import Footer from '@/components/Footer';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { createClient } from '@/lib/supabase/client';
+import { formatLateness, formatOvertime, formatTime, formatTimestamp } from '@/lib/utils';
+import type { AttendanceRecord, Profile } from '@/types';
+import {
+    Badge,
+    Button,
+    Card,
+    CardContent,
+    PageReveal,
+    Skeleton,
+    StaggerGroup,
+    StaggerItem,
+    ToastContainer,
+    addToast,
+} from '@/components/ui';
 
 export default function EmployeePortal() {
     const router = useRouter();
@@ -37,12 +40,14 @@ export default function EmployeePortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const locale = useLocale();
     const t = useTranslations('Employee');
 
     useEffect(() => {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
         }, 1000);
+
         return () => clearInterval(timer);
     }, []);
 
@@ -54,7 +59,7 @@ export default function EmployeePortal() {
                 } = await supabase.auth.getUser();
 
                 if (!user) {
-                    router.push('/login');
+                    router.push(`/${locale}/login`);
                     return;
                 }
 
@@ -83,10 +88,29 @@ export default function EmployeePortal() {
         };
 
         fetchData();
-    }, [supabase, router]);
+    }, [locale, router, supabase]);
+
+    const refreshTodayRecord = async () => {
+        const today = new Date().toISOString().split('T')[0];
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        if (!user) return;
+
+        const { data } = await supabase
+            .from('attendance')
+            .select('*')
+            .eq('user_id', user.id)
+            .eq('date', today)
+            .single();
+
+        setTodayRecord(data);
+    };
 
     const handleCheckIn = async () => {
         setIsCheckingIn(true);
+
         try {
             const response = await fetch('/api/attendance/check-in', {
                 method: 'POST',
@@ -98,20 +122,7 @@ export default function EmployeePortal() {
             }
 
             addToast('Checked in successfully!', 'success');
-
-            const today = new Date().toISOString().split('T')[0];
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (user) {
-                const { data } = await supabase
-                    .from('attendance')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .eq('date', today)
-                    .single();
-                setTodayRecord(data);
-            }
+            await refreshTodayRecord();
         } catch (error) {
             console.error('Check-in error:', error);
             addToast(
@@ -125,6 +136,7 @@ export default function EmployeePortal() {
 
     const handleCheckOut = async () => {
         setIsCheckingOut(true);
+
         try {
             const response = await fetch('/api/attendance/check-out', {
                 method: 'POST',
@@ -136,20 +148,7 @@ export default function EmployeePortal() {
             }
 
             addToast('Checked out successfully!', 'success');
-
-            const today = new Date().toISOString().split('T')[0];
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
-            if (user) {
-                const { data } = await supabase
-                    .from('attendance')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .eq('date', today)
-                    .single();
-                setTodayRecord(data);
-            }
+            await refreshTodayRecord();
         } catch (error) {
             console.error('Check-out error:', error);
             addToast(
@@ -163,7 +162,7 @@ export default function EmployeePortal() {
 
     const handleLogout = async () => {
         await supabase.auth.signOut();
-        router.push('/login');
+        router.push(`/${locale}/login`);
         router.refresh();
     };
 
@@ -171,272 +170,288 @@ export default function EmployeePortal() {
     const hasCheckedOut = !!todayRecord?.check_out_time;
     const isOnShift = hasCheckedIn && !hasCheckedOut;
 
-    const formattedDate = currentTime.toLocaleDateString('en-US', {
+    const formattedDate = currentTime.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
     });
 
-    const formattedTime = currentTime.toLocaleTimeString('en-US', {
+    const formattedTime = currentTime.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         hour: '2-digit',
         minute: '2-digit',
         second: '2-digit',
         hour12: true,
     });
 
+    const attendanceMetrics = todayRecord
+        ? [
+              { label: t('checkIn'), value: formatTimestamp(todayRecord.check_in_time) },
+              { label: t('checkOut'), value: formatTimestamp(todayRecord.check_out_time) },
+              { label: t('late'), value: formatLateness(todayRecord.late_minutes) },
+              { label: t('overtime'), value: formatOvertime(todayRecord.overtime_minutes || 0) },
+          ]
+        : [];
+
+    const statusBadge = hasCheckedOut
+        ? { variant: 'present' as const, label: t('dayComplete') }
+        : isOnShift
+            ? { variant: 'info' as const, label: t('currentlyOnShift') }
+            : { variant: 'default' as const, label: t('startYourDay') };
+
     if (isLoading) {
         return (
-            <div className="min-h-screen h-screen flex flex-col bg-slate-950">
-                <div className="p-4 flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                        <Skeleton className="w-10 h-10 rounded-xl" />
-                        <div>
-                            <Skeleton className="h-4 w-16 rounded mb-1" />
-                            <Skeleton className="h-3 w-24 rounded" />
-                        </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Skeleton className="h-9 w-24 rounded-lg" />
-                        <Skeleton className="h-9 w-20 rounded-xl" />
-                    </div>
-                </div>
-
-                <div className="flex-1 px-4 max-w-lg mx-auto w-full flex flex-col justify-center py-2">
-                    <div className="text-center py-3">
-                        <Skeleton className="h-4 w-48 mx-auto rounded mb-2" />
-                        <Skeleton className="h-12 w-56 mx-auto rounded-lg" />
-                    </div>
-
-                    <div className="mb-3 rounded-2xl border border-slate-800/60 bg-slate-900/60 p-4">
+            <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+                <div className="mx-auto flex max-w-6xl flex-col gap-6">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <Skeleton className="w-12 h-12 rounded-xl flex-shrink-0" />
-                            <div className="flex-1">
-                                <Skeleton className="h-5 w-36 rounded mb-1.5" />
-                                <Skeleton className="h-3 w-48 rounded" />
+                            <Skeleton className="h-12 w-12 rounded-[1.2rem]" />
+                            <div className="space-y-2">
+                                <Skeleton className="h-4 w-24" />
+                                <Skeleton className="h-3 w-40" />
                             </div>
                         </div>
-                    </div>
-
-                    <div className="mb-3 rounded-2xl border border-slate-800/60 bg-slate-900/60 p-4">
-                        <Skeleton className="h-3 w-28 rounded mb-3" />
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                            {Array.from({ length: 5 }).map((_, i) => (
-                                <div key={i} className="p-2 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                                    <Skeleton className="h-2.5 w-12 rounded mb-1.5" />
-                                    <Skeleton className="h-4 w-16 rounded" />
-                                </div>
-                            ))}
+                        <div className="flex gap-2">
+                            <Skeleton className="h-10 w-28 rounded-full" />
+                            <Skeleton className="h-10 w-28 rounded-full" />
                         </div>
                     </div>
 
-                    <Skeleton className="h-14 w-full rounded-xl" />
+                    <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
+                        <Card className="rounded-[2.4rem]">
+                            <CardContent className="space-y-6 p-6 sm:p-8">
+                                <Skeleton className="h-4 w-32" />
+                                <Skeleton className="h-14 w-3/4 rounded-[1.6rem]" />
+                                <Skeleton className="h-36 rounded-[2rem]" />
+                                <Skeleton className="h-14 rounded-full" />
+                            </CardContent>
+                        </Card>
+
+                        <div className="space-y-6">
+                            <Card className="rounded-[2.2rem]">
+                                <CardContent className="space-y-4 p-6">
+                                    <Skeleton className="h-20 rounded-[1.6rem]" />
+                                    <Skeleton className="h-4 w-2/3" />
+                                    <Skeleton className="h-4 w-1/2" />
+                                </CardContent>
+                            </Card>
+                            <Card className="rounded-[2.2rem]">
+                                <CardContent className="grid gap-3 p-6 sm:grid-cols-2">
+                                    {Array.from({ length: 4 }).map((_, index) => (
+                                        <Skeleton key={index} className="h-24 rounded-[1.5rem]" />
+                                    ))}
+                                </CardContent>
+                            </Card>
+                        </div>
+                    </div>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen h-screen flex flex-col bg-slate-950 overflow-hidden relative">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/[0.04] rounded-full blur-[120px]" />
-                <div className="absolute bottom-0 right-1/4 translate-y-1/2 w-[400px] h-[400px] bg-teal-600/[0.03] rounded-full blur-[100px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:72px_72px]" />
+        <div className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
+            <div className="pointer-events-none absolute inset-0">
+                <div className="absolute left-[10%] top-[16%] h-40 w-40 rounded-full bg-rose-300/30 blur-3xl" />
+                <div className="absolute bottom-[14%] right-[8%] h-56 w-56 rounded-full bg-amber-300/25 blur-3xl" />
             </div>
 
-            <header className="relative z-10 p-4 flex items-center justify-between animate-fade-in-up">
-                <div className="flex items-center gap-3">
-                    <div className="relative w-10 h-10 bg-slate-900/80 backdrop-blur-sm rounded-xl p-1 border border-slate-800/60 shadow-xl shadow-black/20">
-                        <Image
-                            src="/logo.png"
-                            alt="Amwag"
-                            fill
-                            className="object-contain"
-                        />
-                    </div>
-                    <div>
-                        <h1 className="font-bold text-slate-50">Amwag</h1>
-                        <p className="text-xs text-slate-500">{t('title')}</p>
-                    </div>
-                </div>
-                <div className="flex items-center gap-2">
-                    <LanguageSwitcher />
-                    <button
-                        onClick={handleLogout}
-                        className="flex items-center gap-2 px-4 py-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-xl transition-all duration-200 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                    >
-                        <LogOut className="w-5 h-5" />
-                        <span className="hidden sm:inline">Logout</span>
-                    </button>
-                </div>
-            </header>
-
-            <main className="relative z-10 flex-1 px-4 max-w-lg mx-auto w-full flex flex-col justify-center py-2">
-                <div className="stagger">
-                    <div className="text-center py-3">
-                        <div className="flex items-center justify-center gap-2 text-slate-500 text-sm mb-1">
-                            <Calendar className="w-4 h-4" />
-                            <span>{formattedDate}</span>
+            <div className="mx-auto flex max-w-6xl flex-col gap-6">
+                <PageReveal className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                        <div className="relative h-14 w-14 rounded-[1.3rem] bg-[rgba(255,255,255,0.8)] p-3 shadow-[0_22px_46px_-28px_rgba(72,47,56,0.5)]">
+                            <Image
+                                src="/logo.png"
+                                alt="Amwag"
+                                fill
+                                className="object-contain p-2"
+                            />
                         </div>
-                        <div className="text-4xl sm:text-5xl font-bold text-slate-50 tracking-tight font-mono">
-                            {formattedTime}
+                        <div className="min-w-0">
+                            <p className="section-kicker">{t('title')}</p>
+                            <h1 className="display-serif truncate text-3xl text-[#1e191d] sm:text-4xl">
+                                {profile?.full_name || 'Employee workspace'}
+                            </h1>
                         </div>
                     </div>
 
-                    <Card interactive className="mb-3 bg-slate-900/60 backdrop-blur-xl border-slate-800/60">
-                        <CardContent className="p-4">
-                            <div className="flex items-center gap-3">
-                                <div
-                                    className={`w-12 h-12 bg-gradient-to-br from-teal-500 to-teal-600 rounded-xl flex items-center justify-center text-white text-xl font-bold shadow-lg shadow-teal-500/20 flex-shrink-0 ${
-                                        isOnShift ? 'animate-pulse-glow' : ''
-                                    }`}
-                                >
-                                    {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h2 className="text-lg font-bold text-slate-50 truncate">
-                                        {profile?.full_name || 'Employee'}
-                                    </h2>
-                                    <div className="flex flex-wrap gap-x-4 gap-y-0.5">
-                                        {profile?.job_title && (
-                                            <div className="flex items-center gap-1 text-xs text-slate-400">
-                                                <Briefcase className="w-3 h-3 flex-shrink-0" />
-                                                <span className="truncate">{profile.job_title}</span>
-                                            </div>
-                                        )}
-                                        {profile?.branch && (
-                                            <div className="flex items-center gap-1 text-xs text-slate-400">
-                                                <MapPin className="w-3 h-3 flex-shrink-0" />
-                                                <span className="truncate">{profile.branch}</span>
-                                            </div>
-                                        )}
-                                        {(profile?.shift_start || profile?.shift_end) && (
-                                            <div className="flex items-center gap-1 text-xs text-slate-400">
-                                                <Timer className="w-3 h-3 flex-shrink-0" />
-                                                {formatTime(profile?.shift_start ?? null)} - {formatTime(profile?.shift_end ?? null)}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
+                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                        <LanguageSwitcher />
+                        <Button variant="ghost" size="sm" onClick={handleLogout}>
+                            <LogOut className="h-4 w-4" />
+                            <span>Logout</span>
+                        </Button>
+                    </div>
+                </PageReveal>
 
-                    {todayRecord && (
-                        <Card className="mb-3 bg-slate-900/60 backdrop-blur-xl border-slate-800/60">
-                            <CardContent className="p-4">
-                                <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">
-                                    {t('todaysRecord')}
-                                </h3>
-                                <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-                                    <div className="p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/40">
-                                        <p className="text-[10px] text-slate-500 mb-0.5">{t('checkIn')}</p>
-                                        <p className="font-semibold text-slate-50 text-sm">
-                                            {formatTimestamp(todayRecord.check_in_time)}
+                <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
+                    <PageReveal delay={0.08}>
+                        <Card className="editorial-frame rounded-[2.5rem] border-[rgba(66,42,50,0.08)]">
+                            <CardContent className="relative space-y-8 p-6 sm:p-8">
+                                <div className="space-y-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2 text-sm text-[#75676d]">
+                                            <Calendar className="h-4 w-4 text-[#9d174d]" />
+                                            <span>{formattedDate}</span>
+                                        </div>
+                                        <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                                    </div>
+
+                                    <div>
+                                        <p className="section-kicker">Live clock</p>
+                                        <div className="display-serif mt-3 text-5xl text-[#1f191d] sm:text-7xl">
+                                            {formattedTime}
+                                        </div>
+                                        <p className="mt-3 max-w-xl text-sm leading-7 text-[#6f6268]">
+                                            Check in cleanly, stay aware of shift timing, and close
+                                            the day with a complete record.
                                         </p>
                                     </div>
-                                    <div className="p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/40">
-                                        <p className="text-[10px] text-slate-500 mb-0.5">{t('checkOut')}</p>
-                                        <p className="font-semibold text-slate-50 text-sm">
-                                            {formatTimestamp(todayRecord.check_out_time)}
+                                </div>
+
+                                <div className="grid gap-4 rounded-[2rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-5 sm:grid-cols-[1fr_auto] sm:items-end">
+                                    <div>
+                                        <p className="section-kicker">Next action</p>
+                                        <p className="mt-3 text-lg font-semibold text-[#251e23]">
+                                            {hasCheckedOut
+                                                ? t('shiftCompleted')
+                                                : hasCheckedIn
+                                                    ? t('currentlyOnShift')
+                                                    : t('startYourDay')}
+                                        </p>
+                                        <p className="mt-2 text-sm leading-6 text-[#72656a]">
+                                            {hasCheckedOut
+                                                ? `${t('checkOut')} ${formatTimestamp(todayRecord?.check_out_time ?? null)}`
+                                                : hasCheckedIn
+                                                    ? `${t('checkIn')} ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
+                                                    : 'Your shift card is ready for the first tap.'}
                                         </p>
                                     </div>
-                                    <div className="p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/40">
-                                        <p className="text-[10px] text-slate-500 mb-0.5">{t('status')}</p>
-                                        <Badge variant={todayRecord.status}>{todayRecord.status}</Badge>
-                                    </div>
-                                    <div className="p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/40">
-                                        <p className="text-[10px] text-slate-500 mb-0.5">{t('late')}</p>
-                                        <p
-                                            className={`font-semibold text-sm ${
-                                                todayRecord.late_minutes > 0
-                                                    ? 'text-amber-400'
-                                                    : 'text-slate-50'
-                                            }`}
+
+                                    {!hasCheckedIn ? (
+                                        <Button
+                                            onClick={handleCheckIn}
+                                            disabled={isCheckingIn}
+                                            size="lg"
+                                            isLoading={isCheckingIn}
+                                            className="w-full bg-[#0f9f6e] hover:bg-[#0b8a5f] sm:w-auto"
                                         >
-                                            {formatLateness(todayRecord.late_minutes)}
-                                        </p>
-                                    </div>
-                                    <div className="p-2.5 bg-slate-800/40 rounded-lg border border-slate-700/40">
-                                        <p className="text-[10px] text-slate-500 mb-0.5">{t('overtime')}</p>
-                                        <p
-                                            className={`font-semibold text-sm ${
-                                                (todayRecord.overtime_minutes || 0) > 0
-                                                    ? 'text-teal-400'
-                                                    : 'text-slate-50'
-                                            }`}
+                                            <LogIn className="h-5 w-5" />
+                                            {t('checkIn')}
+                                        </Button>
+                                    ) : !hasCheckedOut ? (
+                                        <Button
+                                            onClick={handleCheckOut}
+                                            disabled={isCheckingOut}
+                                            variant="danger"
+                                            size="lg"
+                                            isLoading={isCheckingOut}
+                                            className="w-full sm:w-auto"
                                         >
-                                            {formatOvertime(todayRecord.overtime_minutes || 0)}
-                                        </p>
-                                    </div>
+                                            <LogOut className="h-5 w-5" />
+                                            {t('checkOut')}
+                                        </Button>
+                                    ) : (
+                                        <div className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-5 font-semibold text-emerald-700">
+                                            <CheckCircle2 className="h-5 w-5" />
+                                            {t('dayComplete')}
+                                        </div>
+                                    )}
                                 </div>
                             </CardContent>
                         </Card>
-                    )}
+                    </PageReveal>
 
-                    <div>
-                        {!hasCheckedIn ? (
-                            <button
-                                onClick={handleCheckIn}
-                                disabled={isCheckingIn}
-                                className="w-full min-h-[56px] py-4 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-white text-lg font-bold rounded-xl shadow-lg shadow-emerald-500/20 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                            >
-                                {isCheckingIn ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                                ) : (
-                                    <>
-                                        <LogIn className="w-6 h-6" />
-                                        {t('checkIn')}
-                                    </>
-                                )}
-                            </button>
-                        ) : !hasCheckedOut ? (
-                            <button
-                                onClick={handleCheckOut}
-                                disabled={isCheckingOut}
-                                className="w-full min-h-[56px] py-4 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white text-lg font-bold rounded-xl shadow-lg shadow-red-500/20 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50 active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
-                            >
-                                {isCheckingOut ? (
-                                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent" />
-                                ) : (
-                                    <>
-                                        <LogOut className="w-6 h-6" />
-                                        {t('checkOut')}
-                                    </>
-                                )}
-                            </button>
-                        ) : (
-                            <div className="w-full min-h-[56px] py-4 bg-gradient-to-r from-slate-800 to-slate-800/80 text-slate-300 text-lg font-bold rounded-xl border border-slate-700/50 flex items-center justify-center gap-3">
-                                <CheckCircle2 className="w-6 h-6 text-emerald-500" />
-                                {t('dayComplete')}
-                            </div>
-                        )}
-                    </div>
+                    <StaggerGroup className="space-y-6" delayChildren={0.12}>
+                        <StaggerItem>
+                            <Card className="rounded-[2.2rem]">
+                                <CardContent className="space-y-5 p-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className={`flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-[#171419] text-2xl font-bold text-white ${isOnShift ? 'animate-pulse-glow' : ''}`}>
+                                            {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
+                                        </div>
+                                        <div className="min-w-0">
+                                            <p className="section-kicker">Profile</p>
+                                            <h2 className="mt-2 truncate text-2xl font-semibold text-[#1e191d]">
+                                                {profile?.full_name || 'Employee'}
+                                            </h2>
+                                            <p className="mt-1 text-sm text-[#6e6468]">
+                                                {profile?.email || 'Attendance member'}
+                                            </p>
+                                        </div>
+                                    </div>
 
-                    <div className="mt-2 text-center text-sm">
-                        {hasCheckedOut ? (
-                            <p className="text-slate-500 flex items-center justify-center gap-2">
-                                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                                {t('shiftCompleted')}
-                            </p>
-                        ) : hasCheckedIn ? (
-                            <p className="text-slate-500 flex items-center justify-center gap-2">
-                                <span className="animate-pulse-glow rounded-full p-0.5">
-                                    <Clock className="w-4 h-4 text-teal-500" />
-                                </span>
-                                {t('currentlyOnShift')}
-                            </p>
-                        ) : (
-                            <p className="text-slate-500">
-                                {t('startYourDay')}
-                            </p>
-                        )}
-                    </div>
+                                    <div className="grid gap-3">
+                                        {profile?.job_title && (
+                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] px-4 py-3 text-sm text-[#4f4549]">
+                                                <Briefcase className="h-4 w-4 text-[#9d174d]" />
+                                                <span>{profile.job_title}</span>
+                                            </div>
+                                        )}
+                                        {profile?.branch && (
+                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] px-4 py-3 text-sm text-[#4f4549]">
+                                                <MapPin className="h-4 w-4 text-[#9d174d]" />
+                                                <span>{profile.branch}</span>
+                                            </div>
+                                        )}
+                                        {(profile?.shift_start || profile?.shift_end) && (
+                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] px-4 py-3 text-sm text-[#4f4549]">
+                                                <Timer className="h-4 w-4 text-[#9d174d]" />
+                                                <span>
+                                                    {formatTime(profile?.shift_start ?? null)} - {formatTime(profile?.shift_end ?? null)}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </StaggerItem>
+
+                        <StaggerItem>
+                            <Card className="rounded-[2.2rem]">
+                                <CardContent className="space-y-4 p-6">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div>
+                                            <p className="section-kicker">{t('todaysRecord')}</p>
+                                            <h2 className="mt-2 text-xl font-semibold text-[#1e191d]">
+                                                {todayRecord ? 'Your day at a glance' : 'No record yet'}
+                                            </h2>
+                                        </div>
+                                        {todayRecord?.status && (
+                                            <Badge variant={todayRecord.status}>{todayRecord.status}</Badge>
+                                        )}
+                                    </div>
+
+                                    {todayRecord ? (
+                                        <div className="grid gap-3 sm:grid-cols-2">
+                                            {attendanceMetrics.map((metric) => (
+                                                <div
+                                                    key={metric.label}
+                                                    className="rounded-[1.6rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.6)] p-4"
+                                                >
+                                                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#88797f]">
+                                                        {metric.label}
+                                                    </p>
+                                                    <p className="mt-3 text-lg font-semibold text-[#241d22]">
+                                                        {metric.value}
+                                                    </p>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-[1.8rem] border border-dashed border-[rgba(66,42,50,0.14)] bg-[rgba(255,255,255,0.44)] p-5 text-sm leading-7 text-[#6e6367]">
+                                            Your attendance record will appear here after the first
+                                            check-in.
+                                        </div>
+                                    )}
+                                </CardContent>
+                            </Card>
+                        </StaggerItem>
+                    </StaggerGroup>
                 </div>
-            </main>
+            </div>
 
-            <Footer className="relative z-10 py-2" compact />
-
+            <Footer className="relative z-10 pb-3 pt-8" compact />
             <ToastContainer />
         </div>
     );

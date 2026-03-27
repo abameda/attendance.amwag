@@ -33,11 +33,11 @@ export function addToast(message: string, type: ToastType = 'info') {
 }
 
 function dismissToast(id: string) {
-    toasts = toasts.map((t) => (t.id === id ? { ...t, exiting: true } : t));
+    toasts = toasts.map((toast) => (toast.id === id ? { ...toast, exiting: true } : toast));
     notifyListeners();
 
     setTimeout(() => {
-        toasts = toasts.filter((t) => t.id !== id);
+        toasts = toasts.filter((toast) => toast.id !== id);
         notifyListeners();
     }, 300);
 }
@@ -47,24 +47,24 @@ export function removeToast(id: string) {
 }
 
 const icons: Record<ToastType, React.ReactNode> = {
-    success: <CheckCircle className="w-5 h-5 text-emerald-400 shrink-0" />,
-    error: <AlertCircle className="w-5 h-5 text-red-400 shrink-0" />,
-    info: <Info className="w-5 h-5 text-teal-400 shrink-0" />,
-    warning: <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />,
+    success: <CheckCircle className="h-5 w-5 shrink-0 text-emerald-600" />,
+    error: <AlertCircle className="h-5 w-5 shrink-0 text-rose-600" />,
+    info: <Info className="h-5 w-5 shrink-0 text-sky-600" />,
+    warning: <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" />,
 };
 
 const backgrounds: Record<ToastType, string> = {
-    success: 'bg-emerald-500/10 border-emerald-500/25',
-    error: 'bg-red-500/10 border-red-500/25',
-    info: 'bg-teal-500/10 border-teal-500/25',
-    warning: 'bg-amber-500/10 border-amber-500/25',
+    success: 'bg-[rgba(255,255,255,0.86)] border-emerald-200',
+    error: 'bg-[rgba(255,255,255,0.86)] border-rose-200',
+    info: 'bg-[rgba(255,255,255,0.86)] border-sky-200',
+    warning: 'bg-[rgba(255,255,255,0.86)] border-amber-200',
 };
 
 const progressColors: Record<ToastType, string> = {
-    success: 'bg-emerald-500/40',
-    error: 'bg-red-500/40',
-    info: 'bg-teal-500/40',
-    warning: 'bg-amber-500/40',
+    success: 'bg-emerald-400/70',
+    error: 'bg-rose-400/70',
+    info: 'bg-sky-400/70',
+    warning: 'bg-amber-400/70',
 };
 
 export function ToastContainer() {
@@ -73,8 +73,9 @@ export function ToastContainer() {
     useEffect(() => {
         const listener = (newToasts: Toast[]) => setLocalToasts(newToasts);
         toastListeners.push(listener);
+
         return () => {
-            toastListeners = toastListeners.filter((l) => l !== listener);
+            toastListeners = toastListeners.filter((currentListener) => currentListener !== listener);
         };
     }, []);
 
@@ -85,25 +86,23 @@ export function ToastContainer() {
     if (localToasts.length === 0) return null;
 
     return (
-        <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
+        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm flex-col gap-2">
             {localToasts.map((toast) => (
                 <div
                     key={toast.id}
                     className={cn(
-                        'relative overflow-hidden flex items-center gap-3 px-4 py-3 rounded-xl border shadow-lg shadow-black/20 backdrop-blur-md',
+                        'relative flex items-center gap-3 overflow-hidden rounded-[1.4rem] border px-4 py-3 text-[#241d22] shadow-[0_24px_48px_-28px_rgba(72,47,56,0.55)] backdrop-blur-xl',
                         toast.exiting ? 'animate-slide-out-right' : 'animate-slide-in-right',
                         backgrounds[toast.type]
                     )}
                 >
                     {icons[toast.type]}
-                    <p className="text-sm font-medium text-slate-100 flex-1">
-                        {toast.message}
-                    </p>
+                    <p className="flex-1 text-sm font-medium">{toast.message}</p>
                     <button
                         onClick={() => handleDismiss(toast.id)}
-                        className="ml-1 p-1 text-slate-400 hover:text-slate-200 rounded-md hover:bg-white/5 transition-colors shrink-0"
+                        className="ml-1 shrink-0 rounded-full p-1 text-[#8f7f84] hover:bg-[rgba(36,29,34,0.06)] hover:text-[#241d22]"
                     >
-                        <X className="w-3.5 h-3.5" />
+                        <X className="h-3.5 w-3.5" />
                     </button>
                     {!toast.exiting && (
                         <div
