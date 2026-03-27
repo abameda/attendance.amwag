@@ -235,7 +235,7 @@ export default function CustomCursor() {
                     width: 200,
                     height: 200,
                     borderRadius: '50%',
-                    background: `radial-gradient(circle, rgba(6, 182, 212, 0.06) 0%, transparent 70%)`,
+                    background: `radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%)`,
                     transition: 'opacity 0.3s ease',
                     ...hiddenStyle,
                 }}

@@ -6,30 +6,31 @@ import { useRouter } from 'next/navigation';
 import {
     Briefcase,
     Calendar,
-    CheckCircle2,
-    LogIn,
+    Clock,
     LogOut,
     MapPin,
     Timer,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { motion } from 'framer-motion';
 import Footer from '@/components/Footer';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { createClient } from '@/lib/supabase/client';
-import { formatLateness, formatOvertime, formatTime, formatTimestamp } from '@/lib/utils';
+import { formatLateness, formatOvertime, formatTimestamp, formatTime } from '@/lib/utils';
 import type { AttendanceRecord, Profile } from '@/types';
 import {
     Badge,
     Button,
-    Card,
-    CardContent,
-    PageReveal,
     Skeleton,
-    StaggerGroup,
-    StaggerItem,
     ToastContainer,
     addToast,
+    AnimatedCounter,
+    StaggerGroup,
+    StaggerItem,
+    PageReveal,
 } from '@/components/ui';
+import { ClockHero } from '@/components/employee/ClockHero';
+import { SplineScene } from '@/components/ui/splite';
 
 export default function EmployeePortal() {
     const router = useRouter();
@@ -47,7 +48,6 @@ export default function EmployeePortal() {
         const timer = setInterval(() => {
             setCurrentTime(new Date());
         }, 1000);
-
         return () => clearInterval(timer);
     }, []);
 
@@ -110,25 +110,15 @@ export default function EmployeePortal() {
 
     const handleCheckIn = async () => {
         setIsCheckingIn(true);
-
         try {
-            const response = await fetch('/api/attendance/check-in', {
-                method: 'POST',
-            });
+            const response = await fetch('/api/attendance/check-in', { method: 'POST' });
             const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error);
-            }
-
+            if (!result.success) throw new Error(result.error);
             addToast('Checked in successfully!', 'success');
             await refreshTodayRecord();
         } catch (error) {
             console.error('Check-in error:', error);
-            addToast(
-                error instanceof Error ? error.message : 'Failed to check in',
-                'error'
-            );
+            addToast(error instanceof Error ? error.message : 'Failed to check in', 'error');
         } finally {
             setIsCheckingIn(false);
         }
@@ -136,25 +126,15 @@ export default function EmployeePortal() {
 
     const handleCheckOut = async () => {
         setIsCheckingOut(true);
-
         try {
-            const response = await fetch('/api/attendance/check-out', {
-                method: 'POST',
-            });
+            const response = await fetch('/api/attendance/check-out', { method: 'POST' });
             const result = await response.json();
-
-            if (!result.success) {
-                throw new Error(result.error);
-            }
-
+            if (!result.success) throw new Error(result.error);
             addToast('Checked out successfully!', 'success');
             await refreshTodayRecord();
         } catch (error) {
             console.error('Check-out error:', error);
-            addToast(
-                error instanceof Error ? error.message : 'Failed to check out',
-                'error'
-            );
+            addToast(error instanceof Error ? error.message : 'Failed to check out', 'error');
         } finally {
             setIsCheckingOut(false);
         }
@@ -170,28 +150,30 @@ export default function EmployeePortal() {
     const hasCheckedOut = !!todayRecord?.check_out_time;
     const isOnShift = hasCheckedIn && !hasCheckedOut;
 
+    const shiftStatus = hasCheckedOut ? 'complete' : isOnShift ? 'on_shift' : 'idle';
+
+    // Compute shift progress (0-1) based on shift_start/shift_end
+    const shiftProgress = (() => {
+        if (!profile?.shift_start || !profile?.shift_end) return 0;
+        if (shiftStatus === 'complete') return 1;
+        if (shiftStatus === 'idle') return 0;
+        const now = currentTime;
+        const [sh, sm] = profile.shift_start.split(':').map(Number);
+        const [eh, em] = profile.shift_end.split(':').map(Number);
+        const startMins = sh * 60 + sm;
+        const endMins = eh * 60 + em;
+        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const total = endMins - startMins;
+        if (total <= 0) return 0;
+        return Math.min(Math.max((nowMins - startMins) / total, 0), 1);
+    })();
+
     const formattedDate = currentTime.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
     });
-
-    const formattedTime = currentTime.toLocaleTimeString(locale === 'ar' ? 'ar-EG' : 'en-US', {
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        hour12: true,
-    });
-
-    const attendanceMetrics = todayRecord
-        ? [
-              { label: t('checkIn'), value: formatTimestamp(todayRecord.check_in_time) },
-              { label: t('checkOut'), value: formatTimestamp(todayRecord.check_out_time) },
-              { label: t('late'), value: formatLateness(todayRecord.late_minutes) },
-              { label: t('overtime'), value: formatOvertime(todayRecord.overtime_minutes || 0) },
-          ]
-        : [];
 
     const statusBadge = hasCheckedOut
         ? { variant: 'present' as const, label: t('dayComplete') }
@@ -203,6 +185,7 @@ export default function EmployeePortal() {
         return (
             <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
                 <div className="mx-auto flex max-w-6xl flex-col gap-6">
+                    {/* Header skeleton */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <Skeleton className="h-12 w-12 rounded-[1.2rem]" />
@@ -217,31 +200,11 @@ export default function EmployeePortal() {
                         </div>
                     </div>
 
-                    <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
-                        <Card className="rounded-[2.4rem]">
-                            <CardContent className="space-y-6 p-6 sm:p-8">
-                                <Skeleton className="h-4 w-32" />
-                                <Skeleton className="h-14 w-3/4 rounded-[1.6rem]" />
-                                <Skeleton className="h-36 rounded-[2rem]" />
-                                <Skeleton className="h-14 rounded-full" />
-                            </CardContent>
-                        </Card>
-
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <Skeleton className="h-[520px] rounded-3xl" />
                         <div className="space-y-6">
-                            <Card className="rounded-[2.2rem]">
-                                <CardContent className="space-y-4 p-6">
-                                    <Skeleton className="h-20 rounded-[1.6rem]" />
-                                    <Skeleton className="h-4 w-2/3" />
-                                    <Skeleton className="h-4 w-1/2" />
-                                </CardContent>
-                            </Card>
-                            <Card className="rounded-[2.2rem]">
-                                <CardContent className="grid gap-3 p-6 sm:grid-cols-2">
-                                    {Array.from({ length: 4 }).map((_, index) => (
-                                        <Skeleton key={index} className="h-24 rounded-[1.5rem]" />
-                                    ))}
-                                </CardContent>
-                            </Card>
+                            <Skeleton className="h-60 rounded-3xl" />
+                            <Skeleton className="h-52 rounded-3xl" />
                         </div>
                     </div>
                 </div>
@@ -249,209 +212,261 @@ export default function EmployeePortal() {
         );
     }
 
-    return (
-        <div className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
-            <div className="pointer-events-none absolute inset-0">
-                <div className="absolute left-[10%] top-[16%] h-40 w-40 rounded-full bg-rose-300/30 blur-3xl" />
-                <div className="absolute bottom-[14%] right-[8%] h-56 w-56 rounded-full bg-amber-300/25 blur-3xl" />
-            </div>
+    const isRTL = locale === 'ar';
 
-            <div className="mx-auto flex max-w-6xl flex-col gap-6">
-                <PageReveal className="flex flex-wrap items-center justify-between gap-3">
+    return (
+        <div className={`relative flex min-h-screen overflow-hidden ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
+
+            {/* ── Content column (65%) ── */}
+            <motion.div
+                className="w-full px-4 py-6 sm:px-6 lg:w-[65%] lg:px-8"
+                initial={{ x: isRTL ? 40 : -40, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
+            >
+            <div className="mx-auto flex max-w-4xl flex-col gap-6">
+
+                {/* Header */}
+                <PageReveal className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-primary)]/80 px-4 py-3 backdrop-blur-lg">
                     <div className="flex min-w-0 items-center gap-3">
-                        <div className="relative h-14 w-14 rounded-[1.3rem] bg-[rgba(255,255,255,0.8)] p-3 shadow-[0_22px_46px_-28px_rgba(72,47,56,0.5)]">
+                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-[var(--surface)] p-2">
                             <Image
                                 src="/logo.png"
                                 alt="Amwag"
                                 fill
-                                className="object-contain p-2"
+                                className="object-contain p-1"
                             />
                         </div>
                         <div className="min-w-0">
-                            <p className="section-kicker">{t('title')}</p>
-                            <h1 className="display-serif truncate text-3xl text-[#1e191d] sm:text-4xl">
+                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--accent)]">
+                                {t('title')}
+                            </p>
+                            <h1 className="truncate text-lg font-bold text-[var(--foreground)]">
                                 {profile?.full_name || 'Employee workspace'}
                             </h1>
                         </div>
                     </div>
 
-                    <div className="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto">
+                    <div className="flex items-center gap-2">
                         <LanguageSwitcher />
                         <Button variant="ghost" size="sm" onClick={handleLogout}>
                             <LogOut className="h-4 w-4" />
-                            <span>Logout</span>
+                            <span className="hidden sm:inline">Logout</span>
                         </Button>
                     </div>
                 </PageReveal>
 
-                <div className="grid gap-6 xl:grid-cols-[1.18fr_0.82fr]">
-                    <PageReveal delay={0.08}>
-                        <Card className="editorial-frame rounded-[2.5rem] border-[rgba(66,42,50,0.08)]">
-                            <CardContent className="relative space-y-8 p-6 sm:p-8">
-                                <div className="space-y-4">
-                                    <div className="flex flex-wrap items-center justify-between gap-3">
-                                        <div className="flex items-center gap-2 text-sm text-[#75676d]">
-                                            <Calendar className="h-4 w-4 text-[#9d174d]" />
-                                            <span>{formattedDate}</span>
-                                        </div>
-                                        <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
-                                    </div>
+                {/* Main grid */}
+                <div className="grid gap-6 lg:grid-cols-2">
 
-                                    <div>
-                                        <p className="section-kicker">Live clock</p>
-                                        <div className="display-serif mt-3 text-5xl text-[#1f191d] sm:text-7xl">
-                                            {formattedTime}
+                    {/* Left: Clock Hero Card */}
+                    <PageReveal delay={0.08}>
+                        <div className="flex flex-col items-center gap-6 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 backdrop-blur-2xl sm:p-8">
+                            {/* Date & status row */}
+                            <div className="flex w-full flex-wrap items-center justify-between gap-3">
+                                <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
+                                    <Calendar className="h-4 w-4 text-[var(--accent)]" />
+                                    <span>{formattedDate}</span>
+                                </div>
+                                <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
+                            </div>
+
+                            {/* Clock with check-in/out button */}
+                            <ClockHero
+                                currentTime={currentTime}
+                                shiftStatus={shiftStatus}
+                                shiftProgress={shiftProgress}
+                                onCheckIn={handleCheckIn}
+                                onCheckOut={handleCheckOut}
+                                isLoading={isCheckingIn || isCheckingOut}
+                                t={t}
+                            />
+
+                            {/* Status text */}
+                            <div className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-5 py-4">
+                                <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                                    Next action
+                                </p>
+                                <p className="mt-1.5 font-semibold text-[var(--foreground)]">
+                                    {hasCheckedOut
+                                        ? t('shiftCompleted')
+                                        : hasCheckedIn
+                                            ? t('currentlyOnShift')
+                                            : t('startYourDay')}
+                                </p>
+                                <p className="mt-1 text-sm text-[var(--muted)]">
+                                    {hasCheckedOut
+                                        ? `${t('checkOut')}: ${formatTimestamp(todayRecord?.check_out_time ?? null)}`
+                                        : hasCheckedIn
+                                            ? `${t('checkIn')}: ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
+                                            : 'Your shift card is ready for the first tap.'}
+                                </p>
+                            </div>
+                        </div>
+                    </PageReveal>
+
+                    {/* Right: Profile + Today's Record */}
+                    <StaggerGroup className="flex flex-col gap-6" delayChildren={0.12}>
+
+                        {/* Profile Card */}
+                        <StaggerItem>
+                            <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 backdrop-blur-2xl">
+                                <p className="mb-4 text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                                    Profile
+                                </p>
+                                <div className="flex items-start gap-4">
+                                    {/* Avatar with animated gradient ring when on shift */}
+                                    <div className="relative shrink-0">
+                                        <motion.div
+                                            className="absolute inset-[-3px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--secondary)]"
+                                            animate={isOnShift ? { rotate: 360 } : {}}
+                                            transition={
+                                                isOnShift
+                                                    ? { duration: 8, ease: 'linear', repeat: Infinity }
+                                                    : {}
+                                            }
+                                        />
+                                        <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xl font-bold text-[var(--foreground)]">
+                                            {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
                                         </div>
-                                        <p className="mt-3 max-w-xl text-sm leading-7 text-[#6f6268]">
-                                            Check in cleanly, stay aware of shift timing, and close
-                                            the day with a complete record.
+                                    </div>
+                                    <div className="min-w-0">
+                                        <h2 className="truncate text-xl font-bold text-[var(--foreground)]">
+                                            {profile?.full_name || 'Employee'}
+                                        </h2>
+                                        <p className="mt-0.5 truncate text-sm text-[var(--muted)]">
+                                            {profile?.email || ''}
                                         </p>
                                     </div>
                                 </div>
 
-                                <div className="grid gap-4 rounded-[2rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-5 sm:grid-cols-[1fr_auto] sm:items-end">
-                                    <div>
-                                        <p className="section-kicker">Next action</p>
-                                        <p className="mt-3 text-lg font-semibold text-[#251e23]">
-                                            {hasCheckedOut
-                                                ? t('shiftCompleted')
-                                                : hasCheckedIn
-                                                    ? t('currentlyOnShift')
-                                                    : t('startYourDay')}
-                                        </p>
-                                        <p className="mt-2 text-sm leading-6 text-[#72656a]">
-                                            {hasCheckedOut
-                                                ? `${t('checkOut')} ${formatTimestamp(todayRecord?.check_out_time ?? null)}`
-                                                : hasCheckedIn
-                                                    ? `${t('checkIn')} ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
-                                                    : 'Your shift card is ready for the first tap.'}
-                                        </p>
-                                    </div>
-
-                                    {!hasCheckedIn ? (
-                                        <Button
-                                            onClick={handleCheckIn}
-                                            disabled={isCheckingIn}
-                                            size="lg"
-                                            isLoading={isCheckingIn}
-                                            className="w-full bg-[#0f9f6e] hover:bg-[#0b8a5f] sm:w-auto"
-                                        >
-                                            <LogIn className="h-5 w-5" />
-                                            {t('checkIn')}
-                                        </Button>
-                                    ) : !hasCheckedOut ? (
-                                        <Button
-                                            onClick={handleCheckOut}
-                                            disabled={isCheckingOut}
-                                            variant="danger"
-                                            size="lg"
-                                            isLoading={isCheckingOut}
-                                            className="w-full sm:w-auto"
-                                        >
-                                            <LogOut className="h-5 w-5" />
-                                            {t('checkOut')}
-                                        </Button>
-                                    ) : (
-                                        <div className="flex min-h-12 items-center justify-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-5 font-semibold text-emerald-700">
-                                            <CheckCircle2 className="h-5 w-5" />
-                                            {t('dayComplete')}
+                                <div className="mt-4 grid gap-2">
+                                    {profile?.job_title && (
+                                        <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground-soft)]">
+                                            <Briefcase className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                                            <span className="truncate">{profile.job_title}</span>
+                                        </div>
+                                    )}
+                                    {profile?.branch && (
+                                        <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground-soft)]">
+                                            <MapPin className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                                            <span className="truncate">{profile.branch}</span>
+                                        </div>
+                                    )}
+                                    {(profile?.shift_start || profile?.shift_end) && (
+                                        <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground-soft)]">
+                                            <Timer className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                                            <span>
+                                                {formatTime(profile?.shift_start ?? null)} – {formatTime(profile?.shift_end ?? null)}
+                                            </span>
                                         </div>
                                     )}
                                 </div>
-                            </CardContent>
-                        </Card>
-                    </PageReveal>
+                            </div>
+                        </StaggerItem>
 
-                    <StaggerGroup className="space-y-6" delayChildren={0.12}>
+                        {/* Today's Record Card */}
                         <StaggerItem>
-                            <Card className="rounded-[2.2rem]">
-                                <CardContent className="space-y-5 p-6">
-                                    <div className="flex items-start gap-4">
-                                        <div className={`flex h-16 w-16 items-center justify-center rounded-[1.5rem] bg-[#171419] text-2xl font-bold text-white ${isOnShift ? 'animate-pulse-glow' : ''}`}>
-                                            {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
+                            <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 backdrop-blur-2xl">
+                                <div className="mb-4 flex items-center justify-between gap-3">
+                                    <div>
+                                        <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                                            {t('todaysRecord')}
+                                        </p>
+                                        <h2 className="mt-1 text-lg font-bold text-[var(--foreground)]">
+                                            {todayRecord ? 'Your day at a glance' : 'No record yet'}
+                                        </h2>
+                                    </div>
+                                    {todayRecord?.status && (
+                                        <Badge variant={todayRecord.status}>{todayRecord.status}</Badge>
+                                    )}
+                                </div>
+
+                                {todayRecord ? (
+                                    <div className="grid gap-3 sm:grid-cols-2">
+                                        {/* Check-in */}
+                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                                                {t('checkIn')}
+                                            </p>
+                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
+                                                {formatTimestamp(todayRecord.check_in_time)}
+                                            </p>
                                         </div>
-                                        <div className="min-w-0">
-                                            <p className="section-kicker">Profile</p>
-                                            <h2 className="mt-2 truncate text-2xl font-semibold text-[#1e191d]">
-                                                {profile?.full_name || 'Employee'}
-                                            </h2>
-                                            <p className="mt-1 text-sm text-[#6e6468]">
-                                                {profile?.email || 'Attendance member'}
+                                        {/* Check-out */}
+                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                                                {t('checkOut')}
+                                            </p>
+                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
+                                                {formatTimestamp(todayRecord.check_out_time)}
+                                            </p>
+                                        </div>
+                                        {/* Late minutes */}
+                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                                                {t('late')}
+                                            </p>
+                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
+                                                {todayRecord.late_minutes != null && todayRecord.late_minutes > 0 ? (
+                                                    <AnimatedCounter
+                                                        value={todayRecord.late_minutes}
+                                                        suffix=" min"
+                                                        className="text-[var(--warning)]"
+                                                    />
+                                                ) : (
+                                                    formatLateness(todayRecord.late_minutes)
+                                                )}
+                                            </p>
+                                        </div>
+                                        {/* Overtime */}
+                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
+                                                {t('overtime')}
+                                            </p>
+                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
+                                                {todayRecord.overtime_minutes != null && todayRecord.overtime_minutes > 0 ? (
+                                                    <AnimatedCounter
+                                                        value={todayRecord.overtime_minutes}
+                                                        suffix=" min"
+                                                        className="text-[var(--success)]"
+                                                    />
+                                                ) : (
+                                                    formatOvertime(todayRecord.overtime_minutes || 0)
+                                                )}
                                             </p>
                                         </div>
                                     </div>
-
-                                    <div className="grid gap-3">
-                                        {profile?.job_title && (
-                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] px-4 py-3 text-sm text-[#4f4549]">
-                                                <Briefcase className="h-4 w-4 text-[#9d174d]" />
-                                                <span>{profile.job_title}</span>
-                                            </div>
-                                        )}
-                                        {profile?.branch && (
-                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] px-4 py-3 text-sm text-[#4f4549]">
-                                                <MapPin className="h-4 w-4 text-[#9d174d]" />
-                                                <span>{profile.branch}</span>
-                                            </div>
-                                        )}
-                                        {(profile?.shift_start || profile?.shift_end) && (
-                                            <div className="flex items-center gap-3 rounded-[1.4rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] px-4 py-3 text-sm text-[#4f4549]">
-                                                <Timer className="h-4 w-4 text-[#9d174d]" />
-                                                <span>
-                                                    {formatTime(profile?.shift_start ?? null)} - {formatTime(profile?.shift_end ?? null)}
-                                                </span>
-                                            </div>
-                                        )}
+                                ) : (
+                                    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[var(--line-strong)] bg-[var(--surface)] p-6 text-center">
+                                        <Clock className="h-8 w-8 text-[var(--muted)]" />
+                                        <p className="text-sm leading-6 text-[var(--muted)]">
+                                            Your attendance record will appear here after the first check-in.
+                                        </p>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </StaggerItem>
-
-                        <StaggerItem>
-                            <Card className="rounded-[2.2rem]">
-                                <CardContent className="space-y-4 p-6">
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div>
-                                            <p className="section-kicker">{t('todaysRecord')}</p>
-                                            <h2 className="mt-2 text-xl font-semibold text-[#1e191d]">
-                                                {todayRecord ? 'Your day at a glance' : 'No record yet'}
-                                            </h2>
-                                        </div>
-                                        {todayRecord?.status && (
-                                            <Badge variant={todayRecord.status}>{todayRecord.status}</Badge>
-                                        )}
-                                    </div>
-
-                                    {todayRecord ? (
-                                        <div className="grid gap-3 sm:grid-cols-2">
-                                            {attendanceMetrics.map((metric) => (
-                                                <div
-                                                    key={metric.label}
-                                                    className="rounded-[1.6rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.6)] p-4"
-                                                >
-                                                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#88797f]">
-                                                        {metric.label}
-                                                    </p>
-                                                    <p className="mt-3 text-lg font-semibold text-[#241d22]">
-                                                        {metric.value}
-                                                    </p>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-[1.8rem] border border-dashed border-[rgba(66,42,50,0.14)] bg-[rgba(255,255,255,0.44)] p-5 text-sm leading-7 text-[#6e6367]">
-                                            Your attendance record will appear here after the first
-                                            check-in.
-                                        </div>
-                                    )}
-                                </CardContent>
-                            </Card>
+                                )}
+                            </div>
                         </StaggerItem>
                     </StaggerGroup>
                 </div>
             </div>
 
             <Footer className="relative z-10 pb-3 pt-8" compact />
+            </motion.div>
+
+            {/* ── Spline column (35%) — desktop only ── */}
+            <motion.div
+                className="hidden lg:block lg:w-[35%] relative overflow-hidden"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 1.2, delay: 0.5 }}
+            >
+                <SplineScene
+                    scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
+                    className="w-full h-full"
+                />
+            </motion.div>
+
             <ToastContainer />
         </div>
     );

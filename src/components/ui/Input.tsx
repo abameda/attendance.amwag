@@ -21,14 +21,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                 {label && (
                     <label
                         htmlFor={id}
-                        className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#7b6670]"
+                        className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted-strong)]"
                     >
                         {label}
                     </label>
                 )}
                 <div className="relative">
                     {icon && (
-                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[#9a7a86]">
+                        <div className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-4 text-[var(--accent)]">
                             {icon}
                         </div>
                     )}
@@ -37,15 +37,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                         type={resolvedType}
                         id={id}
                         className={cn(
-                            'focus-ring w-full rounded-[1.4rem] border border-[rgba(66,42,50,0.1)] bg-[rgba(255,255,255,0.72)] px-4 py-3 text-[0.95rem] text-[#221c21] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-sm',
-                            'placeholder:text-[#9e9192]',
-                            'hover:border-[rgba(66,42,50,0.16)] hover:bg-[rgba(255,255,255,0.88)]',
-                            'focus-visible:border-[rgba(157,23,77,0.18)] focus-visible:bg-white',
+                            'w-full rounded-[1.4rem] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[0.95rem] text-[var(--foreground)] backdrop-blur-sm',
+                            'placeholder:text-[var(--muted)]',
+                            'hover:border-[var(--line-strong)]',
+                            'focus:outline-none focus-visible:border-[var(--accent)] focus-visible:shadow-[var(--shadow-glow-blue)]',
                             'transition-all duration-200',
                             'disabled:cursor-not-allowed disabled:opacity-50',
-                            error && 'border-red-400/70 focus-visible:border-red-400/80',
-                            icon && 'pl-11',
-                            isPassword && 'pr-12',
+                            error &&
+                                'border-[var(--danger)] focus-visible:border-[var(--danger)] focus-visible:shadow-[0_0_16px_rgba(239,68,68,0.2)]',
+                            icon && 'ps-11',
+                            isPassword && 'pe-12',
                             className
                         )}
                         {...props}
@@ -55,7 +56,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                             type="button"
                             tabIndex={-1}
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#9a7a86] transition-colors hover:text-[#5a474f]"
+                            className="absolute inset-y-0 end-0 flex items-center pe-4 text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
                         >
                             {showPassword ? (
                                 <EyeOff className="h-4 w-4" />
@@ -66,7 +67,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                     )}
                 </div>
                 {error && (
-                    <p className="mt-1.5 text-sm text-red-600">{error}</p>
+                    <p className="mt-1.5 text-sm text-[var(--danger)]">{error}</p>
                 )}
             </div>
         );

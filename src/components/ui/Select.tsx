@@ -16,7 +16,7 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                 {label && (
                     <label
                         htmlFor={id}
-                        className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#7b6670]"
+                        className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted-strong)]"
                     >
                         {label}
                     </label>
@@ -25,24 +25,28 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(
                     ref={ref}
                     id={id}
                     className={cn(
-                        'focus-ring w-full cursor-pointer appearance-none rounded-[1.4rem] border border-[rgba(66,42,50,0.1)] bg-[rgba(255,255,255,0.72)] px-4 py-3 text-[0.95rem] text-[#221c21] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-sm',
-                        'hover:border-[rgba(66,42,50,0.16)] hover:bg-[rgba(255,255,255,0.88)]',
-                        'focus:border-[rgba(157,23,77,0.18)] focus:bg-white',
+                        'w-full cursor-pointer appearance-none rounded-[1.4rem] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[0.95rem] text-[var(--foreground)] backdrop-blur-sm',
+                        'hover:border-[var(--line-strong)]',
+                        'focus:outline-none focus-visible:border-[var(--accent)] focus-visible:shadow-[var(--shadow-glow-blue)]',
                         'transition-all duration-200',
                         'disabled:cursor-not-allowed disabled:opacity-50',
-                        error && 'border-red-400 focus:border-red-500',
+                        error && 'border-[var(--danger)] focus-visible:border-[var(--danger)]',
                         className
                     )}
                     {...props}
                 >
                     {options.map((option) => (
-                        <option key={option.value} value={option.value} className="bg-white text-[#221c21]">
+                        <option
+                            key={option.value}
+                            value={option.value}
+                            className="bg-[var(--bg-secondary)] text-[var(--foreground)]"
+                        >
                             {option.label}
                         </option>
                     ))}
                 </select>
                 {error && (
-                    <p className="mt-1 text-sm text-red-600">{error}</p>
+                    <p className="mt-1 text-sm text-[var(--danger)]">{error}</p>
                 )}
             </div>
         );
