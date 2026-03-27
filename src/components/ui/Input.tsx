@@ -1,8 +1,8 @@
 'use client';
 
 import { forwardRef, InputHTMLAttributes, useState, type ReactNode } from 'react';
-import { cn } from '@/lib/utils';
 import { Eye, EyeOff } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
     label?: string;
@@ -21,14 +21,14 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                 {label && (
                     <label
                         htmlFor={id}
-                        className="block text-sm font-medium text-slate-300 mb-2"
+                        className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#7b6670]"
                     >
                         {label}
                     </label>
                 )}
                 <div className="relative">
                     {icon && (
-                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-slate-500">
+                        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-[#9a7a86]">
                             {icon}
                         </div>
                     )}
@@ -37,15 +37,15 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                         type={resolvedType}
                         id={id}
                         className={cn(
-                            'w-full px-4 py-2.5 text-slate-100 bg-slate-900/40 backdrop-blur-sm border border-white/10 rounded-xl shadow-inner',
-                            'placeholder:text-slate-500',
-                            'hover:border-white/20',
-                            'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500/50 focus-visible:border-transparent focus-visible:bg-slate-800/60',
+                            'focus-ring w-full rounded-[1.4rem] border border-[rgba(66,42,50,0.1)] bg-[rgba(255,255,255,0.72)] px-4 py-3 text-[0.95rem] text-[#221c21] shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] backdrop-blur-sm',
+                            'placeholder:text-[#9e9192]',
+                            'hover:border-[rgba(66,42,50,0.16)] hover:bg-[rgba(255,255,255,0.88)]',
+                            'focus-visible:border-[rgba(157,23,77,0.18)] focus-visible:bg-white',
                             'transition-all duration-200',
-                            'disabled:opacity-50 disabled:cursor-not-allowed',
-                            error && 'border-red-500/70 focus-visible:ring-red-500/70',
-                            icon && 'pl-10',
-                            isPassword && 'pr-11',
+                            'disabled:cursor-not-allowed disabled:opacity-50',
+                            error && 'border-red-400/70 focus-visible:border-red-400/80',
+                            icon && 'pl-11',
+                            isPassword && 'pr-12',
                             className
                         )}
                         {...props}
@@ -55,18 +55,18 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
                             type="button"
                             tabIndex={-1}
                             onClick={() => setShowPassword(!showPassword)}
-                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-slate-500 hover:text-slate-300 transition-colors"
+                            className="absolute inset-y-0 right-0 flex items-center pr-4 text-[#9a7a86] transition-colors hover:text-[#5a474f]"
                         >
                             {showPassword ? (
-                                <EyeOff className="w-4 h-4" />
+                                <EyeOff className="h-4 w-4" />
                             ) : (
-                                <Eye className="w-4 h-4" />
+                                <Eye className="h-4 w-4" />
                             )}
                         </button>
                     )}
                 </div>
                 {error && (
-                    <p className="mt-1.5 text-sm text-red-400">{error}</p>
+                    <p className="mt-1.5 text-sm text-red-600">{error}</p>
                 )}
             </div>
         );

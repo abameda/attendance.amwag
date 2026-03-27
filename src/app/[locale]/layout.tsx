@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
-import { DM_Sans } from "next/font/google";
+import { DM_Sans, Playfair_Display } from "next/font/google";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
-import CustomCursor from '@/components/CustomCursor';
 import "../globals.css";
 
 const dmSans = DM_Sans({
   subsets: ["latin"],
   display: "swap",
+  variable: "--font-body",
+});
+
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-display",
 });
 
 export const metadata: Metadata = {
@@ -41,8 +47,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} suppressHydrationWarning>
-      <body className={`${dmSans.className} bg-slate-50 text-slate-800 antialiased`}>
-        <CustomCursor />
+      <body className={`${dmSans.variable} ${playfairDisplay.variable} bg-background text-foreground antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>

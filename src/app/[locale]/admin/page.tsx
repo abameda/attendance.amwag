@@ -1,18 +1,42 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Calendar, Clock3, TriangleAlert, TrendingUp, Users, UserCheck, UserX } from 'lucide-react';
+import {
+    Calendar,
+    Clock3,
+    TrendingUp,
+    TriangleAlert,
+    UserCheck,
+    UserX,
+    Users,
+} from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Card, CardContent, Input, Skeleton, addToast } from '@/components/ui';
+import { Card, CardContent, Input, PageReveal, Skeleton, StaggerGroup, StaggerItem, addToast } from '@/components/ui';
 import { getDashboardSummaryCacheKey } from '@/lib/utils';
 import type { DashboardSummary } from '@/types';
 import { getEgyptMonth } from '@/lib/timezone';
 
 const summaryCards = [
-    { key: 'expectedEmployees', icon: Users, accent: 'text-cyan-300 border-cyan-500/20 bg-cyan-500/10' },
-    { key: 'presentCount', icon: UserCheck, accent: 'text-emerald-300 border-emerald-500/20 bg-emerald-500/10' },
-    { key: 'absentCount', icon: UserX, accent: 'text-red-300 border-red-500/20 bg-red-500/10' },
-    { key: 'missingCheckoutCount', icon: TriangleAlert, accent: 'text-amber-300 border-amber-500/20 bg-amber-500/10' },
+    {
+        key: 'expectedEmployees',
+        icon: Users,
+        accent: 'bg-[rgba(255,255,255,0.72)] text-[#9d174d]',
+    },
+    {
+        key: 'presentCount',
+        icon: UserCheck,
+        accent: 'bg-emerald-50 text-emerald-700',
+    },
+    {
+        key: 'absentCount',
+        icon: UserX,
+        accent: 'bg-rose-50 text-rose-700',
+    },
+    {
+        key: 'missingCheckoutCount',
+        icon: TriangleAlert,
+        accent: 'bg-amber-50 text-amber-700',
+    },
 ] as const;
 
 export default function AdminDashboard() {
@@ -80,107 +104,48 @@ export default function AdminDashboard() {
 
     const formattedSelectedDate = selectedDate
         ? new Date(`${selectedDate}T12:00:00Z`).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-        })
+              weekday: 'long',
+              year: 'numeric',
+              month: 'long',
+              day: 'numeric',
+          })
         : new Date(`${selectedMonth}-01T12:00:00Z`).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
-            year: 'numeric',
-            month: 'long',
-        });
+              year: 'numeric',
+              month: 'long',
+          });
 
     return (
-        <div className="space-y-6 animate-fade-in-up">
-            <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-                <div className="space-y-2">
-                    <h1 className="text-2xl lg:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-400 tracking-tight">
-                        {t('title')}
-                    </h1>
-                    <p className="text-sm text-slate-400 max-w-2xl">
-                        {t('subtitle')}
-                    </p>
-                </div>
-
-                <Card className="premium-card w-full max-w-md">
-                    <CardContent className="p-4 space-y-3">
-                        <div className="flex items-center gap-2 text-sm text-slate-300">
-                            <Calendar className="w-4 h-4 text-cyan-400" />
-                            {selectedDate ? t('selectedDate') : t('selectedMonth')}
-                        </div>
-                        <Input
-                            type="month"
-                            value={selectedMonth}
-                            onChange={(event) => {
-                                setSelectedMonth(event.target.value);
-                                setSelectedDate('');
-                            }}
-                        />
-                        <Input
-                            type="date"
-                            value={selectedDate}
-                            onChange={(event) => {
-                                const nextDate = event.target.value;
-                                setSelectedDate(nextDate);
-                                if (nextDate) {
-                                    setSelectedMonth(nextDate.slice(0, 7));
-                                }
-                            }}
-                        />
-                    </CardContent>
-                </Card>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-                {summaryCards.map((card) => (
-                    <Card key={card.key} className="premium-card">
-                        <CardContent className="p-5">
-                            <div className="flex items-start justify-between gap-4">
-                                <div className="space-y-2">
-                                    <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                                        {t(card.key)}
-                                    </p>
-                                    {isLoading ? (
-                                        <Skeleton className="h-9 w-20" />
-                                    ) : (
-                                        <p className="text-3xl font-bold text-white">
-                                            {summary?.[card.key] ?? 0}
-                                        </p>
-                                    )}
-                                </div>
-                                <div className={`rounded-2xl border p-3 ${card.accent}`}>
-                                    <card.icon className="w-5 h-5" />
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                ))}
-            </div>
-
-            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                <Card className="premium-card xl:col-span-2">
-                    <CardContent className="p-6 space-y-4">
-                        <div className="flex items-center gap-2 text-white">
-                            <TrendingUp className="w-5 h-5 text-cyan-400" />
-                            <h2 className="text-lg font-semibold">{t('insightsTitle')}</h2>
+        <div className="space-y-6">
+            <PageReveal className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
+                <Card className="editorial-frame rounded-[2.5rem] border-[rgba(66,42,50,0.08)]">
+                    <CardContent className="space-y-6 p-6 sm:p-8">
+                        <div className="space-y-3">
+                            <p className="section-kicker">{t('title')}</p>
+                            <h1 className="display-serif text-4xl text-[#1d181c] sm:text-5xl">
+                                Executive attendance overview
+                            </h1>
+                            <p className="max-w-2xl text-sm leading-7 text-[#6f6367]">
+                                Follow daily attendance rhythm, monitor late arrivals, and keep
+                                branch performance visible without losing the calm of the interface.
+                            </p>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4">
-                                <p className="text-sm text-slate-400">{t('attendanceRate')}</p>
-                                <p className="mt-2 text-3xl font-bold text-white">
+                        <div className="grid gap-4 sm:grid-cols-3">
+                            <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] p-4">
+                                <p className="section-kicker">{t('attendanceRate')}</p>
+                                <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
                                     {isLoading ? '...' : `${summary?.attendanceRate ?? 0}%`}
                                 </p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4">
-                                <p className="text-sm text-slate-400">{t('departureCompletionRate')}</p>
-                                <p className="mt-2 text-3xl font-bold text-white">
+                            <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] p-4">
+                                <p className="section-kicker">{t('departureCompletionRate')}</p>
+                                <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
                                     {isLoading ? '...' : `${summary?.departureCompletionRate ?? 0}%`}
                                 </p>
                             </div>
-                            <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4">
-                                <p className="text-sm text-slate-400">{t('lateCount')}</p>
-                                <p className="mt-2 text-3xl font-bold text-white">
+                            <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.54)] p-4">
+                                <p className="section-kicker">{t('lateCount')}</p>
+                                <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
                                     {isLoading ? '...' : summary?.lateCount ?? 0}
                                 </p>
                             </div>
@@ -188,35 +153,156 @@ export default function AdminDashboard() {
                     </CardContent>
                 </Card>
 
-                <Card className="premium-card">
-                    <CardContent className="p-6 space-y-4">
-                        <div className="flex items-center gap-2 text-white">
-                            <Clock3 className="w-5 h-5 text-amber-400" />
-                            <h2 className="text-lg font-semibold">{t('selectedDateOverview')}</h2>
+                <Card className="rounded-[2.3rem]">
+                    <CardContent className="space-y-4 p-6">
+                        <div className="flex items-center gap-2 text-[#9d174d]">
+                            <Calendar className="h-4 w-4" />
+                            <p className="section-kicker">
+                                {selectedDate ? t('selectedDate') : t('selectedMonth')}
+                            </p>
                         </div>
-
-                        <div className="rounded-2xl border border-white/10 bg-slate-900/40 p-4 space-y-3">
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                                    {selectedDate ? t('selectedDate') : t('selectedMonth')}
-                                </p>
-                                <p className="mt-1 text-sm text-slate-200">{formattedSelectedDate}</p>
-                            </div>
-                            <div>
-                                <p className="text-xs uppercase tracking-[0.2em] text-slate-500">{t('topBranch')}</p>
-                                <p className="mt-1 text-sm text-slate-200">
-                                    {isLoading
-                                        ? '...'
-                                        : summary?.topBranch
-                                            ? `${summary.topBranch.name} (${summary.topBranch.attendanceRate}%)`
-                                            : t('topBranchEmpty')}
-                                </p>
-                            </div>
-                            <p className="text-sm text-slate-400">{t('dateFirstHint')}</p>
+                        <div className="grid gap-3">
+                            <Input
+                                type="month"
+                                value={selectedMonth}
+                                onChange={(event) => {
+                                    setSelectedMonth(event.target.value);
+                                    setSelectedDate('');
+                                }}
+                            />
+                            <Input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(event) => {
+                                    const nextDate = event.target.value;
+                                    setSelectedDate(nextDate);
+                                    if (nextDate) {
+                                        setSelectedMonth(nextDate.slice(0, 7));
+                                    }
+                                }}
+                            />
+                        </div>
+                        <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4">
+                            <p className="section-kicker">Focus period</p>
+                            <p className="mt-3 text-sm font-medium text-[#241d22]">
+                                {formattedSelectedDate}
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-[#72656a]">
+                                {t('dateFirstHint')}
+                            </p>
                         </div>
                     </CardContent>
                 </Card>
-            </div>
+            </PageReveal>
+
+            <StaggerGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                {summaryCards.map((card) => (
+                    <StaggerItem key={card.key}>
+                        <Card interactive className="rounded-[2rem]">
+                            <CardContent className="p-5">
+                                <div className="flex items-start justify-between gap-4">
+                                    <div className="space-y-3">
+                                        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#88797f]">
+                                            {t(card.key)}
+                                        </p>
+                                        {isLoading ? (
+                                            <Skeleton className="h-10 w-20" />
+                                        ) : (
+                                            <p className="text-4xl font-semibold text-[#1e191d]">
+                                                {summary?.[card.key] ?? 0}
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className={`rounded-[1.4rem] p-3 ${card.accent}`}>
+                                        <card.icon className="h-5 w-5" />
+                                    </div>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </StaggerItem>
+                ))}
+            </StaggerGroup>
+
+            <StaggerGroup className="grid grid-cols-1 gap-4 xl:grid-cols-[1.15fr_0.85fr]">
+                <StaggerItem>
+                    <Card className="rounded-[2.3rem]">
+                        <CardContent className="space-y-5 p-6">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-full bg-[rgba(255,255,255,0.72)] p-2.5 text-[#9d174d]">
+                                    <TrendingUp className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="section-kicker">{t('insightsTitle')}</p>
+                                    <h2 className="text-xl font-semibold text-[#1e191d]">
+                                        Snapshot metrics
+                                    </h2>
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 md:grid-cols-3">
+                                <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4">
+                                    <p className="text-sm text-[#786b70]">{t('attendanceRate')}</p>
+                                    <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
+                                        {isLoading ? '...' : `${summary?.attendanceRate ?? 0}%`}
+                                    </p>
+                                </div>
+                                <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4">
+                                    <p className="text-sm text-[#786b70]">{t('departureCompletionRate')}</p>
+                                    <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
+                                        {isLoading ? '...' : `${summary?.departureCompletionRate ?? 0}%`}
+                                    </p>
+                                </div>
+                                <div className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4">
+                                    <p className="text-sm text-[#786b70]">{t('lateCount')}</p>
+                                    <p className="mt-3 text-3xl font-semibold text-[#1e191d]">
+                                        {isLoading ? '...' : summary?.lateCount ?? 0}
+                                    </p>
+                                </div>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </StaggerItem>
+
+                <StaggerItem>
+                    <Card className="rounded-[2.3rem]">
+                        <CardContent className="space-y-5 p-6">
+                            <div className="flex items-center gap-3">
+                                <div className="rounded-full bg-amber-50 p-2.5 text-amber-700">
+                                    <Clock3 className="h-5 w-5" />
+                                </div>
+                                <div>
+                                    <p className="section-kicker">{t('selectedDateOverview')}</p>
+                                    <h2 className="text-xl font-semibold text-[#1e191d]">
+                                        Period notes
+                                    </h2>
+                                </div>
+                            </div>
+
+                            <div className="space-y-4 rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.56)] p-4">
+                                <div>
+                                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#88797f]">
+                                        {selectedDate ? t('selectedDate') : t('selectedMonth')}
+                                    </p>
+                                    <p className="mt-2 text-sm text-[#241d22]">{formattedSelectedDate}</p>
+                                </div>
+                                <div>
+                                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[#88797f]">
+                                        {t('topBranch')}
+                                    </p>
+                                    <p className="mt-2 text-sm text-[#241d22]">
+                                        {isLoading
+                                            ? '...'
+                                            : summary?.topBranch
+                                                ? `${summary.topBranch.name} (${summary.topBranch.attendanceRate}%)`
+                                                : t('topBranchEmpty')}
+                                    </p>
+                                </div>
+                                <p className="text-sm leading-6 text-[#72656a]">{t('dateFirstHint')}</p>
+                            </div>
+                        </CardContent>
+                    </Card>
+                </StaggerItem>
+            </StaggerGroup>
         </div>
     );
 }

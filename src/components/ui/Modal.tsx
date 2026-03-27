@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-const subscribe = () => () => { };
+const subscribe = () => () => {};
 const getSnapshot = () => true;
 const getServerSnapshot = () => false;
 
@@ -22,8 +22,8 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
     const mounted = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
     useEffect(() => {
-        const handleEscape = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') onClose();
+        const handleEscape = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') onClose();
         };
 
         if (isOpen) {
@@ -48,38 +48,35 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
 
     return createPortal(
         <div className="fixed inset-0 z-[9999] overflow-y-auto">
-            {/* Backdrop */}
             <div
-                className="fixed inset-0 bg-black/60 backdrop-blur-sm"
+                className="fixed inset-0 bg-[rgba(23,20,25,0.35)] backdrop-blur-md"
                 onClick={onClose}
             />
 
-            {/* Centering wrapper */}
             <div className="flex min-h-full items-end justify-center p-3 sm:items-center sm:p-4">
-                {/* Modal */}
                 <div
                     ref={modalRef}
                     className={cn(
-                        'relative w-full overflow-hidden rounded-2xl glass premium-surface shadow-2xl shadow-black/80',
+                        'premium-card relative w-full overflow-hidden rounded-[2rem] shadow-[0_36px_80px_-32px_rgba(23,20,25,0.55)]',
                         'animate-scale-in',
                         sizes[size]
                     )}
                 >
-                    {/* Header */}
-                    <div className="flex items-center justify-between border-b border-slate-800 px-4 py-4 sm:px-6">
-                        <h2 className="pr-4 text-base font-semibold text-slate-50 sm:text-lg">
+                    <div className="flex items-center justify-between border-b border-[rgba(66,42,50,0.08)] px-4 py-4 sm:px-6">
+                        <h2 className="display-serif pr-4 text-xl font-semibold text-[#1f1a1e] sm:text-2xl">
                             {title}
                         </h2>
                         <button
                             onClick={onClose}
-                            className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition-colors"
+                            className="rounded-full p-2 text-[#8f7f84] hover:bg-[rgba(36,29,34,0.06)] hover:text-[#241d22]"
                         >
-                            <X className="w-5 h-5" />
+                            <X className="h-5 w-5" />
                         </button>
                     </div>
 
-                    {/* Content */}
-                    <div className="max-h-[min(85dvh,calc(100vh-5rem))] overflow-y-auto p-4 sm:p-6">{children}</div>
+                    <div className="max-h-[min(85dvh,calc(100vh-5rem))] overflow-y-auto p-4 sm:p-6">
+                        {children}
+                    </div>
                 </div>
             </div>
         </div>,

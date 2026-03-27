@@ -13,8 +13,8 @@ export function Card({ children, className, interactive }: CardProps) {
     return (
         <div
             className={cn(
-                'glass rounded-2xl shadow-xl shadow-black/20',
-                interactive && 'transition-all duration-300 hover:bg-slate-800/60 hover:shadow-black/40 hover:-translate-y-1 hover:border-cyan-500/30',
+                'premium-card rounded-[2rem]',
+                interactive && 'card-hover',
                 className
             )}
         >
@@ -30,12 +30,7 @@ interface CardHeaderProps {
 
 export function CardHeader({ children, className }: CardHeaderProps) {
     return (
-        <div
-            className={cn(
-                'px-6 py-4 border-b border-slate-800/60',
-                className
-            )}
-        >
+        <div className={cn('border-b border-[rgba(66,42,50,0.08)] px-6 py-4', className)}>
             {children}
         </div>
     );
@@ -57,12 +52,7 @@ interface CardTitleProps {
 
 export function CardTitle({ children, className }: CardTitleProps) {
     return (
-        <h3
-            className={cn(
-                'text-lg font-semibold text-slate-50',
-                className
-            )}
-        >
+        <h3 className={cn('display-serif text-xl font-semibold text-[#1e191d]', className)}>
             {children}
         </h3>
     );
@@ -75,7 +65,7 @@ interface CardDescriptionProps {
 
 export function CardDescription({ children, className }: CardDescriptionProps) {
     return (
-        <p className={cn('text-sm text-slate-400 mt-1', className)}>
+        <p className={cn('mt-1 text-sm text-[#73666a]', className)}>
             {children}
         </p>
     );

@@ -1,13 +1,41 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { createClient } from '@/lib/supabase/client';
-import { Button, Input, Card, CardContent, addToast, ToastContainer } from '@/components/ui';
-import { LogIn, Mail, Lock } from 'lucide-react';
-import Footer from '@/components/Footer';
+import { useRouter } from 'next/navigation';
+import { ArrowRight, Clock3, Lock, Mail, ShieldCheck, Sparkles } from 'lucide-react';
 import { useLocale } from 'next-intl';
+import Footer from '@/components/Footer';
+import { createClient } from '@/lib/supabase/client';
+import {
+    Button,
+    Card,
+    CardContent,
+    Input,
+    PageReveal,
+    StaggerGroup,
+    StaggerItem,
+    ToastContainer,
+    addToast,
+} from '@/components/ui';
+
+const highlights = [
+    {
+        icon: ShieldCheck,
+        title: 'Trusted access',
+        description: 'Secure sign-in for admin, accounting, and employee workflows.',
+    },
+    {
+        icon: Clock3,
+        title: 'Live attendance',
+        description: 'Check-ins, departures, and shift timing stay visible in one flow.',
+    },
+    {
+        icon: Sparkles,
+        title: 'Refined reporting',
+        description: 'Daily summaries and exports keep operations sharp and reviewable.',
+    },
+];
 
 export default function LoginPage() {
     const router = useRouter();
@@ -17,8 +45,8 @@ export default function LoginPage() {
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
 
-    const handleLogin = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleLogin = async (event: React.FormEvent) => {
+        event.preventDefault();
         setIsLoading(true);
 
         try {
@@ -48,6 +76,7 @@ export default function LoginPage() {
                 } else {
                     router.push(`/${locale}/employee`);
                 }
+
                 router.refresh();
             }
         } catch {
@@ -58,82 +87,162 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center bg-slate-950 p-4 relative">
-            <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-teal-500/[0.04] rounded-full blur-[120px]" />
-                <div className="absolute bottom-0 left-1/4 translate-y-1/2 w-[400px] h-[400px] bg-teal-600/[0.03] rounded-full blur-[100px]" />
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.015)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.015)_1px,transparent_1px)] bg-[size:72px_72px]" />
+        <div className="relative min-h-screen overflow-hidden px-4 py-6 sm:px-6 lg:px-8">
+            <div className="pointer-events-none absolute inset-0">
+                <div className="absolute left-[8%] top-[12%] h-40 w-40 rounded-full bg-rose-300/30 blur-3xl" />
+                <div className="absolute bottom-[12%] right-[10%] h-56 w-56 rounded-full bg-amber-300/30 blur-3xl" />
+                <div className="absolute inset-x-0 top-0 h-52 bg-gradient-to-b from-white/70 to-transparent" />
             </div>
 
-            <div className="w-full max-w-[400px] relative z-10 animate-fade-in-up">
-                <div className="flex justify-center mb-10">
-                    <div className="relative w-20 h-20 bg-slate-900/80 backdrop-blur-sm rounded-2xl p-3 border border-slate-800/60 shadow-xl shadow-black/20">
-                        <Image
-                            src="/logo.png"
-                            alt="Amwag Transportation"
-                            fill
-                            className="object-contain p-2"
-                            priority
-                        />
+            <div className="mx-auto grid min-h-[calc(100vh-3rem)] max-w-6xl gap-6 lg:grid-cols-[1.12fr_0.88fr]">
+                <PageReveal className="editorial-frame relative hidden overflow-hidden rounded-[2.6rem] p-8 lg:flex lg:flex-col lg:justify-between">
+                    <div className="relative z-10 flex items-center gap-4">
+                        <div className="relative h-16 w-16 rounded-[1.7rem] bg-[rgba(255,255,255,0.75)] p-3 shadow-[0_24px_50px_-28px_rgba(72,47,56,0.55)]">
+                            <Image
+                                src="/logo.png"
+                                alt="Amwag Transportation"
+                                fill
+                                className="object-contain p-2"
+                                priority
+                            />
+                        </div>
+                        <div>
+                            <p className="section-kicker">Amwag attendance</p>
+                            <h1 className="display-serif mt-2 text-4xl text-[#1c171b]">
+                                A more polished way to run the day.
+                            </h1>
+                        </div>
                     </div>
-                </div>
 
-                <div className="text-center mb-8">
-                    <h1 className="text-2xl font-bold text-slate-50 tracking-tight">
-                        Welcome back
-                    </h1>
-                    <p className="text-slate-500 mt-1.5 text-sm">
-                        Sign in to Amwag Attendance
-                    </p>
-                </div>
-
-                <Card className="bg-slate-900/60 backdrop-blur-xl border-slate-800/60">
-                    <CardContent className="p-6 sm:p-8">
-                        <form onSubmit={handleLogin} className="space-y-5">
-                            <Input
-                                id="email"
-                                label="Email"
-                                type="email"
-                                placeholder="you@company.com"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                icon={<Mail className="w-4 h-4" />}
-                                required
-                                autoComplete="email"
-                            />
-
-                            <Input
-                                id="password"
-                                label="Password"
-                                type="password"
-                                placeholder="Enter your password"
-                                value={password}
-                                onChange={(e) => setPassword(e.target.value)}
-                                icon={<Lock className="w-4 h-4" />}
-                                required
-                                autoComplete="current-password"
-                            />
-
-                            <Button
-                                type="submit"
-                                className="w-full mt-2"
-                                size="lg"
-                                isLoading={isLoading}
-                            >
-                                <LogIn className="w-4.5 h-4.5" />
-                                Sign In
-                            </Button>
-                        </form>
-
-                        <p className="text-center text-xs text-slate-600 mt-6">
-                            Contact your administrator for account access
+                    <div className="relative z-10 max-w-xl space-y-5">
+                        <p className="text-lg leading-8 text-[#4d4347]">
+                            From employee check-in to admin reporting, the workspace now feels
+                            closer to an editorial operations desk than a default dashboard.
                         </p>
-                    </CardContent>
-                </Card>
+
+                        <div className="grid gap-4">
+                            {highlights.map((highlight) => (
+                                <div
+                                    key={highlight.title}
+                                    className="glass rounded-[1.8rem] p-5"
+                                >
+                                    <div className="flex items-start gap-4">
+                                        <div className="rounded-2xl bg-[rgba(255,255,255,0.7)] p-3 text-[#9d174d] shadow-[0_18px_30px_-24px_rgba(157,23,77,0.5)]">
+                                            <highlight.icon className="h-5 w-5" />
+                                        </div>
+                                        <div>
+                                            <h2 className="text-base font-semibold text-[#1f1a1e]">
+                                                {highlight.title}
+                                            </h2>
+                                            <p className="mt-1 text-sm leading-6 text-[#665c61]">
+                                                {highlight.description}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    <div className="relative z-10 flex items-end justify-between gap-4 text-sm text-[#5d5358]">
+                        <div>
+                            <p className="section-kicker">Designed for movement</p>
+                            <p className="mt-2 max-w-sm leading-6">
+                                Smooth motion, sharper hierarchy, and calmer surfaces across the
+                                full attendance journey.
+                            </p>
+                        </div>
+                        <div className="rounded-full border border-[rgba(66,42,50,0.12)] bg-white/70 px-4 py-2 font-medium text-[#241d22]">
+                            Cairo operations
+                        </div>
+                    </div>
+                </PageReveal>
+
+                <PageReveal delay={0.08} className="flex items-center justify-center">
+                    <div className="w-full max-w-xl">
+                        <div className="mb-6 flex justify-center lg:hidden">
+                            <div className="relative h-20 w-20 rounded-[1.8rem] bg-[rgba(255,255,255,0.85)] p-3 shadow-[0_24px_50px_-28px_rgba(72,47,56,0.55)]">
+                                <Image
+                                    src="/logo.png"
+                                    alt="Amwag Transportation"
+                                    fill
+                                    className="object-contain p-2"
+                                    priority
+                                />
+                            </div>
+                        </div>
+
+                        <Card className="rounded-[2.4rem] border-[rgba(66,42,50,0.08)] bg-[rgba(255,251,247,0.84)]">
+                            <CardContent className="p-6 sm:p-8">
+                                <StaggerGroup className="space-y-6">
+                                    <StaggerItem className="space-y-3">
+                                        <p className="section-kicker">Welcome back</p>
+                                        <div className="space-y-2">
+                                            <h2 className="display-serif text-4xl text-[#1c171b] sm:text-5xl">
+                                                Sign in to Amwag Attendance
+                                            </h2>
+                                            <p className="max-w-lg text-sm leading-7 text-[#6b6064]">
+                                                Access attendance tracking, employee workflows, and
+                                                reporting from one refined workspace.
+                                            </p>
+                                        </div>
+                                    </StaggerItem>
+
+                                    <StaggerItem>
+                                        <form onSubmit={handleLogin} className="space-y-5">
+                                            <Input
+                                                id="email"
+                                                label="Email"
+                                                type="email"
+                                                placeholder="you@company.com"
+                                                value={email}
+                                                onChange={(event) => setEmail(event.target.value)}
+                                                icon={<Mail className="h-4 w-4" />}
+                                                required
+                                                autoComplete="email"
+                                            />
+
+                                            <Input
+                                                id="password"
+                                                label="Password"
+                                                type="password"
+                                                placeholder="Enter your password"
+                                                value={password}
+                                                onChange={(event) => setPassword(event.target.value)}
+                                                icon={<Lock className="h-4 w-4" />}
+                                                required
+                                                autoComplete="current-password"
+                                            />
+
+                                            <Button
+                                                type="submit"
+                                                className="w-full justify-between"
+                                                size="lg"
+                                                isLoading={isLoading}
+                                            >
+                                                <span>Enter workspace</span>
+                                                <ArrowRight className="h-4 w-4" />
+                                            </Button>
+                                        </form>
+                                    </StaggerItem>
+
+                                    <StaggerItem className="rounded-[1.8rem] border border-[rgba(66,42,50,0.08)] bg-[rgba(255,255,255,0.52)] p-4">
+                                        <p className="text-sm font-medium text-[#342c31]">
+                                            Need access?
+                                        </p>
+                                        <p className="mt-1 text-sm leading-6 text-[#73666a]">
+                                            Contact your administrator to get credentials or role
+                                            updates.
+                                        </p>
+                                    </StaggerItem>
+                                </StaggerGroup>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </PageReveal>
             </div>
 
-            <Footer className="absolute bottom-4 left-0 right-0 z-10" />
-
+            <Footer className="relative z-10 pb-3 pt-6" />
             <ToastContainer />
         </div>
     );

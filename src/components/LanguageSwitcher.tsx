@@ -1,9 +1,9 @@
 'use client';
 
+import { Globe } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import { useRouter, usePathname } from 'next/navigation';
 import { Button } from '@/components/ui';
-import { Globe } from 'lucide-react';
 
 export default function LanguageSwitcher() {
     const locale = useLocale();
@@ -12,9 +12,6 @@ export default function LanguageSwitcher() {
 
     const toggleLanguage = () => {
         const newLocale = locale === 'en' ? 'ar' : 'en';
-        // Replace the locale segment in the pathname
-        // The pathname usually looks like `/en/admin` or `/ar/employee`
-        // We want to replace the first segment
         const newPath = pathname.replace(`/${locale}`, `/${newLocale}`);
 
         router.push(newPath);
@@ -25,9 +22,9 @@ export default function LanguageSwitcher() {
             variant="outline"
             size="sm"
             onClick={toggleLanguage}
-            className="flex items-center gap-2"
+            className="flex items-center gap-2 bg-[rgba(255,255,255,0.78)]"
         >
-            <Globe className="w-4 h-4" />
+            <Globe className="h-4 w-4" />
             <span>{locale === 'en' ? 'العربية' : 'English'}</span>
         </Button>
     );
