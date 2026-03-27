@@ -148,9 +148,10 @@ export default function EmployeePortal() {
 
     const hasCheckedIn = !!todayRecord?.check_in_time;
     const hasCheckedOut = !!todayRecord?.check_out_time;
-    const isOnShift = hasCheckedIn && !hasCheckedOut;
+    const isMissingCheckout = todayRecord?.status === 'missing_checkout';
+    const isOnShift = hasCheckedIn && !hasCheckedOut && !isMissingCheckout;
 
-    const shiftStatus = hasCheckedOut ? 'complete' : isOnShift ? 'on_shift' : 'idle';
+    const shiftStatus = (hasCheckedOut || isMissingCheckout) ? 'complete' : isOnShift ? 'on_shift' : 'idle';
 
     // Compute shift progress (0-1) based on shift_start/shift_end
     const shiftProgress = (() => {
@@ -175,11 +176,13 @@ export default function EmployeePortal() {
         day: 'numeric',
     });
 
-    const statusBadge = hasCheckedOut
-        ? { variant: 'present' as const, label: t('dayComplete') }
-        : isOnShift
-            ? { variant: 'info' as const, label: t('currentlyOnShift') }
-            : { variant: 'default' as const, label: t('startYourDay') };
+    const statusBadge = isMissingCheckout
+        ? { variant: 'missing_checkout' as const, label: t('missingCheckout') }
+        : hasCheckedOut
+            ? { variant: 'present' as const, label: t('dayComplete') }
+            : isOnShift
+                ? { variant: 'info' as const, label: t('currentlyOnShift') }
+                : { variant: 'default' as const, label: t('startYourDay') };
 
     if (isLoading) {
         return (
@@ -288,18 +291,22 @@ export default function EmployeePortal() {
                                     Next action
                                 </p>
                                 <p className="mt-1.5 font-semibold text-[var(--foreground)]">
-                                    {hasCheckedOut
-                                        ? t('shiftCompleted')
-                                        : hasCheckedIn
-                                            ? t('currentlyOnShift')
-                                            : t('startYourDay')}
+                                    {isMissingCheckout
+                                        ? t('missingCheckout')
+                                        : hasCheckedOut
+                                            ? t('shiftCompleted')
+                                            : hasCheckedIn
+                                                ? t('currentlyOnShift')
+                                                : t('startYourDay')}
                                 </p>
                                 <p className="mt-1 text-sm text-[var(--muted)]">
-                                    {hasCheckedOut
-                                        ? `${t('checkOut')}: ${formatTimestamp(todayRecord?.check_out_time ?? null)}`
-                                        : hasCheckedIn
-                                            ? `${t('checkIn')}: ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
-                                            : 'Your shift card is ready for the first tap.'}
+                                    {isMissingCheckout
+                                        ? `${t('checkIn')}: ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
+                                        : hasCheckedOut
+                                            ? `${t('checkOut')}: ${formatTimestamp(todayRecord?.check_out_time ?? null)}`
+                                            : hasCheckedIn
+                                                ? `${t('checkIn')}: ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
+                                                : 'Your shift card is ready for the first tap.'}
                                 </p>
                             </div>
                         </div>

@@ -23,10 +23,10 @@ CREATE POLICY "Anyone can read global_settings"
     ON public.global_settings FOR SELECT
     USING (true);
 
-CREATE POLICY "Service role can update global_settings"
+CREATE POLICY "Admins can update global_settings"
     ON public.global_settings FOR UPDATE
-    USING (true);
+    USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
 
-CREATE POLICY "Service role can insert global_settings"
+CREATE POLICY "Admins can insert global_settings"
     ON public.global_settings FOR INSERT
-    WITH CHECK (true);
+    WITH CHECK (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'admin'));
