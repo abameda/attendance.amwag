@@ -30,7 +30,7 @@ export default function AttendanceLogsPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearch = useDeferredValue(searchQuery);
-    const [dateFilter, setDateFilter] = useState('');
+    const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0]);
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [showAllHistory, setShowAllHistory] = useState(false);
