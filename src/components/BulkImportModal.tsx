@@ -77,10 +77,16 @@ export default function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImpo
                         <div>
                             <h4 className="mb-1 font-medium text-[var(--foreground)]">CSV Format</h4>
                             <p className="font-mono text-sm text-[var(--foreground-soft)]">
-                                Email, Password, Full Name, Branch, Shift Start (HH:mm), Shift End (HH:mm)
+                                Email, Password, Full Name, Branch, Shift Start (HH:mm), Shift Duration (hours), Job Title, Off Day
                             </p>
                             <p className="mt-2 text-xs text-[var(--muted)]">
-                                Example: ahmed@amwag.com, 123456, Ahmed Ali, ملوي, 09:00, 17:00
+                                Example: ahmed@amwag.com, 123456, Ahmed Ali, ملوي, 09:00, 8, Driver, friday
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--muted)]">
+                                Off Day: sunday / monday / tuesday / wednesday / thursday / friday / saturday
+                            </p>
+                            <p className="mt-1 text-xs text-[var(--muted)]">
+                                Job Title &amp; Off Day are optional — leave blank if not needed.
                             </p>
                         </div>
                     </div>
@@ -92,7 +98,7 @@ export default function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImpo
                     <textarea
                         value={csvData}
                         onChange={(e) => setCsvData(e.target.value)}
-                        placeholder={`ahmed@amwag.com, 123456, Ahmed Ali, ملوي, 09:00, 17:00\nsara@amwag.com, 123456, Sara Mahmoud, الجيزه, 08:00, 16:00`}
+                        placeholder={`ahmed@amwag.com, 123456, Ahmed Ali, ملوي, 09:00, 8, Driver, friday\nsara@amwag.com, 123456, Sara Mahmoud, الجيزه, 08:00, 8, Accountant, saturday`}
                         className="focus-ring h-48 w-full resize-none rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 font-mono text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow-blue)]"
                         disabled={isSubmitting}
                     />

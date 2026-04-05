@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         const results: ImportResult[] = [];
 
         for (const line of lines) {
-            // Parse CSV line: Email, Password, Full Name, Branch, Shift Start, Shift End
+            // Parse CSV line: Email, Password, Full Name, Branch, Shift Start (HH:mm), Shift Duration (hours), Job Title, Off Day
             const parts = line.split(',').map(part => part.trim());
 
             if (parts.length < 3) {
@@ -56,7 +56,20 @@ export async function POST(request: NextRequest) {
                 continue;
             }
 
-            const [email, password, full_name, branch, shift_start, shift_end] = parts;
+            const [email, password, full_name, branch, shift_start, shift_duration_str, job_title, off_day] = parts;
+
+            // Calculate shift_end from shift_start + shift_duration
+            let shift_end: string | null = null;
+            if (shift_start && shift_duration_str) {
+                const duration = parseFloat(shift_duration_str);
+                if (!isNaN(duration) && shift_start.includes(':')) {
+                    const [h, m] = shift_start.split(':').map(Number);
+                    const totalMinutes = h * 60 + m + Math.round(duration * 60);
+                    const endH = Math.floor(totalMinutes / 60) % 24;
+                    const endM = totalMinutes % 60;
+                    shift_end = `${endH.toString().padStart(2, '0')}:${endM.toString().padStart(2, '0')}`;
+                }
+            }
 
             // Validate required fields
             if (!email || !password || !full_name) {
@@ -90,13 +103,15 @@ export async function POST(request: NextRequest) {
                     continue;
                 }
 
-                // Update profile with shift times if provided
-                if (createData.user && (shift_start || shift_end)) {
+                // Update profile with additional fields if provided
+                if (createData.user && (shift_start || shift_end || job_title || off_day)) {
                     await supabaseAdmin
                         .from('profiles')
                         .update({
                             shift_start: shift_start || null,
-                            shift_end: shift_end || null,
+                            shift_end,
+                            job_title: job_title || null,
+                            off_day: off_day?.toLowerCase() || null,
                         })
                         .eq('id', createData.user.id);
                 }
