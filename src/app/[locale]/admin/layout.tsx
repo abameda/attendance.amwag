@@ -116,14 +116,12 @@ export default function AdminLayout({
             </AnimatePresence>
 
             {/* Sidebar */}
-            <AnimatePresence>
-                {(isSidebarOpen || typeof window !== 'undefined') && (
-                    <aside
-                        className={cn(
-                            'fixed inset-y-0 start-0 z-50 w-[19.5rem] px-4 py-4 transition-transform duration-300 lg:translate-x-0 lg:rtl:-translate-x-0',
-                            isSidebarOpen ? 'translate-x-0 rtl:translate-x-0' : '-translate-x-full rtl:translate-x-full'
-                        )}
-                    >
+            <aside
+                className={cn(
+                    'fixed inset-y-0 start-0 z-50 w-[19.5rem] px-4 py-4 transition-transform duration-300 lg:translate-x-0 lg:rtl:-translate-x-0',
+                    isSidebarOpen ? 'translate-x-0 rtl:translate-x-0' : '-translate-x-full rtl:translate-x-full'
+                )}
+            >
                         <div className="flex h-full flex-col rounded-[2.4rem] border border-[var(--line)] bg-[rgba(255,255,255,0.03)] p-4 backdrop-blur-[20px]">
                             {/* Logo */}
                             <div className="flex items-center justify-between border-b border-[var(--line)] px-2 pb-4">
@@ -229,9 +227,7 @@ export default function AdminLayout({
                                 </div>
                             </motion.div>
                         </div>
-                    </aside>
-                )}
-            </AnimatePresence>
+                </aside>
 
             <main className="relative z-[2] min-h-screen px-4 pb-8 pt-4 lg:pe-8 lg:ps-[22.5rem]">
                 <PageReveal className="mx-auto flex min-h-[calc(100vh-2rem)] max-w-7xl flex-col">
