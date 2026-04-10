@@ -1,8 +1,10 @@
-// Force dynamic rendering - prevents prerendering issues without Supabase credentials
+// Force dynamic rendering because this page reads the session cookie.
 export const dynamic = 'force-dynamic';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+
+import { readSessionCookie } from '@/lib/auth/cookies';
+import { getSessionByToken } from '@/lib/auth/session';
 
 export default async function Home({
   params,
@@ -10,25 +12,24 @@ export default async function Home({
   params: Promise<{ locale: string }>;
 }) {
   const { locale } = await params;
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const token = await readSessionCookie();
+  const session = token ? await getSessionByToken(token) : null;
 
-  if (!user) {
+  if (!session) {
     redirect(`/${locale}/login`);
   }
 
-  // Check user role and redirect accordingly
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('role')
-    .eq('id', user.id)
-    .single();
-
-  if (profile?.role === 'admin') {
-    redirect(`/${locale}/admin`);
-  } else {
-    redirect(`/${locale}/employee`);
+  if (session.user.mustChangePassword === 1) {
+    redirect(`/${locale}/change-password`);
   }
+
+  if (session.user.role === 'admin') {
+    redirect(`/${locale}/admin`);
+  }
+
+  if (session.user.role === 'accountant') {
+    redirect(`/${locale}/admin/attendance`);
+  }
+
+  redirect(`/${locale}/employee`);
 }

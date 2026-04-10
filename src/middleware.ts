@@ -1,140 +1,123 @@
-import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 
 const intlMiddleware = createMiddleware({
-    locales: ['en', 'ar'],
-    defaultLocale: 'ar',
-    localePrefix: 'always'
+  locales: ['en', 'ar'],
+  defaultLocale: 'ar',
+  localePrefix: 'always',
 });
 
-export async function middleware(request: NextRequest) {
-    // 1. Run next-intl middleware first to handle locale routing and redirects
-    const response = intlMiddleware(request);
+const SESSION_COOKIE_NAME = process.env.SESSION_COOKIE_NAME ?? 'amwag_session';
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+type MiddlewareUser = {
+  role: 'admin' | 'accountant' | 'employee';
+  must_change_password: boolean;
+};
 
-    // Skip Supabase auth if not configured
-    if (!supabaseUrl || !supabaseKey || supabaseUrl === 'your-supabase-project-url') {
-        return response;
-    }
+async function fetchMiddlewareUser(request: NextRequest): Promise<MiddlewareUser | null> {
+  const cookieHeader = request.headers.get('cookie');
+  if (!cookieHeader) {
+    return null;
+  }
 
-    const supabase = createServerClient(supabaseUrl, supabaseKey, {
-        cookies: {
-            getAll() {
-                return request.cookies.getAll();
-            },
-            setAll(cookiesToSet) {
-                cookiesToSet.forEach(({ name, value }) =>
-                    request.cookies.set(name, value)
-                );
-                // Update the response cookies that next-intl prepared
-                cookiesToSet.forEach(({ name, value, options }) =>
-                    response.cookies.set(name, value, options)
-                );
-            },
-        },
+  try {
+    const response = await fetch(new URL('/api/auth/me', request.url), {
+      headers: { cookie: cookieHeader },
     });
 
-    // Refreshing the auth token
-    const {
-        data: { user },
-    } = await supabase.auth.getUser();
+    if (!response.ok) {
+      return null;
+    }
 
-    // Get the locale from the request path (next-intl ensures it's there)
-    // path format: /en/..., /ar/... or / (which redirects)
-    const pathname = request.nextUrl.pathname;
+    const result = await response.json();
+    return result.success ? (result.data as MiddlewareUser) : null;
+  } catch (error) {
+    console.error('middleware auth lookup failed:', error);
+    return null;
+  }
+}
 
-    // Check if path is just the locale (landing page) or has more segments
-    // Matches /en, /ar, /en/..., /ar/...
-    const localeMatch = pathname.match(/^\/(en|ar)(\/|$)/);
-    const locale = localeMatch ? localeMatch[1] : 'ar';
+export async function middleware(request: NextRequest) {
+  const response = intlMiddleware(request);
 
-    // Strip locale to check protected routes simpler
-    const pathWithoutLocale = pathname.replace(/^\/(en|ar)/, '') || '/';
+  const pathname = request.nextUrl.pathname;
+  const localeMatch = pathname.match(/^\/(en|ar)(\/|$)/);
+  const locale = localeMatch ? localeMatch[1] : 'ar';
+  const pathWithoutLocale = pathname.replace(/^\/(en|ar)/, '') || '/';
 
-    // Public routes that don't require authentication
-    // Note: auth callback usually doesn't have locale prefix depending on provider setup, 
-    // but better to allow both with and without.
-    const publicRoutes = ['/login', '/auth/callback'];
-    const isPublicRoute = publicRoutes.some((route) => pathWithoutLocale.startsWith(route));
+  const publicRoutes = ['/login'];
+  const isPublicRoute = publicRoutes.some((route) => pathWithoutLocale.startsWith(route));
 
-    // If user is not authenticated and trying to access protected route
-    if (!user && !isPublicRoute) {
+  const hasSessionCookie = Boolean(request.cookies.get(SESSION_COOKIE_NAME)?.value);
+  const user = hasSessionCookie ? await fetchMiddlewareUser(request) : null;
+
+  if (!user && !isPublicRoute) {
+    const url = request.nextUrl.clone();
+    url.pathname = `/${locale}/login`;
+    return NextResponse.redirect(url);
+  }
+
+  if (user) {
+    const role = user.role;
+
+    const needsChange = user.must_change_password;
+    const isChangePasswordRoute = pathWithoutLocale === '/change-password';
+
+    if (needsChange && !isChangePasswordRoute) {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}/change-password`;
+      return NextResponse.redirect(url);
+    }
+
+    if (pathWithoutLocale === '/login') {
+      const url = request.nextUrl.clone();
+
+      if (role === 'admin') {
+        url.pathname = `/${locale}/admin`;
+      } else if (role === 'accountant') {
+        url.pathname = `/${locale}/admin/attendance`;
+      } else {
+        url.pathname = `/${locale}/employee`;
+      }
+
+      return NextResponse.redirect(url);
+    }
+
+    if (role === 'accountant') {
+      if (
+        pathWithoutLocale.startsWith('/admin') &&
+        !pathWithoutLocale.startsWith('/admin/attendance')
+      ) {
         const url = request.nextUrl.clone();
-        url.pathname = `/${locale}/login`;
+        url.pathname = `/${locale}/admin/attendance`;
         return NextResponse.redirect(url);
+      }
+
+      if (pathWithoutLocale.startsWith('/employee')) {
+        const url = request.nextUrl.clone();
+        url.pathname = `/${locale}/admin/attendance`;
+        return NextResponse.redirect(url);
+      }
     }
 
-    // Fetch user profile once if authenticated (used for both login redirect and role-based protection)
-    if (user) {
-        const { data: profile } = await supabase
-            .from('profiles')
-            .select('role')
-            .eq('id', user.id)
-            .single();
-
-        const role = profile?.role;
-
-        // If user is authenticated and trying to access login page
-        if (pathWithoutLocale === '/login') {
-            const url = request.nextUrl.clone();
-            // Redirect based on role
-            if (role === 'admin') {
-                url.pathname = `/${locale}/admin`;
-            } else if (role === 'accountant') {
-                url.pathname = `/${locale}/admin/attendance`;
-            } else {
-                url.pathname = `/${locale}/employee`;
-            }
-            return NextResponse.redirect(url);
-        }
-
-        // Role-based route protection
-        // Accountant can only access /admin/attendance
-        if (role === 'accountant') {
-            if (pathWithoutLocale.startsWith('/admin') && !pathWithoutLocale.startsWith('/admin/attendance')) {
-                const url = request.nextUrl.clone();
-                url.pathname = `/${locale}/admin/attendance`;
-                return NextResponse.redirect(url);
-            }
-            // Accountant cannot access employee routes
-            if (pathWithoutLocale.startsWith('/employee')) {
-                const url = request.nextUrl.clone();
-                url.pathname = `/${locale}/admin/attendance`;
-                return NextResponse.redirect(url);
-            }
-        }
-
-        // Admin routes protection (only admin and accountant can access)
-        if (pathWithoutLocale.startsWith('/admin') && role !== 'admin' && role !== 'accountant') {
-            const url = request.nextUrl.clone();
-            url.pathname = `/${locale}/employee`;
-            return NextResponse.redirect(url);
-        }
-
-        // Employee routes protection
-        if (pathWithoutLocale.startsWith('/employee') && role === 'admin') {
-            const url = request.nextUrl.clone();
-            url.pathname = `/${locale}/admin`;
-            return NextResponse.redirect(url);
-        }
+    if (pathWithoutLocale.startsWith('/admin') && role !== 'admin' && role !== 'accountant') {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}/employee`;
+      return NextResponse.redirect(url);
     }
 
-    return response;
+    if (pathWithoutLocale.startsWith('/employee') && role === 'admin') {
+      const url = request.nextUrl.clone();
+      url.pathname = `/${locale}/admin`;
+      return NextResponse.redirect(url);
+    }
+  }
+
+  return response;
 }
 
 export const config = {
-    matcher: [
-        /*
-         * Match all request paths except for the ones starting with:
-         * - _next/static (static files)
-         * - _next/image (image optimization files)
-         * - favicon.ico (favicon file)
-         * - api (API routes)
-         * - auth (Auth routes if distinct)
-         */
-        '/((?!api|_next/static|_next/image|favicon.ico|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
-    ],
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico|auth/callback|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+  ],
 };

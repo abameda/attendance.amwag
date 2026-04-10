@@ -1,120 +1,138 @@
-import { createClient } from '@/lib/supabase/server';
+import { randomUUID } from 'node:crypto';
+
+import { desc, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createAdminClient } from '@supabase/supabase-js';
+
 import { isAdmin } from '@/lib/auth';
+import { hashPassword } from '@/lib/auth/password';
+import { db } from '@/lib/db';
+import { users, type User } from '@/lib/db/schema';
 
-// GET - List all employees (admin only)
-export async function GET(request: NextRequest) {
-    try {
-        const supabase = await createClient();
-
-        const auth = await isAdmin(request);
-        if (!auth.authorized) {
-            return NextResponse.json(
-                { success: false, error: auth.error },
-                { status: auth.status }
-            );
-        }
-
-        const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('role', 'employee')
-            .order('created_at', { ascending: false });
-
-        if (error) {
-            return NextResponse.json(
-                { success: false, error: error.message },
-                { status: 500 }
-            );
-        }
-
-        return NextResponse.json({ success: true, data });
-    } catch (error) {
-        console.error('Get employees error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
-    }
+function serializeEmployee(user: User) {
+  return {
+    id: user.id,
+    email: user.email,
+    full_name: user.fullName,
+    role: user.role,
+    branch: user.branch,
+    job_title: user.jobTitle,
+    shift_start: user.shiftStart,
+    shift_end: user.shiftEnd,
+    off_day: user.offDay,
+    overtime_enabled: Boolean(user.overtimeEnabled),
+    must_change_password: Boolean(user.mustChangePassword),
+    created_at: user.createdAt,
+    updated_at: user.updatedAt,
+  };
 }
 
-// POST - Create new employee (admin only)
-export async function POST(request: NextRequest) {
-    try {
-        const auth = await isAdmin(request);
-        if (!auth.authorized) {
-            return NextResponse.json(
-                { success: false, error: auth.error },
-                { status: auth.status }
-            );
-        }
-
-        const body = await request.json();
-        const { email, password, full_name, branch, job_title, shift_start, shift_end, off_day, overtime_enabled } = body;
-
-        // Validate required fields
-        if (!email || !password || !full_name) {
-            return NextResponse.json(
-                { success: false, error: 'Email, password, and full name are required' },
-                { status: 400 }
-            );
-        }
-
-        // Create admin client with service role key
-        // This allows creating users without affecting the current admin session
-        const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-        const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        if (!url || !serviceKey) {
-            return NextResponse.json(
-                { success: false, error: 'Service configuration error' },
-                { status: 500 }
-            );
-        }
-        const supabaseAdmin = createAdminClient(url, serviceKey);
-
-        // Use Admin API to create user - this does NOT log out the current user
-        const { data: createData, error: createError } = await supabaseAdmin.auth.admin.createUser({
-            email,
-            password,
-            email_confirm: true, // Auto-confirm email so user can log in immediately
-            user_metadata: {
-                full_name,
-                role: 'employee',
-                branch,
-                job_title,
-            },
-        });
-
-        if (createError) {
-            return NextResponse.json(
-                { success: false, error: createError.message },
-                { status: 400 }
-            );
-        }
-
-        // Update the profile with shift times, off day, and overtime settings if provided
-        if (createData.user) {
-            await supabaseAdmin
-                .from('profiles')
-                .update({
-                    shift_start: shift_start || null,
-                    shift_end: shift_end || null,
-                    off_day: off_day || null,
-                    overtime_enabled: overtime_enabled ?? true
-                })
-                .eq('id', createData.user.id);
-        }
-
-        return NextResponse.json({
-            success: true,
-            data: { id: createData.user?.id, email },
-        });
-    } catch (error) {
-        console.error('Create employee error:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
+export async function GET(request: NextRequest) {
+  try {
+    const auth = await isAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
     }
+
+    const rows = await db
+      .select()
+      .from(users)
+      .where(eq(users.role, 'employee'))
+      .orderBy(desc(users.createdAt));
+
+    return NextResponse.json({
+      success: true,
+      data: rows.map(serializeEmployee),
+    });
+  } catch (error) {
+    console.error('Get employees error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const auth = await isAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
+    }
+
+    const body = await request.json();
+    const {
+      email,
+      password,
+      full_name,
+      branch,
+      job_title,
+      shift_start,
+      shift_end,
+      off_day,
+      overtime_enabled,
+    } = body ?? {};
+
+    if (!email || !password || !full_name) {
+      return NextResponse.json(
+        { success: false, error: 'Email, password, and full name are required' },
+        { status: 400 }
+      );
+    }
+
+    if (typeof password !== 'string' || password.length < 8) {
+      return NextResponse.json(
+        { success: false, error: 'Password must be at least 8 characters' },
+        { status: 400 }
+      );
+    }
+
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = await db
+      .select({ id: users.id })
+      .from(users)
+      .where(eq(users.email, normalizedEmail))
+      .limit(1);
+
+    if (existing[0]) {
+      return NextResponse.json(
+        { success: false, error: 'Email already in use' },
+        { status: 409 }
+      );
+    }
+
+    const id = randomUUID();
+    const passwordHash = await hashPassword(password);
+
+    await db.insert(users).values({
+      id,
+      email: normalizedEmail,
+      passwordHash,
+      fullName: String(full_name).trim(),
+      role: 'employee',
+      branch: branch ? String(branch).trim() : null,
+      jobTitle: job_title ? String(job_title).trim() : null,
+      shiftStart: shift_start || null,
+      shiftEnd: shift_end || null,
+      offDay: off_day ? String(off_day).trim().toLowerCase() : null,
+      overtimeEnabled: overtime_enabled === false ? 0 : 1,
+      mustChangePassword: 1,
+    });
+
+    return NextResponse.json({
+      success: true,
+      data: { id, email: normalizedEmail },
+    });
+  } catch (error) {
+    console.error('Create employee error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }

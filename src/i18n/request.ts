@@ -1,16 +1,21 @@
 import { getRequestConfig } from 'next-intl/server';
+import arMessages from '../../messages/ar.json';
+import enMessages from '../../messages/en.json';
+
+const messagesByLocale = {
+    ar: arMessages,
+    en: enMessages,
+} as const;
 
 export default getRequestConfig(async ({ requestLocale }) => {
     // This typically corresponds to the `[locale]` segment
-    let locale = await requestLocale;
+    const requestedLocale = await requestLocale;
 
     // Ensure that a valid locale is used
-    if (!locale || !['en', 'ar'].includes(locale)) {
-        locale = 'ar';
-    }
+    const locale = requestedLocale === 'en' || requestedLocale === 'ar' ? requestedLocale : 'ar';
 
     return {
         locale,
-        messages: (await import(`../../messages/${locale}.json`)).default
+        messages: messagesByLocale[locale]
     };
 });

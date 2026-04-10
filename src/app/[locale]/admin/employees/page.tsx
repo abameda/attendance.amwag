@@ -5,7 +5,9 @@ import {
     Briefcase,
     CalendarOff,
     Clock,
+    Copy,
     Edit2,
+    KeyRound,
     MapPin,
     Search,
     Timer,
@@ -15,7 +17,6 @@ import {
     Users,
 } from 'lucide-react';
 import BulkImportModal from '@/components/BulkImportModal';
-import { createClient } from '@/lib/supabase/client';
 import { BRANCHES } from '@/lib/branches';
 import { formatTime } from '@/lib/utils';
 import type { Profile } from '@/types';
@@ -36,7 +37,6 @@ import {
 } from '@/components/ui';
 
 export default function EmployeesPage() {
-    const supabase = useMemo(() => createClient(), []);
     const [employees, setEmployees] = useState<Profile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -55,6 +55,11 @@ export default function EmployeesPage() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+    const [resetModal, setResetModal] = useState<{ open: boolean; tempPassword: string; employeeName: string }>({
+        open: false,
+        tempPassword: '',
+        employeeName: '',
+    });
     const deferredSearchQuery = useDeferredValue(searchQuery);
 
     const calculateShiftEnd = (startTime: string, durationHours: string): string => {
@@ -81,21 +86,21 @@ export default function EmployeesPage() {
 
     const fetchEmployees = useCallback(async () => {
         try {
-            const { data, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('role', 'employee')
-                .order('created_at', { ascending: false });
+            const response = await fetch('/api/employees', { credentials: 'include' });
+            const result = await response.json();
 
-            if (error) throw error;
-            setEmployees(data || []);
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Failed to load employees');
+            }
+
+            setEmployees(result.data || []);
         } catch (error) {
             console.error('Error fetching employees:', error);
             addToast('Failed to load employees', 'error');
         } finally {
             setIsLoading(false);
         }
-    }, [supabase]);
+    }, []);
 
     useEffect(() => {
         fetchEmployees();
@@ -144,9 +149,11 @@ export default function EmployeesPage() {
         try {
             if (editingEmployee) {
                 const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
-                const { error } = await supabase
-                    .from('profiles')
-                    .update({
+                const response = await fetch(`/api/employees/${editingEmployee.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({
                         full_name: formData.full_name,
                         branch: formData.branch,
                         job_title: formData.job_title,
@@ -154,10 +161,13 @@ export default function EmployeesPage() {
                         shift_end: calculatedShiftEnd || null,
                         off_day: formData.off_day || null,
                         overtime_enabled: formData.overtime_enabled,
-                    })
-                    .eq('id', editingEmployee.id);
+                    }),
+                });
 
-                if (error) throw error;
+                const result = await response.json();
+                if (!response.ok || !result.success) {
+                    throw new Error(result.error || 'Failed to update employee');
+                }
                 addToast('Employee updated successfully', 'success');
             } else {
                 const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
@@ -168,6 +178,7 @@ export default function EmployeesPage() {
                 const response = await fetch('/api/employees', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify(submitData),
                 });
 
@@ -202,6 +213,25 @@ export default function EmployeesPage() {
         } catch (error) {
             console.error('Error deleting employee:', error);
             addToast('Failed to delete employee', 'error');
+        }
+    };
+
+    const handleResetPassword = async (id: string, name: string) => {
+        if (!confirm(`Reset password for ${name}? They will be forced to change it on next login.`)) return;
+
+        try {
+            const response = await fetch(`/api/employees/${id}/reset-password`, {
+                method: 'POST',
+                credentials: 'include',
+            });
+            const result = await response.json();
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || 'Failed to reset password');
+            }
+            setResetModal({ open: true, tempPassword: result.data.tempPassword, employeeName: name });
+        } catch (error) {
+            console.error('Error resetting password:', error);
+            addToast(error instanceof Error ? error.message : 'Failed to reset password', 'error');
         }
     };
 
@@ -354,12 +384,21 @@ export default function EmployeesPage() {
                                             <button
                                                 onClick={() => openEditModal(employee)}
                                                 className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] transition-colors"
+                                                title="Edit employee"
                                             >
                                                 <Edit2 className="h-4 w-4" />
                                             </button>
                                             <button
+                                                onClick={() => handleResetPassword(employee.id, employee.full_name)}
+                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--warning)] transition-colors"
+                                                title="Reset password"
+                                            >
+                                                <KeyRound className="h-4 w-4" />
+                                            </button>
+                                            <button
                                                 onClick={() => handleDelete(employee.id)}
                                                 className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] transition-colors"
+                                                title="Delete employee"
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
@@ -575,6 +614,41 @@ export default function EmployeesPage() {
                         </Button>
                     </div>
                 </form>
+            </Modal>
+
+            <Modal
+                isOpen={resetModal.open}
+                onClose={() => setResetModal((prev) => ({ ...prev, open: false }))}
+                title="Password Reset"
+                size="sm"
+            >
+                <div className="space-y-4">
+                    <p className="text-sm text-[var(--muted)]">
+                        Temporary password for <span className="font-semibold text-[var(--foreground)]">{resetModal.employeeName}</span>.
+                        Share it securely — they will be forced to change it on next login.
+                    </p>
+                    <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                        <code className="flex-1 font-mono text-base tracking-widest text-[var(--foreground)]">
+                            {resetModal.tempPassword}
+                        </code>
+                        <button
+                            onClick={() => {
+                                navigator.clipboard.writeText(resetModal.tempPassword);
+                                addToast('Copied to clipboard', 'success');
+                            }}
+                            className="focus-ring rounded-lg p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                            title="Copy to clipboard"
+                        >
+                            <Copy className="h-4 w-4" />
+                        </button>
+                    </div>
+                    <Button
+                        className="w-full"
+                        onClick={() => setResetModal((prev) => ({ ...prev, open: false }))}
+                    >
+                        Done
+                    </Button>
+                </div>
             </Modal>
 
             <BulkImportModal

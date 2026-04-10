@@ -15,7 +15,6 @@ import { useLocale, useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import Footer from '@/components/Footer';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
-import { createClient } from '@/lib/supabase/client';
 import { formatLateness, formatOvertime, formatTimestamp, formatTime } from '@/lib/utils';
 import type { AttendanceRecord, Profile } from '@/types';
 import {
@@ -32,9 +31,25 @@ import {
 import { ClockHero } from '@/components/employee/ClockHero';
 import { SplineScene } from '@/components/ui/splite';
 
+function getEgyptToday() {
+    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
+}
+
+async function fetchTodayRecord() {
+    const response = await fetch('/api/attendance/me', { credentials: 'include' });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to load attendance');
+    }
+
+    const today = getEgyptToday();
+    const records = (result.data || []) as AttendanceRecord[];
+    return records.find((record) => record.date === today) ?? null;
+}
+
 export default function EmployeePortal() {
     const router = useRouter();
-    const supabase = createClient();
     const [profile, setProfile] = useState<Profile | null>(null);
     const [todayRecord, setTodayRecord] = useState<AttendanceRecord | null>(null);
     const [currentTime, setCurrentTime] = useState(new Date());
@@ -54,32 +69,16 @@ export default function EmployeePortal() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const {
-                    data: { user },
-                } = await supabase.auth.getUser();
+                const userResponse = await fetch('/api/auth/me', { credentials: 'include' });
+                const userResult = await userResponse.json();
 
-                if (!user) {
+                if (!userResponse.ok || !userResult.success) {
                     router.push(`/${locale}/login`);
                     return;
                 }
 
-                const { data: profileData } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', user.id)
-                    .single();
-
-                setProfile(profileData);
-
-                const today = new Date().toISOString().split('T')[0];
-                const { data: attendanceData } = await supabase
-                    .from('attendance')
-                    .select('*')
-                    .eq('user_id', user.id)
-                    .eq('date', today)
-                    .single();
-
-                setTodayRecord(attendanceData);
+                setProfile(userResult.data as Profile);
+                setTodayRecord(await fetchTodayRecord());
             } catch (error) {
                 console.error('Error fetching data:', error);
             } finally {
@@ -88,24 +87,10 @@ export default function EmployeePortal() {
         };
 
         fetchData();
-    }, [locale, router, supabase]);
+    }, [locale, router]);
 
     const refreshTodayRecord = async () => {
-        const today = new Date().toISOString().split('T')[0];
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
-
-        if (!user) return;
-
-        const { data } = await supabase
-            .from('attendance')
-            .select('*')
-            .eq('user_id', user.id)
-            .eq('date', today)
-            .single();
-
-        setTodayRecord(data);
+        setTodayRecord(await fetchTodayRecord());
     };
 
     const handleCheckIn = async () => {
@@ -141,7 +126,7 @@ export default function EmployeePortal() {
     };
 
     const handleLogout = async () => {
-        await supabase.auth.signOut();
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         router.push(`/${locale}/login`);
         router.refresh();
     };

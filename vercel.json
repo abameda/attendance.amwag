@@ -1,8 +1,0 @@
-{
-    "crons": [
-        {
-            "path": "/api/internal/attendance/finalize",
-            "schedule": "0 1 * * *"
-        }
-    ]
-}

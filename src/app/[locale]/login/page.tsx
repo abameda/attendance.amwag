@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 import { ArrowRight, Lock, Mail } from 'lucide-react';
 import { useLocale } from 'next-intl';
 import Footer from '@/components/Footer';
-import { createClient } from '@/lib/supabase/client';
 import {
     Button,
     Input,
@@ -18,7 +17,6 @@ import {
 export default function LoginPage() {
     const router = useRouter();
     const locale = useLocale();
-    const supabase = createClient();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -28,37 +26,38 @@ export default function LoginPage() {
         setIsLoading(true);
 
         try {
-            const { data, error } = await supabase.auth.signInWithPassword({
-                email,
-                password,
+            const response = await fetch('/api/auth/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password }),
             });
+            const json = await response.json();
 
-            if (error) {
-                addToast(error.message, 'error');
+            if (!response.ok || !json.success) {
+                addToast(json.error ?? 'Login failed', 'error');
                 return;
             }
 
-            if (data.user) {
-                const { data: profile } = await supabase
-                    .from('profiles')
-                    .select('role')
-                    .eq('id', data.user.id)
-                    .single();
+            const { role, mustChangePassword } = json.data as {
+                role: 'admin' | 'accountant' | 'employee';
+                mustChangePassword: boolean;
+            };
 
-                addToast('Login successful!', 'success');
+            addToast('Login successful!', 'success');
 
-                if (profile?.role === 'admin') {
-                    router.push(`/${locale}/admin`);
-                } else if (profile?.role === 'accountant') {
-                    router.push(`/${locale}/admin/attendance`);
-                } else {
-                    router.push(`/${locale}/employee`);
-                }
-
-                router.refresh();
+            if (mustChangePassword) {
+                router.push(`/${locale}/change-password`);
+            } else if (role === 'admin') {
+                router.push(`/${locale}/admin`);
+            } else if (role === 'accountant') {
+                router.push(`/${locale}/admin/attendance`);
+            } else {
+                router.push(`/${locale}/employee`);
             }
+
+            router.refresh();
         } catch {
-            addToast('An unexpected error occurred', 'error');
+            addToast('Network error', 'error');
         } finally {
             setIsLoading(false);
         }

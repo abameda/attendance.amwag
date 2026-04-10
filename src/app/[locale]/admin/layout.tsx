@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -19,7 +19,6 @@ import Footer from '@/components/Footer';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import ShaderBackground from '@/components/backgrounds/ShaderBackground';
 import NoiseOverlay from '@/components/backgrounds/NoiseOverlay';
-import { createClient } from '@/lib/supabase/client';
 import { AnimatePresence, PageReveal, ToastContainer, motion } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +37,6 @@ export default function AdminLayout({
     const router = useRouter();
     const pathname = usePathname();
     const locale = useLocale();
-    const supabase = useMemo(() => createClient(), []);
     const t = useTranslations('Sidebar');
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [adminName, setAdminName] = useState('');
@@ -47,33 +45,27 @@ export default function AdminLayout({
 
     useEffect(() => {
         const fetchAdminProfile = async () => {
-            const {
-                data: { user },
-            } = await supabase.auth.getUser();
+            const response = await fetch('/api/auth/me', { credentials: 'include' });
+            const result = await response.json();
 
-            if (!user) return;
-
-            const { data: profile } = await supabase
-                .from('profiles')
-                .select('full_name, job_title, role')
-                .eq('id', user.id)
-                .single();
-
-            if (profile) {
-                setAdminName(profile.full_name);
-                setAdminJobTitle(profile.job_title || 'Administrator');
-                setUserRole(profile.role || 'admin');
+            if (!response.ok || !result.success) {
+                router.push(`/${locale}/login`);
+                return;
             }
+
+            setAdminName(result.data.full_name);
+            setAdminJobTitle(result.data.job_title || 'Administrator');
+            setUserRole(result.data.role || 'admin');
         };
 
         fetchAdminProfile();
-    }, [supabase]);
+    }, [locale, router]);
 
     const handleLogout = useCallback(async () => {
-        await supabase.auth.signOut();
+        await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
         router.push(`/${locale}/login`);
         router.refresh();
-    }, [locale, router, supabase]);
+    }, [locale, router]);
 
     return (
         <div className="relative min-h-screen overflow-x-hidden text-[var(--foreground)]">

@@ -1,97 +1,118 @@
+import { eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient as createSupabaseAdminClient } from '@supabase/supabase-js';
+
 import { isAdmin } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { globalSettings, type GlobalSettings } from '@/lib/db/schema';
 
-function getSupabaseAdmin() {
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!url || !key) throw new Error('Missing Supabase service role configuration');
-    return createSupabaseAdminClient(url, key);
+function serializeSettings(settings?: GlobalSettings) {
+  return {
+    early_checkin_minutes: settings?.earlyCheckinMinutes ?? 60,
+    late_grace_minutes: settings?.lateGraceMinutes ?? 0,
+    checkout_window_minutes: settings?.checkoutWindowMinutes ?? 60,
+    max_overtime_minutes: settings?.maxOvertimeMinutes ?? 180,
+    updated_at: settings?.updatedAt ?? null,
+  };
 }
 
-/** GET: Read global settings (admin only) */
+function parseSettings(body: Record<string, unknown>) {
+  return {
+    earlyCheckinMinutes: Number(body.early_checkin_minutes),
+    lateGraceMinutes: Number(body.late_grace_minutes),
+    checkoutWindowMinutes: Number(body.checkout_window_minutes),
+    maxOvertimeMinutes: Number(body.max_overtime_minutes),
+  };
+}
+
+function isValidSettings(settings: ReturnType<typeof parseSettings>) {
+  return (
+    Number.isFinite(settings.earlyCheckinMinutes) &&
+    settings.earlyCheckinMinutes >= 0 &&
+    settings.earlyCheckinMinutes <= 180 &&
+    Number.isFinite(settings.lateGraceMinutes) &&
+    settings.lateGraceMinutes >= 0 &&
+    settings.lateGraceMinutes <= 60 &&
+    Number.isFinite(settings.checkoutWindowMinutes) &&
+    settings.checkoutWindowMinutes >= 0 &&
+    settings.checkoutWindowMinutes <= 300 &&
+    Number.isFinite(settings.maxOvertimeMinutes) &&
+    settings.maxOvertimeMinutes >= 0 &&
+    settings.maxOvertimeMinutes <= 480
+  );
+}
+
 export async function GET(request: NextRequest) {
-    try {
-        const auth = await isAdmin(request);
-        if (!auth.authorized) {
-            return NextResponse.json({ error: auth.error }, { status: auth.status });
-        }
-
-        const supabaseAdmin = getSupabaseAdmin();
-        const { data, error } = await supabaseAdmin
-            .from('global_settings')
-            .select('early_checkin_minutes, late_grace_minutes, checkout_window_minutes, max_overtime_minutes, updated_at')
-            .eq('id', 1)
-            .single();
-
-        if (error) {
-            return NextResponse.json(
-                { success: false, error: 'Failed to fetch settings' },
-                { status: 500 }
-            );
-        }
-
-        return NextResponse.json({ success: true, data });
-    } catch (error) {
-        console.error('Error fetching settings:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
+  try {
+    const auth = await isAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
     }
+
+    const rows = await db
+      .select()
+      .from(globalSettings)
+      .where(eq(globalSettings.id, 1))
+      .limit(1);
+
+    return NextResponse.json({
+      success: true,
+      data: serializeSettings(rows[0]),
+    });
+  } catch (error) {
+    console.error('Get settings error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
 
-/** PUT: Update global settings (admin only) */
 export async function PUT(request: NextRequest) {
-    try {
-        const auth = await isAdmin(request);
-        if (!auth.authorized) {
-            return NextResponse.json({ error: auth.error }, { status: auth.status });
-        }
-
-        const body = await request.json();
-        const { early_checkin_minutes, late_grace_minutes, checkout_window_minutes, max_overtime_minutes } = body;
-
-        // Validate inputs
-        if (
-            typeof early_checkin_minutes !== 'number' || early_checkin_minutes < 0 || early_checkin_minutes > 180 ||
-            typeof late_grace_minutes !== 'number' || late_grace_minutes < 0 || late_grace_minutes > 60 ||
-            typeof checkout_window_minutes !== 'number' || checkout_window_minutes < 0 || checkout_window_minutes > 300 ||
-            typeof max_overtime_minutes !== 'number' || max_overtime_minutes < 0 || max_overtime_minutes > 480
-        ) {
-            return NextResponse.json(
-                { success: false, error: 'Invalid settings values. Check ranges.' },
-                { status: 400 }
-            );
-        }
-
-        const supabaseAdmin = getSupabaseAdmin();
-        const { data, error } = await supabaseAdmin
-            .from('global_settings')
-            .update({
-                early_checkin_minutes,
-                late_grace_minutes,
-                checkout_window_minutes,
-                max_overtime_minutes,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', 1)
-            .select('early_checkin_minutes, late_grace_minutes, checkout_window_minutes, max_overtime_minutes, updated_at')
-            .single();
-
-        if (error) {
-            return NextResponse.json(
-                { success: false, error: 'Failed to update settings' },
-                { status: 500 }
-            );
-        }
-
-        return NextResponse.json({ success: true, data });
-    } catch (error) {
-        console.error('Error updating settings:', error);
-        return NextResponse.json(
-            { success: false, error: 'Internal server error' },
-            { status: 500 }
-        );
+  try {
+    const auth = await isAdmin(request);
+    if (!auth.authorized) {
+      return NextResponse.json(
+        { success: false, error: auth.error },
+        { status: auth.status }
+      );
     }
+
+    const body = await request.json();
+    const parsed = parseSettings(body ?? {});
+
+    if (!isValidSettings(parsed)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid settings values. Check ranges.' },
+        { status: 400 }
+      );
+    }
+
+    await db
+      .update(globalSettings)
+      .set({
+        ...parsed,
+        updatedAt: new Date(),
+      })
+      .where(eq(globalSettings.id, 1));
+
+    const rows = await db
+      .select()
+      .from(globalSettings)
+      .where(eq(globalSettings.id, 1))
+      .limit(1);
+
+    return NextResponse.json({
+      success: true,
+      data: serializeSettings(rows[0]),
+    });
+  } catch (error) {
+    console.error('Update settings error:', error);
+    return NextResponse.json(
+      { success: false, error: 'Internal server error' },
+      { status: 500 }
+    );
+  }
 }
