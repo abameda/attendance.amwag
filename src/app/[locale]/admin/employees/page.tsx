@@ -21,6 +21,8 @@ import { BRANCHES } from '@/lib/branches';
 import { formatTime } from '@/lib/utils';
 import type { Profile } from '@/types';
 import {
+    AnimatePresence,
+    motion,
     Button,
     Card,
     CardContent,
@@ -31,8 +33,6 @@ import {
     PageReveal,
     Select,
     Skeleton,
-    StaggerGroup,
-    StaggerItem,
     addToast,
 } from '@/components/ui';
 
@@ -357,9 +357,16 @@ export default function EmployeesPage() {
                     </CardContent>
                 </Card>
             ) : (
-                <StaggerGroup className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <AnimatePresence>
+                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
                     {filteredEmployees.map((employee) => (
-                        <StaggerItem key={employee.id}>
+                        <motion.div
+                            key={employee.id}
+                            initial={{ opacity: 0, y: 22 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                        >
                             <Card interactive className="group rounded-2xl">
                                 <CardContent className="space-y-5 p-6">
                                     <div className="flex items-start justify-between gap-4">
@@ -446,9 +453,10 @@ export default function EmployeesPage() {
                                     </div>
                                 </CardContent>
                             </Card>
-                        </StaggerItem>
+                        </motion.div>
                     ))}
-                </StaggerGroup>
+                </div>
+                </AnimatePresence>
             )}
 
             <Modal

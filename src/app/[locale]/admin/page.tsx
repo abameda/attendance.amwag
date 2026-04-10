@@ -5,7 +5,6 @@ import { Calendar, Clock3, TrendingUp, TriangleAlert, UserCheck, UserX, Users } 
 import { useLocale, useTranslations } from 'next-intl';
 import { motion, useSpring, useMotionValue, useInView } from 'framer-motion';
 import { AnimatedCounter, Card, CardContent, GlowingCard, Input, PageReveal, Skeleton, StaggerGroup, StaggerItem, addToast } from '@/components/ui';
-import { getDashboardSummaryCacheKey } from '@/lib/utils';
 import type { DashboardSummary } from '@/types';
 import { getEgyptMonth } from '@/lib/timezone';
 
@@ -88,14 +87,6 @@ export default function AdminDashboard() {
             params.set('month', selectedMonth);
         }
 
-        const cacheKey = getDashboardSummaryCacheKey(activePeriod);
-        const cachedSummary = sessionStorage.getItem(cacheKey);
-        if (cachedSummary) {
-            setSummary(JSON.parse(cachedSummary) as DashboardSummary);
-            setIsLoading(false);
-            return;
-        }
-
         const controller = new AbortController();
         setIsLoading(true);
 
@@ -115,7 +106,6 @@ export default function AdminDashboard() {
                 }
 
                 setSummary(result.data);
-                sessionStorage.setItem(cacheKey, JSON.stringify(result.data));
             } catch (error) {
                 if (controller.signal.aborted) {
                     return;

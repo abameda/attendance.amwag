@@ -18,10 +18,6 @@ import type { AttendanceRecord } from '@/types';
 
 const RECORDS_PER_PAGE = 10;
 
-function getAttendanceCacheKey(params: URLSearchParams) {
-    return `attendance-logs:${params.toString()}`;
-}
-
 export default function AttendanceLogsPage() {
     const t = useTranslations('AttendanceLogs');
     const locale = useLocale();
@@ -58,19 +54,6 @@ export default function AttendanceLogsPage() {
             return;
         }
 
-        const cacheKey = getAttendanceCacheKey(queryParams);
-        const cachedValue = sessionStorage.getItem(cacheKey);
-        if (cachedValue) {
-            const cachedResult = JSON.parse(cachedValue) as {
-                data: AttendanceRecord[];
-                total: number;
-            };
-            setRecords(cachedResult.data);
-            setTotalRecords(cachedResult.total);
-            setIsLoading(false);
-            return;
-        }
-
         const controller = new AbortController();
         setIsLoading(true);
 
@@ -90,14 +73,8 @@ export default function AttendanceLogsPage() {
                     throw new Error(result.error || 'Failed to fetch attendance');
                 }
 
-                const payload = {
-                    data: result.data ?? [],
-                    total: result.total ?? 0,
-                };
-
-                setRecords(payload.data);
-                setTotalRecords(payload.total);
-                sessionStorage.setItem(cacheKey, JSON.stringify(payload));
+                setRecords(result.data ?? []);
+                setTotalRecords(result.total ?? 0);
             } catch (error) {
                 if (controller.signal.aborted) {
                     return;
@@ -282,7 +259,6 @@ export default function AttendanceLogsPage() {
                             variant="ghost"
                             size="sm"
                             onClick={() => {
-                                sessionStorage.removeItem(getAttendanceCacheKey(queryParams));
                                 setRefreshKey((value) => value + 1);
                                 setCurrentPage(1);
                             }}
