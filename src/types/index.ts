@@ -10,6 +10,7 @@ export interface Profile {
   shift_end: string | null;
   off_day: string | null; // Day of week: 'sunday', 'monday', 'tuesday', etc.
   overtime_enabled: boolean;
+  must_change_password?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -64,6 +65,7 @@ export interface UpdateEmployeeForm {
   shift_end?: string;
   off_day?: string;
   overtime_enabled?: boolean;
+  must_change_password?: boolean;
 }
 
 // API Response Types

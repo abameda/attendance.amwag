@@ -28,7 +28,7 @@ export const users = mysqlTable(
     shiftEnd: time('shift_end'),
     offDay: varchar('off_day', { length: 20 }),
     overtimeEnabled: tinyint('overtime_enabled').notNull().default(1),
-    mustChangePassword: tinyint('must_change_password').notNull().default(1),
+    mustChangePassword: tinyint('must_change_password').notNull().default(0),
     createdAt: datetime('created_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
     updatedAt: datetime('updated_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
   },

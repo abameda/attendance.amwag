@@ -121,7 +121,6 @@ export async function POST(request: NextRequest) {
       shiftEnd: shift_end || null,
       offDay: off_day ? String(off_day).trim().toLowerCase() : null,
       overtimeEnabled: overtime_enabled === false ? 0 : 1,
-      mustChangePassword: 1,
     });
 
     return NextResponse.json({

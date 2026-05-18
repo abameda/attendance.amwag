@@ -98,6 +98,7 @@ export async function PUT(
       shift_end,
       off_day,
       overtime_enabled,
+      must_change_password,
     } = body ?? {};
 
     if (!full_name) {
@@ -117,6 +118,7 @@ export async function PUT(
         shiftEnd: shift_end || null,
         offDay: off_day ? String(off_day).trim().toLowerCase() : null,
         overtimeEnabled: overtime_enabled === false ? 0 : 1,
+        ...(must_change_password !== undefined && { mustChangePassword: must_change_password ? 1 : 0 }),
         updatedAt: new Date(),
       })
       .where(and(eq(users.id, id), eq(users.role, 'employee')));

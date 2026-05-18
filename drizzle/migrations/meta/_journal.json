@@ -8,6 +8,13 @@
       "when": 1775591788319,
       "tag": "0000_lame_iron_lad",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1779137934950,
+      "tag": "0001_naive_punisher",
+      "breakpoints": true
     }
   ]
 }

@@ -194,7 +194,6 @@ export async function POST(request: NextRequest) {
             shiftEnd: row.shiftEnd,
             offDay: row.offDay,
             overtimeEnabled: 1,
-            mustChangePassword: 1,
           });
         }
       });

@@ -52,6 +52,7 @@ export default function EmployeesPage() {
         shift_duration: '8',
         off_day: '',
         overtime_enabled: true,
+        must_change_password: false,
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
@@ -117,6 +118,7 @@ export default function EmployeesPage() {
             shift_duration: '8',
             off_day: '',
             overtime_enabled: true,
+            must_change_password: false,
         });
         setEditingEmployee(null);
     };
@@ -138,6 +140,7 @@ export default function EmployeesPage() {
             shift_duration: calculateDurationFromTimes(employee.shift_start, employee.shift_end),
             off_day: employee.off_day || '',
             overtime_enabled: employee.overtime_enabled ?? true,
+            must_change_password: employee.must_change_password ?? false,
         });
         setIsModalOpen(true);
     };
@@ -161,6 +164,7 @@ export default function EmployeesPage() {
                         shift_end: calculatedShiftEnd || null,
                         off_day: formData.off_day || null,
                         overtime_enabled: formData.overtime_enabled,
+                        must_change_password: formData.must_change_password,
                     }),
                 });
 
@@ -605,6 +609,29 @@ export default function EmployeesPage() {
                             />
                         </button>
                     </div>
+
+                    {editingEmployee && (
+                        <div className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                                <KeyRound className="mt-1 h-5 w-5 text-[var(--warning)]" />
+                                <div className="min-w-0">
+                                    <p className="text-sm font-medium text-[var(--foreground)]">Force Password Reset</p>
+                                    <p className="text-xs leading-6 text-[var(--muted)]">
+                                        Employee will be required to change their password on next login.
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setFormData((prev) => ({ ...prev, must_change_password: !prev.must_change_password }))}
+                                className={`focus-ring relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${formData.must_change_password ? 'bg-[var(--warning)]' : 'bg-[var(--surface-strong)]'}`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 rounded-full bg-white transition-transform ${formData.must_change_password ? 'switch-thumb-on' : 'switch-thumb-off'}`}
+                                />
+                            </button>
+                        </div>
+                    )}
 
                     <div className="flex flex-col-reverse gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:justify-end">
                         <Button

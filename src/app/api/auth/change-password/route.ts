@@ -45,6 +45,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (newPassword === currentPassword) {
+      return NextResponse.json(
+        { success: false, error: 'New password must be different from your current password' },
+        { status: 400 }
+      );
+    }
+
     const newHash = await hashPassword(newPassword);
 
     await db
