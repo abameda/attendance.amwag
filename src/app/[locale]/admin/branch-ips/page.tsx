@@ -225,20 +225,20 @@ export default function BranchIpsPage() {
                 </div>
             </PageReveal>
 
-            <div className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-                <Card className="rounded-2xl">
-                    <CardContent>
+            <div className="grid items-start gap-6 2xl:grid-cols-[minmax(21rem,23rem)_minmax(0,1fr)]">
+                <Card className="min-w-0 rounded-2xl">
+                    <CardContent className="p-5 sm:p-6">
                         <form className="space-y-5" onSubmit={submitForm}>
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-3">
-                                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--success-soft)] text-[var(--success)]">
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="flex min-w-0 items-start gap-3">
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--success-soft)] text-[var(--success)]">
                                         <ShieldCheck className="h-4 w-4" />
                                     </div>
-                                    <div>
+                                    <div className="min-w-0">
                                         <h2 className="text-lg font-semibold text-[var(--foreground)]">
                                             {editingId ? 'Edit rule' : 'Add rule'}
                                         </h2>
-                                        <p className="text-xs text-[var(--muted)]">
+                                        <p className="mt-1 text-xs leading-5 text-[var(--muted)]">
                                             Wildcards and partial IPs are not supported.
                                         </p>
                                     </div>
@@ -258,7 +258,7 @@ export default function BranchIpsPage() {
                                 <select
                                     value={form.branch_name}
                                     onChange={(event) => setForm((current) => ({ ...current, branch_name: event.target.value }))}
-                                    className="w-full rounded-[1.4rem] border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-[0.95rem] text-[var(--foreground)] outline-none transition-colors focus-visible:border-[var(--accent)]"
+                                    className="min-h-11 w-full min-w-0 rounded-[1.1rem] border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-[0.95rem] text-[var(--foreground)] outline-none transition-colors focus-visible:border-[var(--accent)]"
                                 >
                                     <option value="">Choose branch</option>
                                     {branches.map((branch) => (
@@ -273,7 +273,7 @@ export default function BranchIpsPage() {
                                 <label className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted-strong)]">
                                     Rule type
                                 </label>
-                                <div className="grid grid-cols-2 gap-2 rounded-[1.4rem] border border-[var(--line)] bg-[var(--surface)] p-1">
+                                <div className="grid grid-cols-2 gap-1.5 rounded-[1.1rem] border border-[var(--line)] bg-[var(--surface)] p-1">
                                     {[
                                         ['exact_ip', 'Exact IP'],
                                         ['cidr', 'CIDR/Subnet'],
@@ -282,7 +282,7 @@ export default function BranchIpsPage() {
                                             key={value}
                                             type="button"
                                             onClick={() => setForm((current) => ({ ...current, rule_type: value as RuleType, value: '' }))}
-                                            className={`rounded-[1rem] px-3 py-2 text-sm font-semibold transition-colors ${
+                                            className={`min-h-11 whitespace-nowrap rounded-[0.9rem] px-2.5 py-2 text-xs font-semibold transition-colors sm:px-3 sm:text-sm ${
                                                 form.rule_type === value
                                                     ? 'bg-[var(--accent)] text-white'
                                                     : 'text-[var(--muted)] hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]'
@@ -309,16 +309,16 @@ export default function BranchIpsPage() {
                                 onChange={(event) => setForm((current) => ({ ...current, label: event.target.value }))}
                             />
 
-                            <label className="flex items-center justify-between rounded-[1.4rem] border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                                <span>
+                            <label className="flex items-start justify-between gap-4 rounded-[1.1rem] border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
+                                <span className="min-w-0">
                                     <span className="block text-sm font-semibold text-[var(--foreground)]">Active</span>
-                                    <span className="text-xs text-[var(--muted)]">Inactive rules do not authorize attendance.</span>
+                                    <span className="mt-1 block text-xs leading-5 text-[var(--muted)]">Inactive rules do not authorize attendance.</span>
                                 </span>
                                 <input
                                     type="checkbox"
                                     checked={form.is_active}
                                     onChange={(event) => setForm((current) => ({ ...current, is_active: event.target.checked }))}
-                                    className="h-5 w-5 accent-[var(--accent)]"
+                                    className="mt-0.5 h-5 w-5 shrink-0 accent-[var(--accent)]"
                                 />
                             </label>
 
@@ -330,17 +330,17 @@ export default function BranchIpsPage() {
                     </CardContent>
                 </Card>
 
-                <Card className="rounded-2xl">
+                <Card className="min-w-0 rounded-2xl">
                     <CardContent className="space-y-5">
                         <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div>
+                            <div className="min-w-0">
                                 <h2 className="text-lg font-semibold text-[var(--foreground)]">Allowed rules</h2>
                                 <p className="text-xs text-[var(--muted)]">Filter by branch, then edit status or values inline.</p>
                             </div>
                             <select
                                 value={branchFilter}
                                 onChange={(event) => setBranchFilter(event.target.value)}
-                                className="min-h-11 rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 text-sm text-[var(--foreground)] outline-none focus-visible:border-[var(--accent)]"
+                                className="min-h-11 w-full rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 text-sm text-[var(--foreground)] outline-none focus-visible:border-[var(--accent)] sm:w-auto sm:min-w-48"
                             >
                                 <option value="">All branches</option>
                                 {branches.map((branch) => (
@@ -358,7 +358,7 @@ export default function BranchIpsPage() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="overflow-x-auto">
+                            <div className="min-w-0 overflow-x-auto">
                                 <table className="w-full min-w-[820px] text-start text-sm">
                                     <thead>
                                         <tr className="border-b border-[var(--line)] text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
@@ -388,8 +388,8 @@ export default function BranchIpsPage() {
                                                     </Badge>
                                                 </td>
                                                 <td className="px-3 py-4 text-[var(--muted)]">{formatDate(rule.created_at)}</td>
-                                                <td className="px-3 py-4">
-                                                    <div className="flex justify-end gap-2">
+                                                <td className="px-3 py-4 text-end">
+                                                    <div className="flex flex-nowrap justify-end gap-2">
                                                         <Button type="button" variant="ghost" size="sm" onClick={() => startEdit(rule)}>
                                                             <Edit2 className="h-4 w-4" />
                                                             Edit
