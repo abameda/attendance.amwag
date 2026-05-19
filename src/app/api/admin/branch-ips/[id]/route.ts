@@ -3,13 +3,14 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { isAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { branchAllowedIps, type BranchIp } from '@/lib/db/schema';
+import { branchAllowedIps, branches, type BranchIp } from '@/lib/db/schema';
 import { normalizeIpRule, type IpRuleType } from '@/lib/ipValidation';
 
 function serializeRule(rule: BranchIp) {
   return {
     id: rule.id,
     branch_name: rule.branchName,
+    branch_id: rule.branchId,
     rule_type: rule.ruleType,
     value: rule.ipNetwork,
     label: rule.description ?? '',
@@ -18,6 +19,29 @@ function serializeRule(rule: BranchIp) {
     created_at: rule.createdAt,
     updated_at: rule.updatedAt,
   };
+}
+
+async function resolveRuleBranch(input: { branchId: string; branchName: string }) {
+  if (input.branchId) {
+    const rows = await db.select().from(branches).where(eq(branches.id, input.branchId)).limit(1);
+    const branch = rows[0];
+    if (!branch || !branch.isActive) {
+      return { ok: false as const, error: 'Choose a valid branch' };
+    }
+    return { ok: true as const, branchId: branch.id, branchName: branch.name };
+  }
+
+  if (input.branchName) {
+    const rows = await db.select().from(branches).where(eq(branches.name, input.branchName)).limit(1);
+    const branch = rows[0];
+    return {
+      ok: true as const,
+      branchId: branch?.isActive ? branch.id : null,
+      branchName: input.branchName,
+    };
+  }
+
+  return { ok: false as const, error: 'Choose a valid branch' };
 }
 
 export async function PATCH(
@@ -61,6 +85,8 @@ export async function PATCH(
 
     const nextBranchName =
       typeof body.branch_name === 'string' ? body.branch_name.trim() : existing.branchName;
+    const nextBranchId =
+      typeof body.branch_id === 'string' ? body.branch_id.trim() : existing.branchId ?? '';
     const nextRuleType =
       body.rule_type === 'cidr' || body.rule_type === 'exact_ip'
         ? (body.rule_type as IpRuleType)
@@ -71,9 +97,10 @@ export async function PATCH(
     const nextIsActive =
       body.is_active === undefined ? Boolean(existing.isActive) : Boolean(body.is_active);
 
-    if (!nextBranchName) {
+    const branchAssignment = await resolveRuleBranch({ branchId: nextBranchId, branchName: nextBranchName });
+    if (!branchAssignment.ok) {
       return NextResponse.json(
-        { success: false, error: 'Choose a valid branch' },
+        { success: false, error: branchAssignment.error },
         { status: 400 }
       );
     }
@@ -86,7 +113,8 @@ export async function PATCH(
     await db
       .update(branchAllowedIps)
       .set({
-        branchName: nextBranchName,
+        branchName: branchAssignment.branchName,
+        branchId: branchAssignment.branchId,
         ruleType: nextRuleType,
         ipNetwork: normalized.value,
         description: nextLabel || null,

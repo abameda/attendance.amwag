@@ -19,6 +19,7 @@ type RuleType = 'exact_ip' | 'cidr';
 type BranchIpRule = {
     id: string;
     branch_name: string;
+    branch_id?: string | null;
     rule_type: RuleType;
     value: string;
     label: string;
@@ -27,7 +28,15 @@ type BranchIpRule = {
     updated_at?: string;
 };
 
+type BranchOption = {
+    id: string;
+    name: string;
+    code: string;
+    is_active: boolean;
+};
+
 type FormState = {
+    branch_id: string;
     branch_name: string;
     rule_type: RuleType;
     value: string;
@@ -36,6 +45,7 @@ type FormState = {
 };
 
 const emptyForm: FormState = {
+    branch_id: '',
     branch_name: '',
     rule_type: 'exact_ip',
     value: '',
@@ -66,6 +76,7 @@ function formatDate(value: string) {
 export default function BranchIpsPage() {
     const [rules, setRules] = useState<BranchIpRule[]>([]);
     const [branches, setBranches] = useState<string[]>([]);
+    const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
     const [branchFilter, setBranchFilter] = useState('');
     const [form, setForm] = useState<FormState>(emptyForm);
     const [editingId, setEditingId] = useState<string | null>(null);
@@ -92,6 +103,7 @@ export default function BranchIpsPage() {
 
             setRules(result.data ?? []);
             setBranches(result.branches ?? []);
+            setBranchOptions(result.branch_options ?? []);
         } catch (loadError) {
             console.error('Failed to load branch IP rules:', loadError);
             addToast(loadError instanceof Error ? loadError.message : 'Failed to load branch IP rules', 'error');
@@ -105,11 +117,17 @@ export default function BranchIpsPage() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [branchFilter]);
 
+    useEffect(() => {
+        const initialBranch = new URLSearchParams(window.location.search).get('branch');
+        if (initialBranch) setBranchFilter(initialBranch);
+    }, []);
+
     const resetForm = () => {
         setEditingId(null);
         setForm({
             ...emptyForm,
             branch_name: branchFilter || '',
+            branch_id: branchOptions.find((branch) => branch.name === branchFilter)?.id ?? '',
         });
         setError('');
     };
@@ -154,6 +172,7 @@ export default function BranchIpsPage() {
     const startEdit = (rule: BranchIpRule) => {
         setEditingId(rule.id);
         setForm({
+            branch_id: rule.branch_id ?? branchOptions.find((branch) => branch.name === rule.branch_name)?.id ?? '',
             branch_name: rule.branch_name,
             rule_type: rule.rule_type,
             value: rule.value,
@@ -256,14 +275,21 @@ export default function BranchIpsPage() {
                                     Branch
                                 </label>
                                 <select
-                                    value={form.branch_name}
-                                    onChange={(event) => setForm((current) => ({ ...current, branch_name: event.target.value }))}
+                                    value={form.branch_id}
+                                    onChange={(event) => {
+                                        const branch = branchOptions.find((option) => option.id === event.target.value);
+                                        setForm((current) => ({
+                                            ...current,
+                                            branch_id: branch?.id ?? '',
+                                            branch_name: branch?.name ?? '',
+                                        }));
+                                    }}
                                     className="min-h-11 w-full min-w-0 rounded-[1.1rem] border border-[var(--line)] bg-[var(--surface)] px-4 py-2.5 text-[0.95rem] text-[var(--foreground)] outline-none transition-colors focus-visible:border-[var(--accent)]"
                                 >
                                     <option value="">Choose branch</option>
-                                    {branches.map((branch) => (
-                                        <option key={branch} value={branch}>
-                                            {branch}
+                                    {branchOptions.map((branch) => (
+                                        <option key={branch.id} value={branch.id}>
+                                            {branch.name}
                                         </option>
                                     ))}
                                 </select>

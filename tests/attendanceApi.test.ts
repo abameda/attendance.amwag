@@ -25,6 +25,7 @@ const employee = {
   fullName: 'Test Employee',
   role: 'employee' as const,
   branch: 'HQ',
+  branchId: null,
   jobTitle: null,
   offDay: null,
   shiftStart: '09:00',

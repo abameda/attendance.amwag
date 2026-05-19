@@ -23,6 +23,7 @@ export const users = mysqlTable(
     fullName: varchar('full_name', { length: 255 }).notNull(),
     role: mysqlEnum('role', ['admin', 'accountant', 'employee']).notNull().default('employee'),
     branch: varchar('branch', { length: 255 }),
+    branchId: char('branch_id', { length: 36 }),
     jobTitle: varchar('job_title', { length: 255 }),
     shiftStart: time('shift_start'),
     shiftEnd: time('shift_end'),
@@ -35,6 +36,25 @@ export const users = mysqlTable(
   (table) => ({
     roleIdx: index('idx_users_role').on(table.role),
     branchIdx: index('idx_users_branch').on(table.branch),
+    branchIdIdx: index('idx_users_branch_id').on(table.branchId),
+  })
+);
+
+export const branches = mysqlTable(
+  'branches',
+  {
+    id: char('id', { length: 36 }).primaryKey(),
+    name: varchar('name', { length: 255 }).notNull(),
+    code: varchar('code', { length: 64 }).notNull(),
+    address: text('address'),
+    isActive: tinyint('is_active').notNull().default(1),
+    createdAt: datetime('created_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+    updatedAt: datetime('updated_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+  },
+  (table) => ({
+    nameUnique: uniqueIndex('uk_branches_name').on(table.name),
+    codeUnique: uniqueIndex('uk_branches_code').on(table.code),
+    activeIdx: index('idx_branches_active').on(table.isActive),
   })
 );
 
@@ -89,6 +109,7 @@ export const branchAllowedIps = mysqlTable(
   {
     id: char('id', { length: 36 }).primaryKey(),
     branchName: varchar('branch_name', { length: 255 }).notNull(),
+    branchId: char('branch_id', { length: 36 }),
     ruleType: mysqlEnum('rule_type', ['exact_ip', 'cidr']).notNull().default('exact_ip'),
     ipNetwork: varchar('ip_network', { length: 45 }).notNull(),
     description: text('description'),
@@ -99,6 +120,7 @@ export const branchAllowedIps = mysqlTable(
   },
   (table) => ({
     branchIdx: index('idx_branch_allowed_ips_branch').on(table.branchName),
+    branchIdIdx: index('idx_branch_allowed_ips_branch_id').on(table.branchId),
     activeIdx: index('idx_branch_allowed_ips_active').on(table.isActive),
     ruleTypeIdx: index('idx_branch_allowed_ips_rule_type').on(table.ruleType),
     networkIdx: index('idx_branch_allowed_ips_network').on(table.ipNetwork),
@@ -116,6 +138,8 @@ export const globalSettings = mysqlTable('global_settings', {
 
 export type User = InferSelectModel<typeof users>;
 export type NewUser = InferInsertModel<typeof users>;
+export type Branch = InferSelectModel<typeof branches>;
+export type NewBranch = InferInsertModel<typeof branches>;
 export type Session = InferSelectModel<typeof sessions>;
 export type NewSession = InferInsertModel<typeof sessions>;
 export type Attendance = InferSelectModel<typeof attendance>;

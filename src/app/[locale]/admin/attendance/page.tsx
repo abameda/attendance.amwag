@@ -13,7 +13,6 @@ import {
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, Button, Card, CardContent, GlowingCard, AnimatedCounter, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
-import { BRANCHES } from '@/lib/branches';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
 import { exportAttendancePremiumPDF } from '@/lib/pdfExport';
 import type { AttendanceRecord } from '@/types';
@@ -25,6 +24,13 @@ type EmployeeOption = {
     full_name: string;
     email: string;
     branch: string | null;
+};
+
+type BranchOption = {
+    id: string;
+    name: string;
+    code: string;
+    is_active: boolean;
 };
 
 type AttendanceSummary = {
@@ -70,7 +76,7 @@ export default function AttendanceLogsPage() {
     const [totalRecords, setTotalRecords] = useState(0);
     const [summary, setSummary] = useState<AttendanceSummary>(emptySummary);
     const [employees, setEmployees] = useState<EmployeeOption[]>([]);
-    const [branchOptions, setBranchOptions] = useState<string[]>([...BRANCHES]);
+    const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearch = useDeferredValue(searchQuery);
@@ -161,7 +167,7 @@ export default function AttendanceLogsPage() {
             try {
                 const [employeeResponse, branchResponse] = await Promise.all([
                     fetch('/api/employees', { signal: controller.signal }),
-                    fetch('/api/admin/branch-ips', { signal: controller.signal }),
+                    fetch('/api/admin/branches?active=true', { signal: controller.signal }),
                 ]);
 
                 if (employeeResponse.ok) {
@@ -169,23 +175,13 @@ export default function AttendanceLogsPage() {
                     if (employeeResult.success) {
                         const nextEmployees = employeeResult.data ?? [];
                         setEmployees(nextEmployees);
-                        setBranchOptions((currentBranches) =>
-                            Array.from(
-                                new Set([
-                                    ...currentBranches,
-                                    ...nextEmployees.map((employee) => employee.branch).filter((branch): branch is string => Boolean(branch)),
-                                ])
-                            )
-                        );
                     }
                 }
 
                 if (branchResponse.ok) {
-                    const branchResult: { success: boolean; branches?: string[] } = await branchResponse.json();
+                    const branchResult: { success: boolean; data?: BranchOption[] } = await branchResponse.json();
                     if (branchResult.success) {
-                        setBranchOptions((currentBranches) =>
-                            Array.from(new Set([...currentBranches, ...(branchResult.branches ?? [])]))
-                        );
+                        setBranchOptions(branchResult.data ?? []);
                     }
                 }
             } catch (error) {
@@ -196,6 +192,14 @@ export default function AttendanceLogsPage() {
         })();
 
         return () => controller.abort();
+    }, []);
+
+    useEffect(() => {
+        const initialBranch = new URLSearchParams(window.location.search).get('branch');
+        if (initialBranch) {
+            setBranchFilter(initialBranch);
+            setCurrentPage(1);
+        }
     }, []);
 
     const totalPages = Math.ceil(totalRecords / RECORDS_PER_PAGE);
@@ -375,8 +379,8 @@ export default function AttendanceLogsPage() {
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allBranches')}</option>
                             {branchOptions.map((branch) => (
-                                <option key={branch} value={branch} className="bg-[var(--bg-secondary)] text-[var(--foreground)]">
-                                    {branch}
+                                <option key={branch.id} value={branch.name} className="bg-[var(--bg-secondary)] text-[var(--foreground)]">
+                                    {branch.name}
                                 </option>
                             ))}
                         </select>
