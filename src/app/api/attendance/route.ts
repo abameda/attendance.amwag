@@ -1,4 +1,4 @@
-import { and, desc, eq, isNull, like, ne, or, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, gte, isNull, like, lte, ne, or, sql, type SQL } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { isAdminOrAccountant } from '@/lib/auth';
@@ -34,6 +34,8 @@ type AttendanceListRow = {
   email: string | null;
   branch: string | null;
   jobTitle: string | null;
+  shiftStart: string | null;
+  shiftEnd: string | null;
 };
 
 type VirtualEmployeeRow = {
@@ -49,6 +51,16 @@ type VirtualEmployeeRow = {
   overtimeEnabled: number;
   createdAt: Date;
   updatedAt: Date;
+};
+
+type AttendanceSummaryCounts = {
+  totalRecords: number;
+  present: number;
+  absent: number;
+  late: number;
+  earlyLeave: number;
+  missingCheckout: number;
+  overtime: number;
 };
 
 function combinePredicates(predicates: SQL[]): SQL | undefined {
@@ -96,6 +108,8 @@ function mapAttendanceRow(row: AttendanceListRow): AttendanceRecord {
       email: row.email ?? '',
       branch: row.branch,
       job_title: row.jobTitle,
+      shift_start: row.shiftStart,
+      shift_end: row.shiftEnd,
     } as AttendanceRecord['profiles'],
   };
 }
@@ -135,19 +149,39 @@ function mapVirtualRecord(employee: VirtualEmployeeRow, date: string): Attendanc
 
 function buildAttendanceWhere(params: {
   date: string;
+  dateFrom: string;
+  dateTo: string;
   status: string;
   searchPattern: string;
+  employeeId: string;
+  branch: string;
 }): SQL | undefined {
   const predicates: SQL[] = [];
 
   if (params.date) {
     predicates.push(eq(attendance.date, parseIsoDate(params.date)));
+  } else {
+    if (params.dateFrom) {
+      predicates.push(gte(attendance.date, parseIsoDate(params.dateFrom)));
+    }
+
+    if (params.dateTo) {
+      predicates.push(lte(attendance.date, parseIsoDate(params.dateTo)));
+    }
   }
 
   if (params.status && params.status !== 'pending') {
     predicates.push(
       eq(attendance.status, params.status as Exclude<AttendanceRecord['status'], 'pending'>)
     );
+  }
+
+  if (params.employeeId) {
+    predicates.push(eq(attendance.userId, params.employeeId));
+  }
+
+  if (params.branch) {
+    predicates.push(eq(users.branch, params.branch));
   }
 
   if (params.searchPattern) {
@@ -184,6 +218,8 @@ async function fetchAttendanceRows(whereClause?: SQL, limit?: number, offset?: n
       email: users.email,
       branch: users.branch,
       jobTitle: users.jobTitle,
+      shiftStart: users.shiftStart,
+      shiftEnd: users.shiftEnd,
     })
     .from(attendance)
     .leftJoin(users, eq(attendance.userId, users.id));
@@ -211,6 +247,43 @@ async function fetchAttendanceCount(whereClause?: SQL) {
   return rows[0]?.total ?? 0;
 }
 
+async function fetchAttendanceSummary(whereClause?: SQL): Promise<AttendanceSummaryCounts> {
+  const summaryQuery = db
+    .select({
+      totalRecords: sql<number>`count(*)`.mapWith(Number),
+      present: sql<number>`sum(case when ${attendance.status} = 'present' then 1 else 0 end)`.mapWith(Number),
+      absent: sql<number>`sum(case when ${attendance.status} = 'absent' then 1 else 0 end)`.mapWith(Number),
+      late: sql<number>`sum(case when ${attendance.status} = 'late' then 1 else 0 end)`.mapWith(Number),
+      earlyLeave: sql<number>`sum(case when ${attendance.earlyDepartureMinutes} > 0 then 1 else 0 end)`.mapWith(Number),
+      missingCheckout:
+        sql<number>`sum(case when ${attendance.status} = 'missing_checkout' then 1 else 0 end)`.mapWith(Number),
+      overtime: sql<number>`sum(case when ${attendance.overtimeMinutes} > 0 then 1 else 0 end)`.mapWith(Number),
+    })
+    .from(attendance)
+    .leftJoin(users, eq(attendance.userId, users.id));
+
+  const rows = whereClause ? await summaryQuery.where(whereClause) : await summaryQuery;
+  const row = rows[0];
+
+  return {
+    totalRecords: row?.totalRecords ?? 0,
+    present: row?.present ?? 0,
+    absent: row?.absent ?? 0,
+    late: row?.late ?? 0,
+    earlyLeave: row?.earlyLeave ?? 0,
+    missingCheckout: row?.missingCheckout ?? 0,
+    overtime: row?.overtime ?? 0,
+  };
+}
+
+function addPendingToSummary(summary: AttendanceSummaryCounts, pendingCount: number): AttendanceSummaryCounts {
+  if (pendingCount <= 0) return summary;
+  return {
+    ...summary,
+    totalRecords: summary.totalRecords + pendingCount,
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await isAdminOrAccountant(request);
@@ -227,8 +300,12 @@ export async function GET(request: NextRequest) {
     const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 10 : parsedPageSize;
 
     const date = searchParams.get('date')?.trim() ?? '';
+    const dateFrom = searchParams.get('dateFrom')?.trim() ?? '';
+    const dateTo = searchParams.get('dateTo')?.trim() ?? '';
     const status = searchParams.get('status')?.trim() ?? '';
     const search = searchParams.get('search')?.trim() ?? '';
+    const employeeId = searchParams.get('employeeId')?.trim() ?? '';
+    const branch = searchParams.get('branch')?.trim() ?? '';
     const includeExpected = searchParams.get('includeExpected') === 'true';
 
     if (status && !VALID_STATUSES.includes(status as AttendanceRecord['status'])) {
@@ -245,12 +322,33 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    if (dateFrom && !isValidISODateString(dateFrom)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid dateFrom format' },
+        { status: 400 }
+      );
+    }
+
+    if (dateTo && !isValidISODateString(dateTo)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid dateTo format' },
+        { status: 400 }
+      );
+    }
+
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      return NextResponse.json(
+        { success: false, error: 'dateFrom must be before or equal to dateTo' },
+        { status: 400 }
+      );
+    }
+
     const from = (page - 1) * pageSize;
     const escapedSearch = search.replace(/[\\%_]/g, '\\$&');
     const searchPattern = search ? `%${escapedSearch}%` : '';
 
     const egyptToday = getEgyptDate();
-    const isViewingToday = date === egyptToday;
+    const isViewingToday = date === egyptToday || (!date && dateFrom === egyptToday && dateTo === egyptToday);
     const shouldVirtualize = includeExpected && isViewingToday && (!status || status === 'pending');
 
     if (status === 'pending' && !shouldVirtualize) {
@@ -258,6 +356,15 @@ export async function GET(request: NextRequest) {
         success: true,
         data: [],
         total: 0,
+        summary: {
+          totalRecords: 0,
+          present: 0,
+          absent: 0,
+          late: 0,
+          earlyLeave: 0,
+          missingCheckout: 0,
+          overtime: 0,
+        },
         page,
         pageSize,
       });
@@ -302,6 +409,14 @@ export async function GET(request: NextRequest) {
         .filter((employee) => !checkedInIds.has(employee.id))
         .map((employee) => mapVirtualRecord(employee, egyptToday));
 
+      if (employeeId) {
+        virtualRecords = virtualRecords.filter((record) => record.user_id === employeeId);
+      }
+
+      if (branch) {
+        virtualRecords = virtualRecords.filter((record) => record.profiles?.branch === branch);
+      }
+
       if (search) {
         const normalizedSearch = search.toLowerCase();
         virtualRecords = virtualRecords.filter((record) => {
@@ -319,35 +434,48 @@ export async function GET(request: NextRequest) {
           success: true,
           data: virtualRecords.slice(from, from + pageSize),
           total: virtualRecords.length,
+          summary: {
+            totalRecords: virtualRecords.length,
+            present: 0,
+            absent: 0,
+            late: 0,
+            earlyLeave: 0,
+            missingCheckout: 0,
+            overtime: 0,
+          },
           page,
           pageSize,
         });
       }
 
-      const whereClause = buildAttendanceWhere({ date, status, searchPattern });
+      const whereClause = buildAttendanceWhere({ date, dateFrom, dateTo, status, searchPattern, employeeId, branch });
       const realRows = await fetchAttendanceRows(whereClause);
       const realRecords = realRows.map(mapAttendanceRow);
       const combined = [...virtualRecords, ...realRecords];
+      const realSummary = await fetchAttendanceSummary(whereClause);
 
       return NextResponse.json({
         success: true,
         data: combined.slice(from, from + pageSize),
         total: combined.length,
+        summary: addPendingToSummary(realSummary, virtualRecords.length),
         page,
         pageSize,
       });
     }
 
-    const whereClause = buildAttendanceWhere({ date, status, searchPattern });
-    const [rows, total] = await Promise.all([
+    const whereClause = buildAttendanceWhere({ date, dateFrom, dateTo, status, searchPattern, employeeId, branch });
+    const [rows, total, summary] = await Promise.all([
       fetchAttendanceRows(whereClause, pageSize, from),
       fetchAttendanceCount(whereClause),
+      fetchAttendanceSummary(whereClause),
     ]);
 
     return NextResponse.json({
       success: true,
       data: rows.map(mapAttendanceRow),
       total,
+      summary,
       page,
       pageSize,
     });

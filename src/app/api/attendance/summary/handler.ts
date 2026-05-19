@@ -76,6 +76,8 @@ export function createAttendanceSummaryHandler(dependencies: AttendanceSummaryDe
               userId: attendance.userId,
               status: attendance.status,
               date: attendance.date,
+              earlyDepartureMinutes: attendance.earlyDepartureMinutes,
+              overtimeMinutes: attendance.overtimeMinutes,
             })
             .from(attendance)
             .where(eq(attendance.date, parseIsoDate(date)))
@@ -84,6 +86,8 @@ export function createAttendanceSummaryHandler(dependencies: AttendanceSummaryDe
               userId: attendance.userId,
               status: attendance.status,
               date: attendance.date,
+              earlyDepartureMinutes: attendance.earlyDepartureMinutes,
+              overtimeMinutes: attendance.overtimeMinutes,
             })
             .from(attendance)
             .where(
@@ -98,6 +102,8 @@ export function createAttendanceSummaryHandler(dependencies: AttendanceSummaryDe
         userId: string;
         status: Exclude<AttendanceRecord['status'], 'pending'>;
         date: Date;
+        earlyDepartureMinutes: number;
+        overtimeMinutes: number;
       }>;
 
       const summary = isDaySummary

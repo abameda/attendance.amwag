@@ -15,6 +15,8 @@ export interface SummaryAttendanceRow {
   userId: string;
   status: Exclude<AttendanceRecord['status'], 'pending'>;
   date: Date;
+  earlyDepartureMinutes?: number | null;
+  overtimeMinutes?: number | null;
 }
 
 interface EmployeeDaySummary {
@@ -27,6 +29,8 @@ interface EmployeeDaySummary {
   late_days: number;
   absent_days: number;
   missing_checkout_days: number;
+  early_leave_days: number;
+  overtime_days: number;
 }
 
 interface BranchDaySummary {
@@ -37,6 +41,8 @@ interface BranchDaySummary {
   late_days: number;
   absent_days: number;
   missing_checkout_days: number;
+  early_leave_days: number;
+  overtime_days: number;
   attendance_rate: number;
 }
 
@@ -63,6 +69,8 @@ function emptyEmployeeSummary(employee: SummaryEmployee): EmployeeDaySummary {
     late_days: 0,
     absent_days: 0,
     missing_checkout_days: 0,
+    early_leave_days: 0,
+    overtime_days: 0,
   };
 }
 
@@ -75,15 +83,19 @@ function emptyBranchSummary(branch: string): BranchDaySummary {
     late_days: 0,
     absent_days: 0,
     missing_checkout_days: 0,
+    early_leave_days: 0,
+    overtime_days: 0,
     attendance_rate: 0,
   };
 }
 
 function applyStatus(
-  status: Exclude<AttendanceRecord['status'], 'pending'> | undefined,
+  record: SummaryAttendanceRow | undefined,
   employeeSummary: EmployeeDaySummary,
   branchSummary: BranchDaySummary
 ) {
+  const status = record?.status;
+
   employeeSummary.expected_days += 1;
   branchSummary.expected_days += 1;
 
@@ -105,6 +117,16 @@ function applyStatus(
   } else {
     employeeSummary.absent_days += 1;
     branchSummary.absent_days += 1;
+  }
+
+  if ((record?.earlyDepartureMinutes ?? 0) > 0) {
+    employeeSummary.early_leave_days += 1;
+    branchSummary.early_leave_days += 1;
+  }
+
+  if ((record?.overtimeMinutes ?? 0) > 0) {
+    employeeSummary.overtime_days += 1;
+    branchSummary.overtime_days += 1;
   }
 }
 
@@ -128,7 +150,7 @@ export function buildMonthlyAttendanceSummary(params: {
   dates: string[];
 }): DashboardSummary {
   const attendanceByKey = new Map(
-    params.attendanceRows.map((record) => [`${toIsoDate(record.date)}:${record.userId}`, record.status])
+    params.attendanceRows.map((record) => [`${toIsoDate(record.date)}:${record.userId}`, record])
   );
   const employeeSummaries = new Map<string, EmployeeDaySummary>();
   const branchSummaries = new Map<string, BranchDaySummary>();
@@ -148,9 +170,9 @@ export function buildMonthlyAttendanceSummary(params: {
       const employeeSummary = employeeSummaries.get(employee.id) ?? emptyEmployeeSummary(employee);
       const branchName = employee.branch?.trim() || 'Unassigned';
       const branchSummary = branchSummaries.get(branchName) ?? emptyBranchSummary(branchName);
-      const status = attendanceByKey.get(`${date}:${employee.id}`);
+      const record = attendanceByKey.get(`${date}:${employee.id}`);
 
-      applyStatus(status, employeeSummary, branchSummary);
+      applyStatus(record, employeeSummary, branchSummary);
       employeeSummaries.set(employee.id, employeeSummary);
       branchSummaries.set(branchName, branchSummary);
     }
@@ -168,6 +190,8 @@ export function buildMonthlyAttendanceSummary(params: {
       acc.lateCount += summary.late_days;
       acc.absentCount += summary.absent_days;
       acc.missingCheckoutCount += summary.missing_checkout_days;
+      acc.earlyLeaveCount += summary.early_leave_days;
+      acc.overtimeCount += summary.overtime_days;
       return acc;
     },
     {
@@ -176,6 +200,8 @@ export function buildMonthlyAttendanceSummary(params: {
       lateCount: 0,
       absentCount: 0,
       missingCheckoutCount: 0,
+      earlyLeaveCount: 0,
+      overtimeCount: 0,
     }
   );
 
@@ -187,6 +213,8 @@ export function buildMonthlyAttendanceSummary(params: {
       lateCount: totals.lateCount,
       absentCount: totals.absentCount,
       missingCheckoutCount: totals.missingCheckoutCount,
+      earlyLeaveCount: totals.earlyLeaveCount,
+      overtimeCount: totals.overtimeCount,
       branchMetrics: branchSummaryList.map((summary) => ({
         branch: summary.branch,
         expectedEmployees: summary.expected_days,

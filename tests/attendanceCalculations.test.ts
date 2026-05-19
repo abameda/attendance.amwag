@@ -142,9 +142,27 @@ test('monthly dashboard counts raw employee-days with employee and branch detail
     { id: 'e2', fullName: 'B', branch: 'Cairo', offDay: null },
   ];
   const attendanceRows: SummaryAttendanceRow[] = [
-    { userId: 'e1', status: 'present', date: new Date('2026-05-01T00:00:00.000Z') },
-    { userId: 'e1', status: 'late', date: new Date('2026-05-02T00:00:00.000Z') },
-    { userId: 'e2', status: 'missing_checkout', date: new Date('2026-05-01T00:00:00.000Z') },
+    {
+      userId: 'e1',
+      status: 'present',
+      date: new Date('2026-05-01T00:00:00.000Z'),
+      earlyDepartureMinutes: 15,
+      overtimeMinutes: 0,
+    },
+    {
+      userId: 'e1',
+      status: 'late',
+      date: new Date('2026-05-02T00:00:00.000Z'),
+      earlyDepartureMinutes: 0,
+      overtimeMinutes: 45,
+    },
+    {
+      userId: 'e2',
+      status: 'missing_checkout',
+      date: new Date('2026-05-01T00:00:00.000Z'),
+      earlyDepartureMinutes: 0,
+      overtimeMinutes: 0,
+    },
   ];
 
   const summary = buildMonthlyAttendanceSummary({
@@ -156,7 +174,10 @@ test('monthly dashboard counts raw employee-days with employee and branch detail
 
   assert.equal(summary.expectedEmployees, 4);
   assert.equal(summary.presentCount, 1);
+  assert.equal(summary.onTimeCount, 1);
   assert.equal(summary.lateCount, 1);
+  assert.equal(summary.earlyLeaveCount, 1);
+  assert.equal(summary.overtimeCount, 1);
   assert.equal(summary.missingCheckoutCount, 1);
   assert.equal(summary.absentCount, 1);
   assert.equal(summary.attendanceRate, 75);
@@ -171,6 +192,8 @@ test('monthly dashboard counts raw employee-days with employee and branch detail
       late_days: 1,
       absent_days: 0,
       missing_checkout_days: 0,
+      early_leave_days: 1,
+      overtime_days: 1,
     },
     {
       user_id: 'e2',
@@ -182,6 +205,8 @@ test('monthly dashboard counts raw employee-days with employee and branch detail
       late_days: 0,
       absent_days: 1,
       missing_checkout_days: 1,
+      early_leave_days: 0,
+      overtime_days: 0,
     },
   ]);
   assert.deepEqual(summary.branchSummaries, [
@@ -193,6 +218,8 @@ test('monthly dashboard counts raw employee-days with employee and branch detail
       late_days: 1,
       absent_days: 1,
       missing_checkout_days: 1,
+      early_leave_days: 1,
+      overtime_days: 1,
       attendance_rate: 75,
     },
   ]);

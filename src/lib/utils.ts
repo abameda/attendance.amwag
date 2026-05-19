@@ -193,6 +193,8 @@ export interface AttendanceSummaryMetrics {
     lateCount: number;
     absentCount: number;
     missingCheckoutCount: number;
+    earlyLeaveCount?: number;
+    overtimeCount?: number;
     branchMetrics: AttendanceSummaryBranchMetrics[];
 }
 
@@ -221,9 +223,12 @@ export function buildDashboardSummary(metrics: AttendanceSummaryMetrics): Dashbo
         periodType: metrics.date.length === 7 ? 'month' : 'day',
         expectedEmployees: metrics.expectedEmployees,
         presentCount: metrics.presentCount,
+        onTimeCount: metrics.presentCount,
         lateCount: metrics.lateCount,
         absentCount: metrics.absentCount,
         missingCheckoutCount: metrics.missingCheckoutCount,
+        earlyLeaveCount: metrics.earlyLeaveCount ?? 0,
+        overtimeCount: metrics.overtimeCount ?? 0,
         attendanceRate: toPercent(checkedInCount, metrics.expectedEmployees),
         departureCompletionRate: toPercent(departureCompletedCount, checkedInCount),
         topBranch,

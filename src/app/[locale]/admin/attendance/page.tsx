@@ -8,29 +8,85 @@ import {
     FileText,
     Globe,
     RefreshCw,
+    RotateCcw,
     Search,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, Button, Card, CardContent, GlowingCard, AnimatedCounter, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
+import { BRANCHES } from '@/lib/branches';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
 import { exportAttendancePremiumPDF } from '@/lib/pdfExport';
 import type { AttendanceRecord } from '@/types';
 
 const RECORDS_PER_PAGE = 10;
 
+type EmployeeOption = {
+    id: string;
+    full_name: string;
+    email: string;
+    branch: string | null;
+};
+
+type AttendanceSummary = {
+    totalRecords: number;
+    present: number;
+    absent: number;
+    late: number;
+    earlyLeave: number;
+    missingCheckout: number;
+    overtime: number;
+};
+
+const emptySummary: AttendanceSummary = {
+    totalRecords: 0,
+    present: 0,
+    absent: 0,
+    late: 0,
+    earlyLeave: 0,
+    missingCheckout: 0,
+    overtime: 0,
+};
+
+function todayIsoDate() {
+    return new Date().toISOString().split('T')[0];
+}
+
+function formatShift(record: AttendanceRecord) {
+    const start = record.profiles?.shift_start;
+    const end = record.profiles?.shift_end;
+    return start && end ? `${start} - ${end}` : '-';
+}
+
+function formatLocation(record: AttendanceRecord) {
+    const checkIn = record.check_in_location || '-';
+    const checkOut = record.check_out_location || '-';
+    return checkIn === checkOut ? checkIn : `${checkIn} / ${checkOut}`;
+}
+
 export default function AttendanceLogsPage() {
     const t = useTranslations('AttendanceLogs');
     const locale = useLocale();
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [totalRecords, setTotalRecords] = useState(0);
+    const [summary, setSummary] = useState<AttendanceSummary>(emptySummary);
+    const [employees, setEmployees] = useState<EmployeeOption[]>([]);
+    const [branchOptions, setBranchOptions] = useState<string[]>([...BRANCHES]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearch = useDeferredValue(searchQuery);
-    const [dateFilter, setDateFilter] = useState(() => new Date().toISOString().split('T')[0]);
+    const [dateFrom, setDateFrom] = useState(() => todayIsoDate());
+    const [dateTo, setDateTo] = useState(() => todayIsoDate());
+    const [employeeFilter, setEmployeeFilter] = useState('');
+    const [branchFilter, setBranchFilter] = useState('');
     const [statusFilter, setStatusFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [showAllHistory, setShowAllHistory] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+
+    const selectedEmployee = useMemo(
+        () => employees.find((employee) => employee.id === employeeFilter),
+        [employeeFilter, employees]
+    );
 
     const queryParams = useMemo(() => {
         const params = new URLSearchParams({
@@ -39,21 +95,22 @@ export default function AttendanceLogsPage() {
             includeExpected: 'true',
         });
 
-        if (dateFilter && !showAllHistory) params.set('date', dateFilter);
+        if (!showAllHistory) {
+            const effectiveDateFrom = !dateFrom && !dateTo ? todayIsoDate() : dateFrom;
+            const effectiveDateTo = !dateFrom && !dateTo ? todayIsoDate() : dateTo;
+            if (effectiveDateFrom) params.set('dateFrom', effectiveDateFrom);
+            if (effectiveDateTo) params.set('dateTo', effectiveDateTo);
+        }
+
+        if (employeeFilter) params.set('employeeId', employeeFilter);
+        if (branchFilter) params.set('branch', branchFilter);
         if (statusFilter) params.set('status', statusFilter);
         if (deferredSearch.trim()) params.set('search', deferredSearch.trim());
 
         return params;
-    }, [currentPage, dateFilter, showAllHistory, statusFilter, deferredSearch]);
+    }, [currentPage, dateFrom, dateTo, employeeFilter, branchFilter, showAllHistory, statusFilter, deferredSearch]);
 
     useEffect(() => {
-        if (!dateFilter && !showAllHistory) {
-            setRecords([]);
-            setTotalRecords(0);
-            setIsLoading(false);
-            return;
-        }
-
         const controller = new AbortController();
         setIsLoading(true);
 
@@ -66,6 +123,7 @@ export default function AttendanceLogsPage() {
                     success: boolean;
                     data?: AttendanceRecord[];
                     total?: number;
+                    summary?: AttendanceSummary;
                     error?: string;
                 } = await response.json();
 
@@ -75,6 +133,7 @@ export default function AttendanceLogsPage() {
 
                 setRecords(result.data ?? []);
                 setTotalRecords(result.total ?? 0);
+                setSummary(result.summary ?? emptySummary);
             } catch (error) {
                 if (controller.signal.aborted) {
                     return;
@@ -83,6 +142,7 @@ export default function AttendanceLogsPage() {
                 console.error('Attendance fetch error:', error);
                 setRecords([]);
                 setTotalRecords(0);
+                setSummary(emptySummary);
                 addToast(t('loadError'), 'error');
             } finally {
                 if (!controller.signal.aborted) {
@@ -92,22 +152,84 @@ export default function AttendanceLogsPage() {
         })();
 
         return () => controller.abort();
-    }, [dateFilter, queryParams, refreshKey, showAllHistory, t]);
+    }, [queryParams, refreshKey, t]);
+
+    useEffect(() => {
+        const controller = new AbortController();
+
+        void (async () => {
+            try {
+                const [employeeResponse, branchResponse] = await Promise.all([
+                    fetch('/api/employees', { signal: controller.signal }),
+                    fetch('/api/admin/branch-ips', { signal: controller.signal }),
+                ]);
+
+                if (employeeResponse.ok) {
+                    const employeeResult: { success: boolean; data?: EmployeeOption[] } = await employeeResponse.json();
+                    if (employeeResult.success) {
+                        const nextEmployees = employeeResult.data ?? [];
+                        setEmployees(nextEmployees);
+                        setBranchOptions((currentBranches) =>
+                            Array.from(
+                                new Set([
+                                    ...currentBranches,
+                                    ...nextEmployees.map((employee) => employee.branch).filter((branch): branch is string => Boolean(branch)),
+                                ])
+                            )
+                        );
+                    }
+                }
+
+                if (branchResponse.ok) {
+                    const branchResult: { success: boolean; branches?: string[] } = await branchResponse.json();
+                    if (branchResult.success) {
+                        setBranchOptions((currentBranches) =>
+                            Array.from(new Set([...currentBranches, ...(branchResult.branches ?? [])]))
+                        );
+                    }
+                }
+            } catch (error) {
+                if (!controller.signal.aborted) {
+                    console.error('Attendance filter option load error:', error);
+                }
+            }
+        })();
+
+        return () => controller.abort();
+    }, []);
 
     const totalPages = Math.ceil(totalRecords / RECORDS_PER_PAGE);
+    const activeDateLabel = showAllHistory
+        ? t('allHistory')
+        : dateFrom && dateTo
+            ? `${dateFrom} - ${dateTo}`
+            : dateFrom || dateTo || todayIsoDate();
+    const summaryCards = [
+        { label: t('records'), value: summary.totalRecords },
+        { label: t('present'), value: summary.present },
+        { label: t('absent'), value: summary.absent },
+        { label: t('late'), value: summary.late },
+        { label: t('earlyLeave'), value: summary.earlyLeave },
+        { label: t('missingCheckout'), value: summary.missingCheckout },
+        { label: t('overtime'), value: summary.overtime },
+    ];
 
     async function fetchAllFilteredRecords() {
-        if (!dateFilter && !showAllHistory) {
-            throw new Error('Select a date before exporting');
-        }
-
         const params = new URLSearchParams({
             page: '1',
-            pageSize: '10000',
+            pageSize: '50000',
             includeExpected: 'true',
         });
 
-        if (dateFilter && !showAllHistory) params.set('date', dateFilter);
+        if (!showAllHistory) {
+            const effectiveDateFrom = !dateFrom && !dateTo ? todayIsoDate() : dateFrom;
+            const effectiveDateTo = !dateFrom && !dateTo ? todayIsoDate() : dateTo;
+            if (effectiveDateFrom) params.set('dateFrom', effectiveDateFrom);
+            if (effectiveDateTo) params.set('dateTo', effectiveDateTo);
+        }
+
+        if (employeeFilter) params.set('employeeId', employeeFilter);
+        if (branchFilter) params.set('branch', branchFilter);
         if (statusFilter) params.set('status', statusFilter);
         if (deferredSearch.trim()) params.set('search', deferredSearch.trim());
 
@@ -128,12 +250,28 @@ export default function AttendanceLogsPage() {
     async function handleExportPDF() {
         try {
             const allFilteredRecords = await fetchAllFilteredRecords();
+            let generatedBy: string | undefined;
+
+            try {
+                const userResponse = await fetch('/api/auth/me', { credentials: 'include' });
+                const userResult: { success: boolean; data?: { full_name?: string } } = await userResponse.json();
+                generatedBy = userResult.success ? userResult.data?.full_name : undefined;
+            } catch {
+                generatedBy = undefined;
+            }
 
             await exportAttendancePremiumPDF(allFilteredRecords, {
                 locale,
-                dateFilter,
+                dateRangeLabel: showAllHistory
+                    ? t('allHistory')
+                    : (dateFrom || (!dateFrom && !dateTo ? todayIsoDate() : '')) && (dateTo || (!dateFrom && !dateTo ? todayIsoDate() : ''))
+                        ? `${dateFrom || todayIsoDate()} to ${dateTo || todayIsoDate()}`
+                        : dateFrom || dateTo || todayIsoDate(),
                 statusFilter: statusFilter || undefined,
                 searchQuery: deferredSearch.trim() || undefined,
+                employeeName: selectedEmployee?.full_name,
+                branchName: branchFilter || undefined,
+                generatedBy,
             });
             addToast(t('exportSuccess'), 'success');
         } catch (error) {
@@ -153,32 +291,25 @@ export default function AttendanceLogsPage() {
                         <div className="space-y-3">
                             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('title')}</p>
                             <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
-                                Attendance history with a calmer read
+                                {t('heroTitle')}
                             </h1>
                             <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                                Search the full attendance history, compare punctuality, and export
-                                reports without dropping back into a dense legacy table feel.
+                                {t('heroDescription')}
                             </p>
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            {summaryCards.map((item) => (
+                                <div key={item.label} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                    <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.18em]">{item.label}</p>
+                                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
+                                        <AnimatedCounter value={isLoading ? 0 : item.value} />
+                                    </p>
+                                </div>
+                            ))}
                             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.24em]">Records</p>
-                                <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                    <AnimatedCounter value={isLoading ? 0 : totalRecords} />
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.24em]">Mode</p>
-                                <p className="mt-3 text-lg font-semibold text-[var(--foreground)]">
-                                    {showAllHistory ? t('allHistory') : dateFilter || 'Date-specific'}
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.24em]">Status</p>
-                                <p className="mt-3 text-lg font-semibold text-[var(--foreground)]">
-                                    {statusFilter || t('allStatus')}
-                                </p>
+                                <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.18em]">{t('dateRange')}</p>
+                                <p className="mt-3 truncate text-base font-semibold text-[var(--foreground)]">{activeDateLabel}</p>
                             </div>
                         </div>
                     </div>
@@ -186,14 +317,14 @@ export default function AttendanceLogsPage() {
 
                 <Card className="rounded-2xl">
                     <CardContent className="space-y-3 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Exports</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('exports')}</p>
                         <Button
                             size="sm"
                             onClick={() => handleExportPDF()}
-                            disabled={(!dateFilter && !showAllHistory) || isLoading}
+                            disabled={isLoading}
                             className="justify-between"
                         >
-                            <span>Export PDF</span>
+                            <span>{t('exportPDF')}</span>
                             <FileText className="h-4 w-4" />
                         </Button>
                     </CardContent>
@@ -202,7 +333,7 @@ export default function AttendanceLogsPage() {
 
             <PageReveal delay={0.08}>
                 <Card className="rounded-2xl">
-                    <CardContent className="grid gap-3 p-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(0,0.9fr)_auto_auto_auto] xl:p-5">
+                    <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto_auto] xl:p-5">
                         <div className="relative min-w-0">
                             <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                             <Input
@@ -216,16 +347,65 @@ export default function AttendanceLogsPage() {
                             />
                         </div>
 
+                        <select
+                            value={employeeFilter}
+                            onChange={(event) => {
+                                setEmployeeFilter(event.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]"
+                        >
+                            <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allEmployees')}</option>
+                            {employees.map((employee) => (
+                                <option key={employee.id} value={employee.id} className="bg-[var(--bg-secondary)] text-[var(--foreground)]">
+                                    {employee.full_name}
+                                    {employee.branch ? ` - ${employee.branch}` : ''}
+                                </option>
+                            ))}
+                        </select>
+
+                        <select
+                            value={branchFilter}
+                            onChange={(event) => {
+                                setBranchFilter(event.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]"
+                        >
+                            <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allBranches')}</option>
+                            {branchOptions.map((branch) => (
+                                <option key={branch} value={branch} className="bg-[var(--bg-secondary)] text-[var(--foreground)]">
+                                    {branch}
+                                </option>
+                            ))}
+                        </select>
+
                         <div className="relative min-w-0">
                             <Calendar className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                             <Input
                                 type="date"
-                                value={dateFilter}
+                                value={dateFrom}
                                 onChange={(event) => {
-                                    setDateFilter(event.target.value);
+                                    setDateFrom(event.target.value);
                                     setShowAllHistory(false);
                                     setCurrentPage(1);
                                 }}
+                                aria-label={t('dateFrom')}
+                                className="ps-11"
+                            />
+                        </div>
+
+                        <div className="relative min-w-0">
+                            <Calendar className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+                            <Input
+                                type="date"
+                                value={dateTo}
+                                onChange={(event) => {
+                                    setDateTo(event.target.value);
+                                    setShowAllHistory(false);
+                                    setCurrentPage(1);
+                                }}
+                                aria-label={t('dateTo')}
                                 className="ps-11"
                             />
                         </div>
@@ -256,6 +436,25 @@ export default function AttendanceLogsPage() {
                         </select>
 
                         <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                                setSearchQuery('');
+                                setEmployeeFilter('');
+                                setBranchFilter('');
+                                setDateFrom(todayIsoDate());
+                                setDateTo(todayIsoDate());
+                                setStatusFilter('');
+                                setShowAllHistory(false);
+                                setCurrentPage(1);
+                            }}
+                            className="w-full xl:w-auto"
+                        >
+                            <RotateCcw className="h-4 w-4" />
+                            <span className="xl:hidden 2xl:inline">{t('resetFilters')}</span>
+                        </Button>
+
+                        <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => {
@@ -270,20 +469,7 @@ export default function AttendanceLogsPage() {
                 </Card>
             </PageReveal>
 
-            {!dateFilter && !showAllHistory ? (
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-3 p-12 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-strong)] text-[var(--accent)]">
-                            <Calendar className="h-6 w-6" />
-                        </div>
-                        <h2 className="text-xl font-semibold text-[var(--foreground)]">{t('chooseDateTitle')}</h2>
-                        <p className="mx-auto max-w-xl text-sm leading-7 text-[var(--muted)]">
-                            {t('chooseDateDescription')}
-                        </p>
-                    </CardContent>
-                </Card>
-            ) : (
-                <Card className="rounded-2xl">
+            <Card className="rounded-2xl">
                     <div className="md:hidden">
                         {isLoading ? (
                             <div className="space-y-3 p-3">
@@ -313,7 +499,7 @@ export default function AttendanceLogsPage() {
                                                     {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                 </div>
                                                 <div className="min-w-0">
-                                                    <p className="truncate font-medium text-[var(--foreground)]">
+                                                    <p className="truncate font-medium text-[var(--foreground)]" dir="auto">
                                                         {record.profiles?.full_name || '-'}
                                                     </p>
                                                     <p className="truncate text-sm text-[var(--muted)]">
@@ -333,11 +519,15 @@ export default function AttendanceLogsPage() {
                                         <div className="mt-4 grid grid-cols-2 gap-2">
                                             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
                                                 <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('branch')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{record.profiles?.branch || '-'}</p>
+                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]" dir="auto">{record.profiles?.branch || '-'}</p>
                                             </div>
                                             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
                                                 <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('date')}</p>
                                                 <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatDate(record.date)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('shift')}</p>
+                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatShift(record)}</p>
                                             </div>
                                             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
                                                 <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('checkIn')}</p>
@@ -352,12 +542,16 @@ export default function AttendanceLogsPage() {
                                                 <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatLateness(record.late_minutes)}</p>
                                             </div>
                                             <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('earlyLeave')}</p>
+                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatEarlyDeparture(record.early_departure_minutes || 0)}</p>
+                                            </div>
+                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
                                                 <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('overtime')}</p>
                                                 <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatOvertime(record.overtime_minutes || 0)}</p>
                                             </div>
                                             <div className="col-span-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('checkInIP')}</p>
-                                                <p className="mt-1 break-all font-mono text-xs text-[var(--muted)]">{record.ip_address || '-'}</p>
+                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('location')}</p>
+                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]" dir="auto">{formatLocation(record)}</p>
                                             </div>
                                         </div>
                                     </div>
@@ -367,21 +561,21 @@ export default function AttendanceLogsPage() {
                     </div>
 
                     <div className="custom-scrollbar hidden overflow-x-auto md:block">
-                        <table className="w-full min-w-[1100px]">
+                        <table className="w-full min-w-[1200px]">
                             <thead>
                                 <tr className="border-b border-[var(--line)] bg-[var(--surface)]">
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('employee')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('branch')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('date')}</th>
+                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('shift')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkIn')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkOut')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('lateness')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('earlyLeave')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('overtime')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('status')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkInLocation')}</th>
+                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('location')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkInIP')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkOutLocation')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkOutIP')}</th>
                                 </tr>
                             </thead>
@@ -411,13 +605,14 @@ export default function AttendanceLogsPage() {
                                                         {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                     </div>
                                                     <div>
-                                                        <p className="font-medium text-[var(--foreground)]">{record.profiles?.full_name || '-'}</p>
+                                                        <p className="font-medium text-[var(--foreground)]" dir="auto">{record.profiles?.full_name || '-'}</p>
                                                         <p className="text-sm text-[var(--muted)]">{record.profiles?.email || '-'}</p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{record.profiles?.branch || '-'}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]" dir="auto">{record.profiles?.branch || '-'}</td>
                                             <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatDate(record.date)}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatShift(record)}</td>
                                             <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_in_time)}</td>
                                             <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_out_time)}</td>
                                             <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatLateness(record.late_minutes)}</td>
@@ -429,17 +624,16 @@ export default function AttendanceLogsPage() {
                                                         ? t('missingCheckout')
                                                         : record.status === 'pending'
                                                             ? t('pending')
-                                                            : t(record.status)}
+                                                    : t(record.status)}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{record.check_in_location || '-'}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]" dir="auto">{formatLocation(record)}</td>
                                             <td className="px-4 py-4">
                                                 <div className="flex items-center gap-1.5 text-sm text-[var(--foreground-soft)]">
                                                     <Globe className="h-3.5 w-3.5 text-[var(--accent)]" />
                                                     <span className="font-mono text-xs text-[var(--muted)]">{record.ip_address || '-'}</span>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{record.check_out_location || '-'}</td>
                                             <td className="px-4 py-4">
                                                 <div className="flex items-center gap-1.5 text-sm text-[var(--foreground-soft)]">
                                                     <Globe className="h-3.5 w-3.5 text-[var(--accent)]" />
@@ -480,8 +674,7 @@ export default function AttendanceLogsPage() {
                             </div>
                         </div>
                     )}
-                </Card>
-            )}
+            </Card>
         </div>
     );
 }

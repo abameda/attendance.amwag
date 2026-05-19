@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import {
+    BarChart3,
     Briefcase,
     CalendarOff,
     Clock,
@@ -16,6 +18,7 @@ import {
     UserPlus,
     Users,
 } from 'lucide-react';
+import { useLocale, useTranslations } from 'next-intl';
 import BulkImportModal from '@/components/BulkImportModal';
 import { BRANCHES } from '@/lib/branches';
 import { formatTime } from '@/lib/utils';
@@ -37,6 +40,8 @@ import {
 } from '@/components/ui';
 
 export default function EmployeesPage() {
+    const locale = useLocale();
+    const t = useTranslations('Employees');
     const [employees, setEmployees] = useState<Profile[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
@@ -91,17 +96,17 @@ export default function EmployeesPage() {
             const result = await response.json();
 
             if (!response.ok || !result.success) {
-                throw new Error(result.error || 'Failed to load employees');
+                throw new Error(result.error || t('loadError'));
             }
 
             setEmployees(result.data || []);
         } catch (error) {
             console.error('Error fetching employees:', error);
-            addToast('Failed to load employees', 'error');
+            addToast(t('loadError'), 'error');
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [t]);
 
     useEffect(() => {
         fetchEmployees();
@@ -170,9 +175,9 @@ export default function EmployeesPage() {
 
                 const result = await response.json();
                 if (!response.ok || !result.success) {
-                    throw new Error(result.error || 'Failed to update employee');
+                    throw new Error(result.error || t('saveError'));
                 }
-                addToast('Employee updated successfully', 'success');
+                addToast(t('employeeUpdated'), 'success');
             } else {
                 const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
                 const submitData = {
@@ -188,7 +193,7 @@ export default function EmployeesPage() {
 
                 const result = await response.json();
                 if (!result.success) throw new Error(result.error);
-                addToast('Employee created successfully', 'success');
+                addToast(t('employeeCreated'), 'success');
             }
 
             setIsModalOpen(false);
@@ -197,7 +202,7 @@ export default function EmployeesPage() {
         } catch (error) {
             console.error('Error saving employee:', error);
             addToast(
-                error instanceof Error ? error.message : 'Failed to save employee',
+                error instanceof Error ? error.message : t('saveError'),
                 'error'
             );
         } finally {
@@ -206,22 +211,22 @@ export default function EmployeesPage() {
     };
 
     const handleDelete = async (id: string) => {
-        if (!confirm('Are you sure you want to delete this employee?')) return;
+        if (!confirm(t('deleteConfirm'))) return;
 
         try {
             const response = await fetch(`/api/employees/${id}`, { method: 'DELETE' });
             const result = await response.json();
-            if (!result.success) throw new Error(result.error || 'Failed to delete employee');
-            addToast('Employee deleted successfully', 'success');
+            if (!result.success) throw new Error(result.error || t('deleteError'));
+            addToast(t('employeeDeleted'), 'success');
             fetchEmployees();
         } catch (error) {
             console.error('Error deleting employee:', error);
-            addToast('Failed to delete employee', 'error');
+            addToast(t('deleteError'), 'error');
         }
     };
 
     const handleResetPassword = async (id: string, name: string) => {
-        if (!confirm(`Reset password for ${name}? They will be forced to change it on next login.`)) return;
+        if (!confirm(t('resetConfirm', { name }))) return;
 
         try {
             const response = await fetch(`/api/employees/${id}/reset-password`, {
@@ -230,12 +235,12 @@ export default function EmployeesPage() {
             });
             const result = await response.json();
             if (!response.ok || !result.success) {
-                throw new Error(result.error || 'Failed to reset password');
+                throw new Error(result.error || t('passwordResetFailed'));
             }
             setResetModal({ open: true, tempPassword: result.data.tempPassword, employeeName: name });
         } catch (error) {
             console.error('Error resetting password:', error);
-            addToast(error instanceof Error ? error.message : 'Failed to reset password', 'error');
+            addToast(error instanceof Error ? error.message : t('passwordResetFailed'), 'error');
         }
     };
 
@@ -256,11 +261,13 @@ export default function EmployeesPage() {
         const overtimeEnabledCount = employees.filter((employee) => employee.overtime_enabled).length;
 
         return [
-            { label: 'Employees', value: employees.length },
-            { label: 'Branches', value: branchCount },
-            { label: 'Overtime enabled', value: overtimeEnabledCount },
+            { label: t('employees'), value: employees.length },
+            { label: t('branches'), value: branchCount },
+            { label: t('overtimeEnabled'), value: overtimeEnabledCount },
         ];
-    }, [employees]);
+    }, [employees, t]);
+
+    const dayLabel = (day: string) => t(`days.${day}`);
 
     return (
         <div className="space-y-6">
@@ -268,13 +275,12 @@ export default function EmployeesPage() {
                 <GlowingCard>
                     <div className="space-y-6 p-6 sm:p-8">
                         <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">Workforce</p>
+                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('kicker')}</p>
                             <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
-                                Employee roster, styled for clarity
+                                {t('title')}
                             </h1>
                             <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                                Keep branch assignments, shift planning, and overtime settings in a
-                                single calm workspace instead of a noisy admin table.
+                                {t('subtitle')}
                             </p>
                         </div>
 
@@ -296,19 +302,19 @@ export default function EmployeesPage() {
 
                 <Card className="rounded-2xl">
                     <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">Actions</p>
+                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('actions')}</p>
                         <div className="grid gap-3">
                             <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="justify-between">
-                                <span>Bulk Import</span>
+                                <span>{t('bulkImport')}</span>
                                 <Upload className="h-4 w-4" />
                             </Button>
                             <Button onClick={openAddModal} className="justify-between">
-                                <span>Add Employee</span>
+                                <span>{t('addEmployee')}</span>
                                 <UserPlus className="h-4 w-4" />
                             </Button>
                         </div>
                         <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm leading-6 text-[var(--muted)]">
-                            Search by name, email, or branch to move quickly through large rosters.
+                            {t('actionsHint')}
                         </div>
                     </CardContent>
                 </Card>
@@ -320,7 +326,7 @@ export default function EmployeesPage() {
                         <div className="relative">
                             <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                             <Input
-                                placeholder="Search employees..."
+                                placeholder={t('searchPlaceholder')}
                                 value={searchQuery}
                                 onChange={(event) => setSearchQuery(event.target.value)}
                                 className="ps-11"
@@ -356,7 +362,7 @@ export default function EmployeesPage() {
                             <Users className="h-6 w-6" />
                         </div>
                         <h2 className="mt-4 text-xl font-semibold text-[var(--foreground)]">
-                            {searchQuery ? 'No employees match your search' : 'No employees found'}
+                            {searchQuery ? t('noSearchResults') : t('noEmployees')}
                         </h2>
                     </CardContent>
                 </Card>
@@ -395,21 +401,21 @@ export default function EmployeesPage() {
                                             <button
                                                 onClick={() => openEditModal(employee)}
                                                 className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] transition-colors"
-                                                title="Edit employee"
+                                                title={t('editEmployee')}
                                             >
                                                 <Edit2 className="h-4 w-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleResetPassword(employee.id, employee.full_name)}
                                                 className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--warning)] transition-colors"
-                                                title="Reset password"
+                                                title={t('resetPassword')}
                                             >
                                                 <KeyRound className="h-4 w-4" />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(employee.id)}
                                                 className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] transition-colors"
-                                                title="Delete employee"
+                                                title={t('deleteEmployee')}
                                             >
                                                 <Trash2 className="h-4 w-4" />
                                             </button>
@@ -440,7 +446,7 @@ export default function EmployeesPage() {
                                         {employee.off_day && (
                                             <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
                                                 <CalendarOff className="h-4 w-4 text-[var(--warning)]" />
-                                                <span className="capitalize">Off day: {employee.off_day}</span>
+                                                <span>{t('offDay', { day: dayLabel(employee.off_day) })}</span>
                                             </div>
                                         )}
                                     </div>
@@ -449,12 +455,20 @@ export default function EmployeesPage() {
                                     <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
                                         <div className="flex items-center gap-3 text-sm text-[var(--foreground-soft)]">
                                             <Timer className="h-4 w-4 text-[var(--accent)]" />
-                                            <span>Overtime tracking</span>
+                                            <span>{t('overtimeTracking')}</span>
                                         </div>
                                         <span className={`text-sm font-semibold ${employee.overtime_enabled ? 'text-[var(--success)]' : 'text-[var(--muted)]'}`}>
-                                            {employee.overtime_enabled ? 'Enabled' : 'Disabled'}
+                                            {employee.overtime_enabled ? t('enabled') : t('disabled')}
                                         </span>
                                     </div>
+
+                                    <Link
+                                        href={`/${locale}/admin/employees/${employee.id}/analytics`}
+                                        className="focus-ring flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
+                                    >
+                                        <span>{t('attendanceAnalytics')}</span>
+                                        <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
+                                    </Link>
                                 </CardContent>
                             </Card>
                         </motion.div>
@@ -469,15 +483,15 @@ export default function EmployeesPage() {
                     setIsModalOpen(false);
                     resetForm();
                 }}
-                title={editingEmployee ? 'Edit Employee' : 'Add New Employee'}
+                title={editingEmployee ? t('editEmployeeTitle') : t('addEmployeeTitle')}
                 size="lg"
             >
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Input
                             id="full_name"
-                            label="Full Name"
-                            placeholder="John Doe"
+                            label={t('fullName')}
+                            placeholder={t('fullNamePlaceholder')}
                             value={formData.full_name}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, full_name: event.target.value }))
@@ -486,9 +500,9 @@ export default function EmployeesPage() {
                         />
                         <Input
                             id="email"
-                            label="Email"
+                            label={t('email')}
                             type="email"
-                            placeholder="john@company.com"
+                            placeholder={t('emailPlaceholder')}
                             value={formData.email}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, email: event.target.value }))
@@ -499,7 +513,7 @@ export default function EmployeesPage() {
                         {!editingEmployee && (
                             <Input
                                 id="password"
-                                label="Password"
+                                label={t('password')}
                                 type="password"
                                 placeholder="••••••••"
                                 value={formData.password}
@@ -511,20 +525,20 @@ export default function EmployeesPage() {
                         )}
                         <Select
                             id="branch"
-                            label="Branch"
+                            label={t('branch')}
                             value={formData.branch}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, branch: event.target.value }))
                             }
                             options={[
-                                { value: '', label: 'Select Branch' },
+                                { value: '', label: t('selectBranch') },
                                 ...BRANCHES.map((branch) => ({ value: branch, label: branch })),
                             ]}
                         />
                         <Input
                             id="job_title"
-                            label="Job Title"
-                            placeholder="Driver"
+                            label={t('jobTitle')}
+                            placeholder={t('jobTitlePlaceholder')}
                             value={formData.job_title}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, job_title: event.target.value }))
@@ -533,7 +547,7 @@ export default function EmployeesPage() {
                         <div className="space-y-2">
                             <Input
                                 id="shift_start"
-                                label="Shift Start Time"
+                                label={t('shiftStartTime')}
                                 type="time"
                                 value={formData.shift_start}
                                 onChange={(event) =>
@@ -544,9 +558,8 @@ export default function EmployeesPage() {
                                 <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
                                     <Clock className="h-4 w-4 shrink-0 text-[var(--accent)]" />
                                     <span>
-                                        Shift ends at{' '}
                                         <span className="font-semibold text-[var(--foreground-soft)]">
-                                            {calculateShiftEnd(formData.shift_start, formData.shift_duration) || '--:--'}
+                                            {t('shiftEndsAt', { time: calculateShiftEnd(formData.shift_start, formData.shift_duration) || '--:--' })}
                                         </span>
                                     </span>
                                 </div>
@@ -554,37 +567,37 @@ export default function EmployeesPage() {
                         </div>
                         <Select
                             id="shift_duration"
-                            label="Shift Duration"
+                            label={t('shiftDuration')}
                             value={formData.shift_duration}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, shift_duration: event.target.value }))
                             }
                             options={[
-                                { value: '0.5', label: '30 Minutes (Testing)' },
-                                { value: '1', label: '1 Hour (Testing)' },
-                                { value: '2', label: '2 Hours (Testing)' },
-                                { value: '4', label: '4 Hours' },
-                                { value: '8', label: '8 Hours' },
-                                { value: '10', label: '10 Hours' },
-                                { value: '12', label: '12 Hours' },
+                                { value: '0.5', label: t('durations.halfHour') },
+                                { value: '1', label: t('durations.oneHour') },
+                                { value: '2', label: t('durations.twoHours') },
+                                { value: '4', label: t('durations.fourHours') },
+                                { value: '8', label: t('durations.eightHours') },
+                                { value: '10', label: t('durations.tenHours') },
+                                { value: '12', label: t('durations.twelveHours') },
                             ]}
                         />
                         <Select
                             id="off_day"
-                            label="Off Day"
+                            label={t('offDayLabel')}
                             value={formData.off_day}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, off_day: event.target.value }))
                             }
                             options={[
-                                { value: '', label: 'No off day' },
-                                { value: 'sunday', label: 'Sunday' },
-                                { value: 'monday', label: 'Monday' },
-                                { value: 'tuesday', label: 'Tuesday' },
-                                { value: 'wednesday', label: 'Wednesday' },
-                                { value: 'thursday', label: 'Thursday' },
-                                { value: 'friday', label: 'Friday' },
-                                { value: 'saturday', label: 'Saturday' },
+                                { value: '', label: t('noOffDay') },
+                                { value: 'sunday', label: t('days.sunday') },
+                                { value: 'monday', label: t('days.monday') },
+                                { value: 'tuesday', label: t('days.tuesday') },
+                                { value: 'wednesday', label: t('days.wednesday') },
+                                { value: 'thursday', label: t('days.thursday') },
+                                { value: 'friday', label: t('days.friday') },
+                                { value: 'saturday', label: t('days.saturday') },
                             ]}
                         />
                     </div>
@@ -593,9 +606,9 @@ export default function EmployeesPage() {
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                             <Timer className="mt-1 h-5 w-5 text-[var(--accent)]" />
                             <div className="min-w-0">
-                                <p className="text-sm font-medium text-[var(--foreground)]">Overtime Tracking</p>
+                                <p className="text-sm font-medium text-[var(--foreground)]">{t('overtimeTrackingTitle')}</p>
                                 <p className="text-xs leading-6 text-[var(--muted)]">
-                                    Allow overtime calculation for this employee, up to the existing system maximum.
+                                    {t('overtimeTrackingDescription')}
                                 </p>
                             </div>
                         </div>
@@ -615,9 +628,9 @@ export default function EmployeesPage() {
                             <div className="flex min-w-0 flex-1 items-start gap-3">
                                 <KeyRound className="mt-1 h-5 w-5 text-[var(--warning)]" />
                                 <div className="min-w-0">
-                                    <p className="text-sm font-medium text-[var(--foreground)]">Force Password Reset</p>
+                                    <p className="text-sm font-medium text-[var(--foreground)]">{t('forcePasswordReset')}</p>
                                     <p className="text-xs leading-6 text-[var(--muted)]">
-                                        Employee will be required to change their password on next login.
+                                        {t('forcePasswordResetDescription')}
                                     </p>
                                 </div>
                             </div>
@@ -642,10 +655,10 @@ export default function EmployeesPage() {
                                 resetForm();
                             }}
                         >
-                            Cancel
+                            {t('cancel')}
                         </Button>
                         <Button type="submit" isLoading={isSubmitting} className="w-full sm:w-auto">
-                            {editingEmployee ? 'Update Employee' : 'Create Employee'}
+                            {editingEmployee ? t('updateEmployee') : t('createEmployee')}
                         </Button>
                     </div>
                 </form>
@@ -654,13 +667,12 @@ export default function EmployeesPage() {
             <Modal
                 isOpen={resetModal.open}
                 onClose={() => setResetModal((prev) => ({ ...prev, open: false }))}
-                title="Password Reset"
+                title={t('passwordResetTitle')}
                 size="sm"
             >
                 <div className="space-y-4">
                     <p className="text-sm text-[var(--muted)]">
-                        Temporary password for <span className="font-semibold text-[var(--foreground)]">{resetModal.employeeName}</span>.
-                        Share it securely — they will be forced to change it on next login.
+                        {t('temporaryPasswordIntro', { name: resetModal.employeeName })}
                     </p>
                     <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
                         <code className="flex-1 font-mono text-base tracking-widest text-[var(--foreground)]">
@@ -669,10 +681,10 @@ export default function EmployeesPage() {
                         <button
                             onClick={() => {
                                 navigator.clipboard.writeText(resetModal.tempPassword);
-                                addToast('Copied to clipboard', 'success');
+                                addToast(t('copied'), 'success');
                             }}
                             className="focus-ring rounded-lg p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
-                            title="Copy to clipboard"
+                            title={t('copyToClipboard')}
                         >
                             <Copy className="h-4 w-4" />
                         </button>
@@ -681,7 +693,7 @@ export default function EmployeesPage() {
                         className="w-full"
                         onClick={() => setResetModal((prev) => ({ ...prev, open: false }))}
                     >
-                        Done
+                        {t('done')}
                     </Button>
                 </div>
             </Modal>

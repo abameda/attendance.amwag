@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
     ChevronRight,
     ClipboardList,
+    Archive,
     LayoutDashboard,
     LogOut,
     Menu,
@@ -28,6 +29,7 @@ const navItemsConfig = [
     { href: '/admin/employees', icon: Users, labelKey: 'employees', adminOnly: true },
     { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs', adminOnly: false },
     { href: '/admin/branch-ips', icon: Network, labelKey: 'branchIps', adminOnly: true },
+    { href: '/admin/backups', icon: Archive, labelKey: 'systemBackups', adminOnly: true },
     { href: '/admin/settings', icon: Settings, labelKey: 'settings', adminOnly: true },
 ];
 

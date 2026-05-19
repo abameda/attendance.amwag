@@ -1,13 +1,100 @@
 import jsPDF from "jspdf";
-import html2canvas from "html2canvas";
 import type { AttendanceRecord } from "@/types";
+import amiriRegularBase64 from "./amiriRegularBase64";
 
 interface ExportOptions {
   locale?: string;
   dateFilter?: string;
+  dateRangeLabel?: string;
   statusFilter?: string;
   searchQuery?: string;
+  employeeName?: string;
+  branchName?: string;
+  generatedBy?: string;
+  generatedAt?: Date;
+  arabicFontBase64?: string;
 }
+
+interface PdfSummary {
+  totalRecords: number;
+  present: number;
+  absent: number;
+  late: number;
+  earlyLeave: number;
+  missingCheckout: number;
+  overtime: number;
+}
+
+interface PdfColumn {
+  key:
+    | "index"
+    | "employee"
+    | "branch"
+    | "date"
+    | "shift"
+    | "checkIn"
+    | "checkOut"
+    | "late"
+    | "earlyLeave"
+    | "overtime"
+    | "status"
+    | "location";
+  header: string;
+  width: number;
+  align?: "left" | "center" | "right";
+}
+
+const PAGE = {
+  marginX: 8,
+  marginTop: 8,
+  footerH: 10,
+  rowMinH: 8,
+};
+
+const COLORS = {
+  primary: "#29A0D3",
+  secondary: "#FBB03B",
+  navy: "#2c3e50",
+  text: "#2c3e50",
+  muted: "#64748b",
+  label: "#7f8c8d",
+  line: "#d8e0e8",
+  softLine: "#e7edf3",
+  headerFill: "#29A0D3",
+  rowAlt: "#fafbfc",
+  cardShadow: "#edf2f7",
+  white: "#ffffff",
+  success: "#047857",
+  successBg: "#dcfce7",
+  warning: "#b45309",
+  warningBg: "#fef3c7",
+  danger: "#b91c1c",
+  dangerBg: "#fee2e2",
+  info: "#1d4ed8",
+  infoBg: "#dbeafe",
+  neutralBg: "#f1f5f9",
+};
+
+const FONT = {
+  regular: "helvetica",
+  bold: "helvetica",
+  arabic: "Amiri",
+};
+
+const COLUMNS: PdfColumn[] = [
+  { key: "index", header: "#", width: 8, align: "center" },
+  { key: "employee", header: "Employee", width: 34 },
+  { key: "branch", header: "Branch", width: 24 },
+  { key: "date", header: "Date", width: 21, align: "center" },
+  { key: "shift", header: "Shift", width: 22, align: "center" },
+  { key: "checkIn", header: "Check In", width: 18, align: "center" },
+  { key: "checkOut", header: "Check Out", width: 18, align: "center" },
+  { key: "late", header: "Late", width: 17, align: "center" },
+  { key: "earlyLeave", header: "Early Leave", width: 20, align: "center" },
+  { key: "overtime", header: "Overtime", width: 18, align: "center" },
+  { key: "status", header: "Status", width: 22, align: "center" },
+  { key: "location", header: "Location", width: 59 },
+];
 
 function formatTimePDF(timestamp: string | null): string {
   if (!timestamp) return "-";
@@ -19,11 +106,31 @@ function formatTimePDF(timestamp: string | null): string {
   });
 }
 
+function formatDatePDF(date: string): string {
+  if (!date) return "-";
+  return new Date(`${date}T00:00:00`).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
+function formatDateTimePDF(date: Date): string {
+  return date.toLocaleString("en-GB", {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 function formatMinutes(minutes: number): string {
   if (minutes <= 0) return "-";
   const h = Math.floor(minutes / 60);
   const m = minutes % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  if (h > 0 && m > 0) return `${h}h ${m}m`;
+  return h > 0 ? `${h}h` : `${m}m`;
 }
 
 function statusLabel(status: string): string {
@@ -36,23 +143,25 @@ function statusLabel(status: string): string {
       return "Absent";
     case "missing_checkout":
       return "Missing C/O";
+    case "pending":
+      return "Pending";
     default:
       return status;
   }
 }
 
-function statusColor(status: string): string {
-  switch (status) {
-    case "present":
-      return "#059669";
-    case "late":
-      return "#d97706";
-    case "absent":
-      return "#dc2626";
-    case "missing_checkout":
-      return "#ea580c";
+function statusBadgeColors(label: string): { bg: string; text: string; border: string } {
+  switch (label) {
+    case "Present":
+      return { bg: COLORS.successBg, text: COLORS.success, border: "#86efac" };
+    case "Late":
+      return { bg: COLORS.warningBg, text: COLORS.warning, border: "#fde68a" };
+    case "Absent":
+      return { bg: COLORS.dangerBg, text: COLORS.danger, border: "#fecaca" };
+    case "Missing C/O":
+      return { bg: "#ffedd5", text: "#c2410c", border: "#fed7aa" };
     default:
-      return "#64748b";
+      return { bg: COLORS.neutralBg, text: COLORS.muted, border: COLORS.line };
   }
 }
 
@@ -60,533 +169,528 @@ function buildExportableRecords(records: AttendanceRecord[]) {
   return records.filter((record) => record.status !== "pending");
 }
 
-function getReportMeta(options: ExportOptions) {
-  const { dateFilter, statusFilter, searchQuery } = options;
-  const exportedOn = new Date().toLocaleDateString("en-US", {
-    weekday: "long",
-    year: "numeric",
-    month: "long",
-    day: "numeric",
-  });
-  const reportDateLabel = dateFilter
-    ? new Date(dateFilter + "T00:00:00").toLocaleDateString("en-US", {
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      })
-    : "Selected date required";
-
-  const filters: string[] = [];
-  if (statusFilter) filters.push(`Status: ${statusFilter}`);
-  if (searchQuery) filters.push(`Search: ${searchQuery}`);
-
-  return { exportedOn, reportDateLabel, filters };
+function hasArabic(text: string): boolean {
+  return /[\u0600-\u06FF]/.test(text);
 }
 
-/**
- * Builds a premium high-fidelity HTML report with navy header,
- * full table with both check-in and check-out locations.
- */
-function buildReportHTML(
-  records: AttendanceRecord[],
-  options: ExportOptions,
-): string {
-  const { exportedOn, reportDateLabel, filters } = getReportMeta(options);
-
-  // Column definitions — 12 columns including both locations
-  const cols = [
-    { header: "#", width: "3%", align: "center" },
-    { header: "EMPLOYEE", width: "12%", align: "left" },
-    { header: "BRANCH", width: "9%", align: "center" },
-    { header: "DATE", width: "8%", align: "center" },
-    { header: "CHECK IN", width: "7%", align: "center" },
-    { header: "CHECK OUT", width: "7%", align: "center" },
-    { header: "LATE", width: "6%", align: "center" },
-    { header: "EARLY LEAVE", width: "7%", align: "center" },
-    { header: "OVERTIME", width: "7%", align: "center" },
-    { header: "STATUS", width: "7%", align: "center" },
-    { header: "LOCATION IN", width: "13.5%", align: "center" },
-    { header: "LOCATION OUT", width: "13.5%", align: "center" },
+function reportHasArabic(records: AttendanceRecord[], options: ExportOptions) {
+  const values = [
+    options.locale === "ar" ? "تقرير الحضور" : "",
+    options.employeeName,
+    options.branchName,
+    options.dateRangeLabel,
+    options.generatedBy,
+    options.searchQuery,
+    ...records.flatMap((record) => [
+      record.profiles?.full_name,
+      record.profiles?.branch,
+      record.check_in_location,
+      record.check_out_location,
+    ]),
   ];
 
-  // Table header cells
-  const thCells = cols
-    .map(
-      (c, idx) => `
-        <th style="
-            padding: 11px 6px;
-            text-align: ${c.align};
-            font-size: 10px;
-            font-weight: 700;
-            color: #ffffff;
-            text-transform: uppercase;
-            letter-spacing: 0.8px;
-            width: ${c.width};
-            white-space: nowrap;
-            ${idx < cols.length - 1 ? "border-right: 1px solid rgba(255,255,255,0.12);" : ""}
-        ">${c.header}</th>
-    `,
-    )
-    .join("");
-
-  // Table rows
-  const rows = records
-    .map((r, i) => {
-      const bg = i % 2 === 0 ? "#ffffff" : "#f8fafc";
-      const sc = statusColor(r.status);
-      const lateVal = r.late_minutes || 0;
-      const earlyVal = r.early_departure_minutes || 0;
-      const otVal = r.overtime_minutes || 0;
-
-      const tdStyle = (align: string = "center", extra: string = "") => `
-            padding: 9px 6px;
-            text-align: ${align};
-            font-size: 11px;
-            color: #334155;
-            border-bottom: 1px solid #e2e8f0;
-            white-space: nowrap;
-            line-height: 1.4;
-            ${extra}
-        `;
-
-      return `<tr style="background: ${bg};">
-            <td style="${tdStyle("center", "color: #94a3b8; font-size: 10px;")}">${i + 1}</td>
-            <td style="${tdStyle("left", "font-weight: 600; color: #0f172a;")}">${r.profiles?.full_name || "-"}</td>
-            <td style="${tdStyle("center", "font-size: 10px;")}">${r.profiles?.branch || "-"}</td>
-            <td style="${tdStyle("center", "font-size: 10px; font-family: monospace;")}">${r.date}</td>
-            <td style="${tdStyle("center", "font-size: 10px;")}">${formatTimePDF(r.check_in_time)}</td>
-            <td style="${tdStyle("center", "font-size: 10px;")}">${formatTimePDF(r.check_out_time)}</td>
-            <td style="${tdStyle("center", `font-size: 10px; color: ${lateVal > 0 ? "#dc2626" : "#94a3b8"}; font-weight: ${lateVal > 0 ? "700" : "400"};`)}">${formatMinutes(lateVal)}</td>
-            <td style="${tdStyle("center", `font-size: 10px; color: ${earlyVal > 0 ? "#dc2626" : "#94a3b8"}; font-weight: ${earlyVal > 0 ? "700" : "400"};`)}">${formatMinutes(earlyVal)}</td>
-            <td style="${tdStyle("center", `font-size: 10px; color: ${otVal > 0 ? "#2563eb" : "#94a3b8"}; font-weight: ${otVal > 0 ? "700" : "400"};`)}">${formatMinutes(otVal)}</td>
-            <td style="${tdStyle("center")}">
-                <span style="
-                    display: inline-block;
-                    padding: 2px 8px;
-                    border-radius: 4px;
-                    font-size: 10px;
-                    font-weight: 700;
-                    color: ${sc};
-                ">${statusLabel(r.status)}</span>
-            </td>
-            <td style="${tdStyle("center", "font-size: 10px;")}">${r.check_in_location || "-"}</td>
-            <td style="${tdStyle("center", "font-size: 10px;")}">${r.check_out_location || "-"}</td>
-        </tr>`;
-    })
-    .join("");
-
-  return `
-    <div id="pdf-report" dir="ltr" style="
-        width: 1180px;
-        direction: ltr;
-        text-align: left;
-        unicode-bidi: embed;
-        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-        background: #ffffff;
-        color: #1e293b;
-        -webkit-font-smoothing: antialiased;
-        -moz-osx-font-smoothing: grayscale;
-    ">
-        <!-- ═══ NAVY HEADER BAR ═══ -->
-        <div style="
-            background: linear-gradient(135deg, #1e3a5f 0%, #1a365d 100%);
-            padding: 20px 28px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        ">
-            <div style="display: flex; align-items: center; gap: 16px;">
-                <img src="/logo.png" alt="Amwag" style="width: 48px; height: 48px; object-fit: contain;" />
-                <div>
-                    <div style="font-size: 22px; font-weight: 800; color: #ffffff; letter-spacing: 0.3px;">Amwag Travel</div>
-                    <div style="font-size: 12px; color: #E8A838; margin-top: 2px; font-weight: 500; letter-spacing: 0.5px;">Attendance Report</div>
-                </div>
-            </div>
-            <div style="text-align: right;">
-                <div style="font-size: 13px; color: #ffffff; font-weight: 600;">${reportDateLabel}</div>
-                <div style="font-size: 10px; color: #93b4d4; margin-top: 4px;">Exported on: ${exportedOn}</div>
-                ${filters.length > 0 ? `<div style="font-size: 9px; color: #93b4d4; margin-top: 3px;">${filters.join("  •  ")}</div>` : ""}
-                <div style="font-size: 10px; color: #93b4d4; margin-top: 3px;">Total Records: ${records.length}</div>
-            </div>
-        </div>
-
-        <!-- Gold accent line -->
-        <div style="height: 3px; background: linear-gradient(90deg, #E8A838 0%, #f0c060 50%, #E8A838 100%);"></div>
-
-        <!-- ═══ TABLE ═══ -->
-        <div style="padding: 12px 16px 0 16px;">
-            <table style="width: 100%; border-collapse: collapse; border: 1px solid #cbd5e1;">
-                <thead>
-                    <tr style="background: linear-gradient(135deg, #1e3a5f 0%, #1a365d 100%);">
-                        ${thCells}
-                    </tr>
-                </thead>
-                <tbody>
-                    ${rows}
-                </tbody>
-            </table>
-        </div>
-
-        <!-- ═══ FOOTER ═══ -->
-        <div style="
-            margin: 12px 16px 0 16px;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 2px solid #1e3a5f;
-        ">
-            <div style="font-size: 11px; color: #1e3a5f; font-weight: 700; letter-spacing: 0.5px;">Amwag Travel</div>
-            <div style="font-size: 11px; color: #64748b; font-weight: 500; direction: rtl; font-family: -apple-system, 'Segoe UI', Tahoma, Arial, sans-serif;">
-                تم التطوير بواسطة مهندس. عبدالحميد الشوربجي
-            </div>
-            <div style="font-size: 10px; color: #94a3b8;">Page 1</div>
-        </div>
-    </div>`;
+  return values.some((value) => hasArabic(String(value ?? "")));
 }
 
-function buildPremiumReportHTML(
-  records: AttendanceRecord[],
-  options: ExportOptions,
-): string {
-  const { exportedOn, reportDateLabel, filters } = getReportMeta(options);
-  const rows = records
-    .map((record, index) => {
-      const bg = index % 2 === 0 ? "#ffffff" : "#f6f8fb";
-      const statusBg = `${statusColor(record.status)}18`;
-      const highlight = (value: number, activeColor: string) =>
-        value > 0 ? activeColor : "#94a3b8";
-      const weight = (value: number) => (value > 0 ? "700" : "500");
-
-      return `
-            <tr style="background: ${bg};">
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: #64748b; border-bottom: 1px solid rgba(148,163,184,0.16);">${index + 1}</td>
-                <td style="padding: 11px 10px; text-align: left; border-bottom: 1px solid rgba(148,163,184,0.16);">
-                    <div style="font-size: 12px; font-weight: 800; color: #0f172a; line-height: 1.3;">${record.profiles?.full_name || "-"}</div>
-                </td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: #334155; border-bottom: 1px solid rgba(148,163,184,0.16);">${record.profiles?.branch || "-"}</td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: #1e293b; font-family: Menlo, Monaco, Consolas, monospace; border-bottom: 1px solid rgba(148,163,184,0.16);">${record.date}</td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: #0f172a; font-weight: 700; border-bottom: 1px solid rgba(148,163,184,0.16);">${formatTimePDF(record.check_in_time)}</td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: #0f172a; font-weight: 700; border-bottom: 1px solid rgba(148,163,184,0.16);">${formatTimePDF(record.check_out_time)}</td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: ${highlight(record.late_minutes || 0, "#dc2626")}; font-weight: ${weight(record.late_minutes || 0)}; border-bottom: 1px solid rgba(148,163,184,0.16);">${formatMinutes(record.late_minutes || 0)}</td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: ${highlight(record.early_departure_minutes || 0, "#ea580c")}; font-weight: ${weight(record.early_departure_minutes || 0)}; border-bottom: 1px solid rgba(148,163,184,0.16);">${formatMinutes(record.early_departure_minutes || 0)}</td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: ${highlight(record.overtime_minutes || 0, "#2563eb")}; font-weight: ${weight(record.overtime_minutes || 0)}; border-bottom: 1px solid rgba(148,163,184,0.16);">${formatMinutes(record.overtime_minutes || 0)}</td>
-                <td style="padding: 11px 8px; text-align: center; border-bottom: 1px solid rgba(148,163,184,0.16);">
-                    <span style="
-                        display: inline-flex;
-                        align-items: center;
-                        justify-content: center;
-                        padding: 4px 10px;
-                        min-width: 82px;
-                        border-radius: 999px;
-                        background: ${statusBg};
-                        color: ${statusColor(record.status)};
-                        font-size: 10px;
-                        font-weight: 800;
-                        letter-spacing: 0.2px;
-                    ">${statusLabel(record.status)}</span>
-                </td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: #334155; border-bottom: 1px solid rgba(148,163,184,0.16);">${record.check_in_location || "-"}</td>
-                <td style="padding: 11px 8px; text-align: center; font-size: 10px; color: #334155; border-bottom: 1px solid rgba(148,163,184,0.16);">${record.check_out_location || "-"}</td>
-            </tr>
-        `;
-    })
-    .join("");
-
-  return `
-    <div id="pdf-report" dir="ltr" style="
-        width: 1180px;
-        direction: ltr;
-        text-align: left;
-        unicode-bidi: embed;
-        font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
-        background:
-            radial-gradient(circle at top left, rgba(232,168,56,0.10), transparent 25%),
-            linear-gradient(180deg, #f7f9fc 0%, #eef3f8 100%);
-        color: #0f172a;
-        padding: 18px;
-        box-sizing: border-box;
-    ">
-        <div style="
-            position: relative;
-            overflow: hidden;
-            border-radius: 22px;
-            background: linear-gradient(135deg, #102943 0%, #173a61 52%, #102943 100%);
-            padding: 24px 28px;
-            box-shadow: 0 16px 42px rgba(15, 23, 42, 0.16);
-        ">
-            <div style="
-                position: absolute;
-                inset: auto -40px -48px auto;
-                width: 140px;
-                height: 140px;
-                border-radius: 999px;
-                background: radial-gradient(circle, rgba(232,168,56,0.14), rgba(232,168,56,0));
-            "></div>
-            <div style="
-                position: absolute;
-                top: -70px;
-                right: 120px;
-                width: 160px;
-                height: 160px;
-                border-radius: 999px;
-                background: radial-gradient(circle, rgba(255,255,255,0.05), rgba(255,255,255,0));
-            "></div>
-
-            <div style="
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                gap: 24px;
-                position: relative;
-            ">
-                <div style="display: flex; align-items: center; gap: 16px; min-width: 0; flex: 1;">
-                    <div style="
-                        width: 74px;
-                        height: 74px;
-                        border-radius: 18px;
-                        background: rgba(255,255,255,0.08);
-                        border: 1px solid rgba(255,255,255,0.14);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        flex-shrink: 0;
-                    ">
-                        <img src="/logo.png" alt="Amwag" style="width: 52px; height: 52px; object-fit: contain;" />
-                    </div>
-                    <div style="min-width: 0;">
-                        <div style="font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: rgba(232,168,56,0.95); font-weight: 700;">Amwag Travel</div>
-                        <div style="margin-top: 6px; font-size: 28px; line-height: 1.1; color: #ffffff; font-weight: 800; font-family: Georgia, 'Times New Roman', serif;">Attendance Report</div>
-                    </div>
-                </div>
-
-                <div style="
-                    width: 300px;
-                    flex-shrink: 0;
-                    padding-left: 22px;
-                    border-left: 1px solid rgba(255,255,255,0.14);
-                ">
-                    <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1.2px; color: rgba(226,232,240,0.62);">Report Date</div>
-                    <div style="margin-top: 8px; font-size: 20px; font-weight: 800; color: #ffffff; line-height: 1.3;">${reportDateLabel}</div>
-                    <div style="margin-top: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
-                        <div style="
-                            padding-top: 10px;
-                            border-top: 1px solid rgba(255,255,255,0.12);
-                        ">
-                            <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(226,232,240,0.58);">Exported</div>
-                            <div style="margin-top: 6px; font-size: 11px; color: #f8fafc; font-weight: 700; line-height: 1.45;">${exportedOn}</div>
-                        </div>
-                        <div>
-                            <div style="
-                                padding-top: 10px;
-                                border-top: 1px solid rgba(255,255,255,0.12);
-                                text-align: right;
-                            ">
-                                <div style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: rgba(226,232,240,0.58);">Prepared By</div>
-                                <div style="margin-top: 6px; font-size: 11px; color: #f8fafc; font-weight: 700; line-height: 1.45;">Amwag System</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div style="margin-top: 14px; padding-top: 10px; border-top: 1px solid rgba(232,168,56,0.26); font-size: 10px; color: rgba(226,232,240,0.72); line-height: 1.6;">
-                        ${filters.length > 0 ? filters.join(" • ") : "Full attendance dataset for the selected scope"}
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div style="
-            margin-top: 14px;
-            border-radius: 24px;
-            overflow: hidden;
-            background: rgba(255,255,255,0.9);
-            border: 1px solid rgba(148,163,184,0.16);
-            box-shadow: 0 14px 38px rgba(15,23,42,0.07);
-            backdrop-filter: blur(10px);
-        ">
-            <div style="
-                padding: 15px 20px;
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                gap: 14px;
-                background:
-                    linear-gradient(90deg, rgba(15,39,66,0.98), rgba(22,56,94,0.94)),
-                    linear-gradient(90deg, rgba(232,168,56,0.12), rgba(232,168,56,0));
-            ">
-                <div style="font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: rgba(232,168,56,0.95); font-weight: 800;">Attendance Details</div>
-                <div style="font-size: 11px; color: rgba(226,232,240,0.82); font-weight: 700;">Total Records: ${records.length}</div>
-            </div>
-
-            <div style="padding: 14px 14px 16px;">
-                <table style="width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed;">
-                    <thead>
-                        <tr style="background: linear-gradient(180deg, #f8fafc, #eef2f7);">
-                            <th style="padding: 12px 8px; width: 3%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">#</th>
-                            <th style="padding: 12px 10px; width: 18%; text-align: left; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Employee</th>
-                            <th style="padding: 12px 8px; width: 10%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Branch</th>
-                            <th style="padding: 12px 8px; width: 9%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Date</th>
-                            <th style="padding: 12px 8px; width: 7%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Check In</th>
-                            <th style="padding: 12px 8px; width: 7%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Check Out</th>
-                            <th style="padding: 12px 8px; width: 6%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Late</th>
-                            <th style="padding: 12px 8px; width: 7%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Early Leave</th>
-                            <th style="padding: 12px 8px; width: 7%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Overtime</th>
-                            <th style="padding: 12px 8px; width: 9%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Status</th>
-                            <th style="padding: 12px 8px; width: 8.5%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Location In</th>
-                            <th style="padding: 12px 8px; width: 8.5%; text-align: center; font-size: 10px; color: #475569; font-weight: 800; letter-spacing: 0.8px; text-transform: uppercase; border-bottom: 1px solid rgba(148,163,184,0.24);">Location Out</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${rows}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <div style="
-            margin-top: 10px;
-            padding: 10px 6px 2px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            gap: 14px;
-        ">
-            <div style="font-size: 11px; color: #0f2742; font-weight: 800; letter-spacing: 0.4px;">Amwag Travel</div>
-            <div style="font-size: 11px; color: #475569; font-weight: 600;">تم التطوير بواسطة م. عبدالحميد الشوربجي</div>
-        </div>
-    </div>`;
+function safeText(value: unknown): string {
+  const text = String(value ?? "").trim();
+  return text || "-";
 }
 
-async function renderAttendancePDF(
-  records: AttendanceRecord[],
-  options: ExportOptions,
-  buildHtml: (
-    exportableRecords: AttendanceRecord[],
-    options: ExportOptions,
-  ) => string,
-  fileNamePrefix: string,
-) {
-  const exportableRecords = buildExportableRecords(records);
+function rgb(hex: string): [number, number, number] {
+  const value = hex.replace("#", "");
+  return [
+    Number.parseInt(value.slice(0, 2), 16),
+    Number.parseInt(value.slice(2, 4), 16),
+    Number.parseInt(value.slice(4, 6), 16),
+  ];
+}
 
-  // Create offscreen container
-  const container = document.createElement("div");
-  container.style.position = "fixed";
-  container.style.left = "-9999px";
-  container.style.top = "0";
-  container.style.zIndex = "-1";
-  container.dir = "ltr";
-  container.style.direction = "ltr";
-  container.style.textAlign = "left";
-  container.innerHTML = buildHtml(exportableRecords, options);
-  document.body.appendChild(container);
+function setFill(pdf: jsPDF, color: string) {
+  pdf.setFillColor(...rgb(color));
+}
 
-  const reportEl = container.querySelector("#pdf-report") as HTMLElement;
+function setStroke(pdf: jsPDF, color: string) {
+  pdf.setDrawColor(...rgb(color));
+}
 
-  // Wait for logo to load
-  await new Promise<void>((resolve) => {
-    const img = reportEl.querySelector("img");
-    if (img && !img.complete) {
-      img.onload = () => resolve();
-      img.onerror = () => resolve();
-    } else {
-      resolve();
+function setText(pdf: jsPDF, color: string) {
+  pdf.setTextColor(...rgb(color));
+}
+
+function resolveBranchLabel(records: AttendanceRecord[], options: ExportOptions): string {
+  if (options.branchName) return options.branchName;
+  const branches = new Set(
+    records
+      .map((record) => record.profiles?.branch?.trim())
+      .filter((branch): branch is string => Boolean(branch))
+  );
+
+  if (branches.size === 1) return Array.from(branches)[0];
+  return "All Branches";
+}
+
+function resolveEmployeeLabel(records: AttendanceRecord[], options: ExportOptions): string | undefined {
+  if (options.employeeName) return options.employeeName;
+  const employeeNames = new Set(
+    records
+      .map((record) => record.profiles?.full_name?.trim())
+      .filter((name): name is string => Boolean(name))
+  );
+
+  if (employeeNames.size === 1) return Array.from(employeeNames)[0];
+  return undefined;
+}
+
+function pdfLabels(locale?: string) {
+  const isArabicLocale = locale === "ar";
+  return {
+    reportTitle: isArabicLocale ? "تقرير الحضور" : "Attendance Report",
+    branch: isArabicLocale ? "الفرع" : "Branch",
+    employee: isArabicLocale ? "الموظف" : "Employee",
+    dateRange: isArabicLocale ? "نطاق التاريخ" : "Date Range",
+    generated: isArabicLocale ? "تم الإنشاء" : "Generated",
+    generatedBy: isArabicLocale ? "تم الإنشاء بواسطة" : "Generated By",
+  };
+}
+
+function resolveReportTitle(records: AttendanceRecord[], options: ExportOptions): string {
+  const labels = pdfLabels(options.locale);
+  const employeeName = resolveEmployeeLabel(records, options);
+  if (employeeName) return `${labels.reportTitle} - ${employeeName}`;
+  if (options.branchName) return `${labels.reportTitle} - ${labels.branch}: ${options.branchName}`;
+  return labels.reportTitle;
+}
+
+function resolveDateRange(records: AttendanceRecord[], options: ExportOptions): string {
+  if (options.dateRangeLabel) return options.dateRangeLabel;
+  if (options.dateFilter) return formatDatePDF(options.dateFilter);
+
+  const dates = records.map((record) => record.date).filter(Boolean).sort();
+  if (dates.length === 0) return "No records";
+  if (dates[0] === dates[dates.length - 1]) return formatDatePDF(dates[0]);
+  return `${formatDatePDF(dates[0])} to ${formatDatePDF(dates[dates.length - 1])}`;
+}
+
+function shiftLabel(record: AttendanceRecord): string {
+  const start = record.profiles?.shift_start;
+  const end = record.profiles?.shift_end;
+  return start && end ? `${start}-${end}` : "-";
+}
+
+function locationLabel(record: AttendanceRecord): string {
+  const checkIn = safeText(record.check_in_location);
+  const checkOut = safeText(record.check_out_location);
+  if (checkIn === checkOut) return checkIn;
+  return `In: ${checkIn}\nOut: ${checkOut}`;
+}
+
+export function getAttendancePdfSummary(records: AttendanceRecord[]): PdfSummary {
+  return records.reduce<PdfSummary>(
+    (summary, record) => {
+      summary.totalRecords += 1;
+      if (record.status === "present") summary.present += 1;
+      if (record.status === "absent") summary.absent += 1;
+      if (record.status === "late") summary.late += 1;
+      if (record.status === "missing_checkout") summary.missingCheckout += 1;
+      if ((record.early_departure_minutes || 0) > 0) summary.earlyLeave += 1;
+      if ((record.overtime_minutes || 0) > 0) summary.overtime += 1;
+      return summary;
+    },
+    {
+      totalRecords: 0,
+      present: 0,
+      absent: 0,
+      late: 0,
+      earlyLeave: 0,
+      missingCheckout: 0,
+      overtime: 0,
     }
-  });
+  );
+}
 
-  await new Promise((r) => setTimeout(r, 200));
+function registerArabicFont(pdf: jsPDF, fontBase64?: string) {
+  const regularFontBase64 = fontBase64 || amiriRegularBase64;
+  if (!regularFontBase64) return false;
 
   try {
-    // Capture at 4x scale with PNG for lossless, ultra-crisp text
-    const canvas = await html2canvas(reportEl, {
-      scale: 4,
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: "#ffffff",
-      logging: false,
-      imageTimeout: 8000,
-    });
-
-    // Use PNG for lossless quality
-    const imgData = canvas.toDataURL("image/png");
-    const imgW = canvas.width;
-    const imgH = canvas.height;
-
-    // A4 Landscape
-    const pdf = new jsPDF({
-      orientation: "landscape",
-      unit: "mm",
-      format: "a4",
-    });
-    const pageW = pdf.internal.pageSize.getWidth();
-    const pageH = pdf.internal.pageSize.getHeight();
-
-    const margin = 5;
-    const printW = pageW - margin * 2;
-    const printH = (imgH * printW) / imgW;
-
-    if (printH <= pageH - margin * 2) {
-      pdf.addImage(imgData, "PNG", margin, margin, printW, printH);
-    } else {
-      // Multi-page slicing
-      const pageContentH = pageH - margin * 2;
-      const sourcePixelsPerPage = (pageContentH / printH) * imgH;
-      let yOffset = 0;
-      let pageNum = 0;
-
-      while (yOffset < imgH) {
-        if (pageNum > 0) pdf.addPage();
-
-        const sliceH = Math.min(sourcePixelsPerPage, imgH - yOffset);
-        const pageCanvas = document.createElement("canvas");
-        pageCanvas.width = imgW;
-        pageCanvas.height = sliceH;
-        const ctx = pageCanvas.getContext("2d")!;
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, imgW, sliceH);
-        ctx.drawImage(canvas, 0, yOffset, imgW, sliceH, 0, 0, imgW, sliceH);
-
-        const sliceData = pageCanvas.toDataURL("image/png");
-        const slicePrintH = (sliceH * printW) / imgW;
-        pdf.addImage(sliceData, "PNG", margin, margin, printW, slicePrintH);
-
-        yOffset += sliceH;
-        pageNum++;
-      }
-    }
-
-    const fileName = `${fileNamePrefix}_${new Date().toISOString().split("T")[0]}.pdf`;
-    pdf.save(fileName);
-  } finally {
-    document.body.removeChild(container);
+    pdf.addFileToVFS("Amiri-Regular.ttf", regularFontBase64);
+    pdf.addFont("Amiri-Regular.ttf", FONT.arabic, "normal");
+    pdf.addFont("Amiri-Regular.ttf", FONT.arabic, "bold");
+    return true;
+  } catch {
+    return false;
   }
 }
 
-/**
- * Generates the classic branded PDF.
- */
-export async function exportAttendancePDF(
-  records: AttendanceRecord[],
-  options: ExportOptions = {},
+function setFont(pdf: jsPDF, size: number, style: "normal" | "bold" = "normal", useArabic = false) {
+  pdf.setFont(useArabic ? FONT.arabic : FONT.regular, style);
+  pdf.setFontSize(size);
+}
+
+function processPdfText(pdf: jsPDF, text: string): string {
+  const processor = (pdf as unknown as { processArabic?: (value: string) => string }).processArabic;
+  return processor && hasArabic(text) ? processor.call(pdf, text) : text;
+}
+
+function splitLines(pdf: jsPDF, text: string, maxWidth: number): string[] {
+  const rawLines = String(text).split("\n");
+  return rawLines.flatMap((line) => {
+    const processed = processPdfText(pdf, line);
+    const split = pdf.splitTextToSize(processed, maxWidth);
+    return Array.isArray(split) ? split : [processed];
+  });
+}
+
+function text(
+  pdf: jsPDF,
+  value: string,
+  x: number,
+  y: number,
+  options: { align?: "left" | "center" | "right"; maxWidth?: number } = {}
 ) {
-  return renderAttendancePDF(
-    records,
-    options,
-    buildReportHTML,
-    "amwag_attendance",
-  );
+  pdf.text(processPdfText(pdf, value), x, y, options);
+}
+
+function drawFooter(pdf: jsPDF, pageNum: number, totalPages: number, generatedAt: Date) {
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  const y = pageH - 6;
+
+  setStroke(pdf, COLORS.line);
+  pdf.setLineWidth(0.15);
+  pdf.line(PAGE.marginX, pageH - PAGE.footerH, pageW - PAGE.marginX, pageH - PAGE.footerH);
+  setText(pdf, COLORS.muted);
+  setFont(pdf, 7);
+  text(pdf, "Generated by Amwag Attendance System", PAGE.marginX, y);
+  text(pdf, formatDateTimePDF(generatedAt), pageW / 2, y, { align: "center" });
+  text(pdf, `Page ${pageNum} of ${totalPages}`, pageW - PAGE.marginX, y, { align: "right" });
+}
+
+function drawHeader(
+  pdf: jsPDF,
+  records: AttendanceRecord[],
+  options: ExportOptions,
+  generatedAt: Date,
+  useArabic: boolean
+) {
+  const pageW = pdf.internal.pageSize.getWidth();
+  const startY = PAGE.marginTop;
+  const headerX = PAGE.marginX;
+  const headerY = PAGE.marginTop + 1;
+  const headerW = pageW - PAGE.marginX * 2;
+  const headerH = 24;
+  const logoX = headerX + 4;
+  const logoY = headerY + 5;
+
+  setFill(pdf, COLORS.white);
+  pdf.rect(0, 0, pageW, 37, "F");
+  setFill(pdf, COLORS.primary);
+  pdf.rect(0, 0, pageW, 5, "F");
+
+  setFill(pdf, COLORS.cardShadow);
+  pdf.roundedRect(headerX + 0.7, headerY + 0.8, headerW, headerH, 2.5, 2.5, "F");
+  setFill(pdf, COLORS.white);
+  setStroke(pdf, COLORS.softLine);
+  pdf.setLineWidth(0.18);
+  pdf.roundedRect(headerX, headerY, headerW, headerH, 2.5, 2.5, "FD");
+
+  setFill(pdf, "#eaf7fc");
+  setStroke(pdf, COLORS.primary);
+  pdf.setLineWidth(0.25);
+  pdf.roundedRect(logoX, logoY, 14, 14, 2.2, 2.2, "FD");
+  setText(pdf, COLORS.primary);
+  setFont(pdf, 7.5, "bold");
+  text(pdf, "AT", logoX + 7, logoY + 8.8, { align: "center" });
+  // Placeholder for a future base64 logo:
+  // pdf.addImage(base64Logo, "PNG", logoX, logoY, 14, 14);
+
+  setText(pdf, COLORS.navy);
+  setFont(pdf, 16, "bold", useArabic);
+  text(pdf, "Amwag Travel", headerX + 22, startY + 8);
+  setFont(pdf, 10, "bold", useArabic);
+  setText(pdf, COLORS.primary);
+  text(pdf, resolveReportTitle(records, options), headerX + 22, startY + 14);
+
+  const metaX = headerX + headerW - 4;
+  const employeeLabel = resolveEmployeeLabel(records, options);
+  const labels = pdfLabels(options.locale);
+  const meta = [
+    ...(employeeLabel ? [`${labels.employee}: ${employeeLabel}`] : []),
+    `${labels.dateRange}: ${resolveDateRange(records, options)}`,
+    `${labels.branch}: ${resolveBranchLabel(records, options)}`,
+    `${labels.generated}: ${formatDateTimePDF(generatedAt)}`,
+    `${labels.generatedBy}: ${options.generatedBy || "Amwag Admin"}`,
+  ];
+
+  setFont(pdf, 7.4, "normal", useArabic);
+  setText(pdf, COLORS.text);
+  meta.forEach((line, index) => {
+    text(pdf, line, metaX, startY + 5 + index * 4.5, { align: "right" });
+  });
+
+  const filterParts: string[] = [];
+  if (options.statusFilter) filterParts.push(`Status: ${statusLabel(options.statusFilter)}`);
+  if (options.searchQuery) filterParts.push(`Search: ${options.searchQuery}`);
+  if (filterParts.length) {
+    setText(pdf, COLORS.label);
+    text(pdf, filterParts.join(" | "), headerX + 22, startY + 20);
+  }
+}
+
+function drawSummary(pdf: jsPDF, records: AttendanceRecord[], y: number) {
+  const summary = getAttendancePdfSummary(records);
+  const pageW = pdf.internal.pageSize.getWidth();
+  const availableW = pageW - PAGE.marginX * 2;
+  const metrics = [
+    ["Total Records", summary.totalRecords],
+    ["Present", summary.present],
+    ["Absent", summary.absent],
+    ["Late", summary.late],
+    ["Early Leave", summary.earlyLeave],
+    ["Missing Checkout", summary.missingCheckout],
+    ["Overtime", summary.overtime],
+  ];
+  const gap = 2;
+  const cardH = 16;
+  const cellW = (availableW - gap * (metrics.length - 1)) / metrics.length;
+
+  metrics.forEach(([label, value], index) => {
+    const x = PAGE.marginX + index * (cellW + gap);
+    const accent = index % 2 === 0 ? COLORS.secondary : COLORS.primary;
+    setFill(pdf, COLORS.cardShadow);
+    pdf.roundedRect(x + 0.5, y + 0.7, cellW, cardH, 2, 2, "F");
+    setFill(pdf, COLORS.white);
+    setStroke(pdf, COLORS.softLine);
+    pdf.setLineWidth(0.18);
+    pdf.roundedRect(x, y, cellW, cardH, 2, 2, "FD");
+    setFill(pdf, accent);
+    pdf.rect(x, y + cardH - 3, cellW, 3, "F");
+    setText(pdf, COLORS.label);
+    setFont(pdf, 6.4, "bold");
+    text(pdf, String(label).toUpperCase(), x + cellW / 2, y + 4.7, { align: "center" });
+    setText(pdf, COLORS.navy);
+    setFont(pdf, 12, "bold");
+    text(pdf, String(value), x + cellW / 2, y + 11.4, { align: "center" });
+  });
+}
+
+function rowValues(record: AttendanceRecord, index: number): Record<PdfColumn["key"], string> {
+  return {
+    index: String(index + 1),
+    employee: safeText(record.profiles?.full_name),
+    branch: safeText(record.profiles?.branch),
+    date: formatDatePDF(record.date),
+    shift: shiftLabel(record),
+    checkIn: formatTimePDF(record.check_in_time),
+    checkOut: formatTimePDF(record.check_out_time),
+    late: formatMinutes(record.late_minutes || 0),
+    earlyLeave: formatMinutes(record.early_departure_minutes || 0),
+    overtime: formatMinutes(record.overtime_minutes || 0),
+    status: statusLabel(record.status),
+    location: locationLabel(record),
+  };
+}
+
+function drawTableHeader(pdf: jsPDF, y: number) {
+  let x = PAGE.marginX;
+  setFill(pdf, COLORS.headerFill);
+  setStroke(pdf, COLORS.headerFill);
+  pdf.setLineWidth(0.1);
+  setFont(pdf, 6.8, "bold");
+
+  for (const column of COLUMNS) {
+    setFill(pdf, COLORS.headerFill);
+    pdf.rect(x, y, column.width, 8, "FD");
+    setText(pdf, COLORS.white);
+    text(pdf, column.header.toUpperCase(), x + column.width / 2, y + 5.2, { align: "center" });
+    x += column.width;
+  }
+}
+
+function drawRow(
+  pdf: jsPDF,
+  values: Record<PdfColumn["key"], string>,
+  y: number,
+  rowH: number,
+  rowIndex: number,
+  useArabic: boolean
+) {
+  let x = PAGE.marginX;
+  setFill(pdf, rowIndex % 2 === 0 ? COLORS.white : COLORS.rowAlt);
+  pdf.rect(PAGE.marginX, y, COLUMNS.reduce((sum, column) => sum + column.width, 0), rowH, "F");
+
+  for (const column of COLUMNS) {
+    const value = values[column.key];
+    const maxTextW = column.width - 3;
+    const lines = splitLines(pdf, value, maxTextW);
+    const align = column.align ?? "left";
+    const textX =
+      align === "center" ? x + column.width / 2 : align === "right" ? x + column.width - 1.5 : x + 1.5;
+    const textY = y + 4.6;
+
+    setStroke(pdf, COLORS.line);
+    pdf.setLineWidth(0.12);
+    pdf.rect(x, y, column.width, rowH, "S");
+
+    if (column.key === "status") {
+      const badge = statusBadgeColors(value);
+      const badgeW = Math.min(column.width - 4, Math.max(13, pdf.getTextWidth(value) + 6));
+      const badgeH = Math.min(5.4, rowH - 2);
+      const badgeX = x + (column.width - badgeW) / 2;
+      const badgeY = y + Math.max(1.4, (rowH - badgeH) / 2);
+      setFill(pdf, badge.bg);
+      setStroke(pdf, badge.border);
+      pdf.setLineWidth(0.12);
+      pdf.roundedRect(badgeX, badgeY, badgeW, badgeH, 1.9, 1.9, "FD");
+      setText(pdf, badge.text);
+      setFont(pdf, 6.6, "bold", useArabic);
+      text(pdf, value, x + column.width / 2, badgeY + 3.65, { align: "center" });
+      x += column.width;
+      continue;
+    } else if (["late", "earlyLeave"].includes(column.key) && value !== "-") {
+      setText(pdf, COLORS.danger);
+      setFont(pdf, 6.5, "bold", useArabic);
+    } else if (column.key === "overtime" && value !== "-") {
+      setText(pdf, COLORS.info);
+      setFont(pdf, 6.5, "bold", useArabic);
+    } else {
+      setText(pdf, column.key === "index" ? COLORS.muted : COLORS.text);
+      setFont(pdf, 6.5, column.key === "employee" ? "bold" : "normal", useArabic);
+    }
+
+    pdf.text(lines.slice(0, 3), textX, textY, {
+      align,
+      baseline: "top",
+      maxWidth: maxTextW,
+      lineHeightFactor: 1.1,
+    });
+    x += column.width;
+  }
+}
+
+function calculateRowHeight(pdf: jsPDF, values: Record<PdfColumn["key"], string>, useArabic: boolean): number {
+  setFont(pdf, 6.5, "normal", useArabic);
+  const maxLines = COLUMNS.reduce((count, column) => {
+    const lines = splitLines(pdf, values[column.key], column.width - 3);
+    return Math.max(count, Math.min(lines.length, 3));
+  }, 1);
+  return Math.max(PAGE.rowMinH, 3.2 + maxLines * 3.2);
+}
+
+function addReportPage(
+  pdf: jsPDF,
+  records: AttendanceRecord[],
+  options: ExportOptions,
+  generatedAt: Date,
+  useArabic: boolean,
+  isFirstPage: boolean
+) {
+  if (!isFirstPage) pdf.addPage();
+  drawHeader(pdf, records, options, generatedAt, useArabic);
+  if (isFirstPage) {
+    drawSummary(pdf, records, 39);
+    drawTableHeader(pdf, 59);
+    return 67;
+  }
+
+  drawTableHeader(pdf, 38);
+  return 46;
+}
+
+export function createAttendancePdfDocument(records: AttendanceRecord[], options: ExportOptions = {}) {
+  const exportableRecords = buildExportableRecords(records);
+  const generatedAt = options.generatedAt ?? new Date();
+  const pdf = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4",
+    compress: true,
+    putOnlyUsedFonts: true,
+  });
+  const useArabic = reportHasArabic(exportableRecords, options) && registerArabicFont(pdf, options.arabicFontBase64);
+  const pageH = pdf.internal.pageSize.getHeight();
+  const bottomLimit = pageH - PAGE.footerH - 2;
+
+  let y = addReportPage(pdf, exportableRecords, options, generatedAt, useArabic, true);
+
+  if (exportableRecords.length === 0) {
+    setText(pdf, COLORS.muted);
+    setFont(pdf, 9, "normal", useArabic);
+    text(pdf, "No attendance records match the selected filters.", PAGE.marginX, y + 10);
+  }
+
+  exportableRecords.forEach((record, index) => {
+    const values = rowValues(record, index);
+    const rowH = calculateRowHeight(pdf, values, useArabic);
+
+    if (y + rowH > bottomLimit) {
+      y = addReportPage(pdf, exportableRecords, options, generatedAt, useArabic, false);
+    }
+
+    drawRow(pdf, values, y, rowH, index, useArabic);
+    y += rowH;
+  });
+
+  const totalPages = pdf.getNumberOfPages();
+  for (let page = 1; page <= totalPages; page += 1) {
+    pdf.setPage(page);
+    drawFooter(pdf, page, totalPages, generatedAt);
+  }
+
+  return pdf;
+}
+
+async function loadArabicFontBase64(records: AttendanceRecord[], options: ExportOptions) {
+  if (!reportHasArabic(records, options) || options.arabicFontBase64) {
+    return options.arabicFontBase64;
+  }
+
+  if (amiriRegularBase64) {
+    return amiriRegularBase64;
+  }
+
+  if (typeof window === "undefined" || typeof fetch === "undefined") {
+    return undefined;
+  }
+
+  try {
+    const response = await fetch("/fonts/Amiri-Regular.ttf");
+    if (!response.ok) return undefined;
+    const buffer = await response.arrayBuffer();
+    let binary = "";
+    const bytes = new Uint8Array(buffer);
+    const chunkSize = 0x8000;
+    for (let i = 0; i < bytes.length; i += chunkSize) {
+      binary += String.fromCharCode(...bytes.subarray(i, i + chunkSize));
+    }
+    return btoa(binary);
+  } catch {
+    return undefined;
+  }
+}
+
+async function exportPdf(records: AttendanceRecord[], options: ExportOptions, fileNamePrefix: string) {
+  const exportableRecords = buildExportableRecords(records);
+  const arabicFontBase64 = await loadArabicFontBase64(exportableRecords, options);
+  const pdf = createAttendancePdfDocument(exportableRecords, {
+    ...options,
+    arabicFontBase64,
+  });
+  const fileDate = new Date().toISOString().split("T")[0];
+  pdf.save(`${fileNamePrefix}_${fileDate}.pdf`);
 }
 
 /**
- * Generates the premium branded PDF.
+ * Generates a compact real-text PDF report.
  */
-export async function exportAttendancePremiumPDF(
-  records: AttendanceRecord[],
-  options: ExportOptions = {},
-) {
-  return renderAttendancePDF(
-    records,
-    options,
-    buildPremiumReportHTML,
-    "amwag_attendance_premium",
-  );
+export async function exportAttendancePDF(records: AttendanceRecord[], options: ExportOptions = {}) {
+  return exportPdf(records, options, "amwag_attendance");
+}
+
+/**
+ * Generates a compact real-text PDF report.
+ */
+export async function exportAttendancePremiumPDF(records: AttendanceRecord[], options: ExportOptions = {}) {
+  return exportPdf(records, options, "amwag_attendance");
 }

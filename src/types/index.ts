@@ -114,6 +114,8 @@ export interface DashboardEmployeeAttendanceSummary {
   late_days: number;
   absent_days: number;
   missing_checkout_days: number;
+  early_leave_days?: number;
+  overtime_days?: number;
 }
 
 export interface DashboardBranchAttendanceSummary {
@@ -124,6 +126,8 @@ export interface DashboardBranchAttendanceSummary {
   late_days: number;
   absent_days: number;
   missing_checkout_days: number;
+  early_leave_days?: number;
+  overtime_days?: number;
   attendance_rate: number;
 }
 
@@ -132,9 +136,12 @@ export interface DashboardSummary {
   periodType?: 'day' | 'month';
   expectedEmployees: number;
   presentCount: number;
+  onTimeCount?: number;
   lateCount: number;
   absentCount: number;
   missingCheckoutCount: number;
+  earlyLeaveCount?: number;
+  overtimeCount?: number;
   attendanceRate: number;
   departureCompletionRate: number;
   topBranch: DashboardSummaryTopBranch | null;
