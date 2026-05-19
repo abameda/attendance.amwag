@@ -1,11 +1,13 @@
 'use client';
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
     BarChart3,
     Briefcase,
     CalendarOff,
+    ChevronLeft,
+    ChevronRight,
     Clock,
     Copy,
     Edit2,
@@ -17,10 +19,16 @@ import {
     Upload,
     UserPlus,
     Users,
+    X,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import BulkImportModal from '@/components/BulkImportModal';
-import { BRANCHES } from '@/lib/branches';
+import {
+    DEFAULT_EMPLOYEE_LIMIT,
+    EMPLOYEE_PAGE_SIZE,
+    filterEmployeeOptions,
+    type EmployeeOption,
+} from '@/lib/employeeDirectory';
 import { formatTime } from '@/lib/utils';
 import type { Profile } from '@/types';
 import {
@@ -39,12 +47,73 @@ import {
     addToast,
 } from '@/components/ui';
 
+type EmployeeStats = {
+    employees: number;
+    branches: number;
+    overtimeEnabled: number;
+};
+
+type BranchOption = {
+    id: string;
+    name: string;
+    code: string;
+    is_active: boolean;
+};
+
+type EmployeesListResponse = {
+    success: boolean;
+    data?: Profile[];
+    total?: number;
+    page?: number;
+    pageSize?: number;
+    totalPages?: number;
+    stats?: EmployeeStats;
+    error?: string;
+};
+
+type EmployeeOptionsResponse = {
+    success: boolean;
+    data?: EmployeeOption[];
+    error?: string;
+};
+
+type BranchOptionsResponse = {
+    success: boolean;
+    data?: BranchOption[];
+    error?: string;
+};
+
+type EmployeeResponse = {
+    success: boolean;
+    data?: Profile;
+    error?: string;
+};
+
+type EmployeeViewMode = 'default' | 'selected' | 'all';
+
+const EMPTY_STATS: EmployeeStats = {
+    employees: 0,
+    branches: 0,
+    overtimeEnabled: 0,
+};
+
+const SELECTOR_RESULT_LIMIT = 8;
+
 export default function EmployeesPage() {
     const locale = useLocale();
     const t = useTranslations('Employees');
     const [employees, setEmployees] = useState<Profile[]>([]);
+    const [employeeOptions, setEmployeeOptions] = useState<EmployeeOption[]>([]);
+    const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
+    const [employeeStats, setEmployeeStats] = useState<EmployeeStats>(EMPTY_STATS);
+    const [totalEmployees, setTotalEmployees] = useState(0);
+    const [viewMode, setViewMode] = useState<EmployeeViewMode>('default');
     const [isLoading, setIsLoading] = useState(true);
+    const [isSelectorLoading, setIsSelectorLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+    const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<Profile | null>(null);
     const [formData, setFormData] = useState({
@@ -61,6 +130,7 @@ export default function EmployeesPage() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+    const latestCardsRequestId = useRef(0);
     const [resetModal, setResetModal] = useState<{ open: boolean; tempPassword: string; employeeName: string }>({
         open: false,
         tempPassword: '',
@@ -90,27 +160,134 @@ export default function EmployeesPage() {
         return '8';
     };
 
-    const fetchEmployees = useCallback(async () => {
+    const fetchEmployeeOptions = useCallback(async () => {
+        setIsSelectorLoading(true);
         try {
-            const response = await fetch('/api/employees', { credentials: 'include' });
-            const result = await response.json();
+            const response = await fetch('/api/employees?view=options', { credentials: 'include' });
+            const result: EmployeeOptionsResponse = await response.json();
 
             if (!response.ok || !result.success) {
                 throw new Error(result.error || t('loadError'));
             }
 
-            setEmployees(result.data || []);
+            setEmployeeOptions(result.data ?? []);
         } catch (error) {
-            console.error('Error fetching employees:', error);
+            console.error('Error fetching employee options:', error);
             addToast(t('loadError'), 'error');
         } finally {
-            setIsLoading(false);
+            setIsSelectorLoading(false);
         }
     }, [t]);
 
+    const fetchBranchOptions = useCallback(async () => {
+        try {
+            const response = await fetch('/api/admin/branches?active=true', { credentials: 'include' });
+            const result: BranchOptionsResponse = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || t('loadError'));
+            }
+
+            setBranchOptions(result.data ?? []);
+        } catch (error) {
+            console.error('Error fetching branch options:', error);
+            addToast(t('loadError'), 'error');
+        }
+    }, [t]);
+
+    const fetchEmployeePage = useCallback(async (mode: 'default' | 'all', page = 1) => {
+        const requestId = latestCardsRequestId.current + 1;
+        latestCardsRequestId.current = requestId;
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams({ includeStats: 'true' });
+            if (mode === 'all') {
+                params.set('page', String(page));
+                params.set('pageSize', String(EMPLOYEE_PAGE_SIZE));
+            } else {
+                params.set('limit', String(DEFAULT_EMPLOYEE_LIMIT));
+            }
+
+            const response = await fetch(`/api/employees?${params.toString()}`, { credentials: 'include' });
+            const result: EmployeesListResponse = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || t('loadError'));
+            }
+
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            setEmployees(result.data ?? []);
+            setTotalEmployees(result.total ?? result.data?.length ?? 0);
+            setEmployeeStats(result.stats ?? EMPTY_STATS);
+            setCurrentPage(result.page ?? page);
+            setViewMode(mode);
+        } catch (error) {
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            console.error('Error fetching employees:', error);
+            setEmployees([]);
+            addToast(t('loadError'), 'error');
+        } finally {
+            if (latestCardsRequestId.current === requestId) {
+                setIsLoading(false);
+            }
+        }
+    }, [t]);
+
+    const fetchSelectedEmployee = useCallback(async (id: string) => {
+        const requestId = latestCardsRequestId.current + 1;
+        latestCardsRequestId.current = requestId;
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/employees/${id}`, { credentials: 'include' });
+            const result: EmployeeResponse = await response.json();
+
+            if (!response.ok || !result.success || !result.data) {
+                throw new Error(result.error || t('loadError'));
+            }
+
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            setEmployees([result.data]);
+            setSelectedEmployeeId(id);
+            setViewMode('selected');
+        } catch (error) {
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            console.error('Error fetching selected employee:', error);
+            setEmployees([]);
+            addToast(t('loadError'), 'error');
+        } finally {
+            if (latestCardsRequestId.current === requestId) {
+                setIsLoading(false);
+            }
+        }
+    }, [t]);
+
+    const fetchEmployees = useCallback(async () => {
+        await Promise.all([
+            viewMode === 'selected' && selectedEmployeeId
+                ? fetchSelectedEmployee(selectedEmployeeId)
+                : fetchEmployeePage(viewMode === 'all' ? 'all' : 'default', viewMode === 'all' ? currentPage : 1),
+            fetchEmployeeOptions(),
+            fetchBranchOptions(),
+        ]);
+    }, [currentPage, fetchBranchOptions, fetchEmployeeOptions, fetchEmployeePage, fetchSelectedEmployee, selectedEmployeeId, viewMode]);
+
     useEffect(() => {
-        fetchEmployees();
-    }, [fetchEmployees]);
+        fetchEmployeePage('default', 1);
+        fetchEmployeeOptions();
+        fetchBranchOptions();
+    }, [fetchBranchOptions, fetchEmployeeOptions, fetchEmployeePage]);
 
     const resetForm = () => {
         setFormData({
@@ -134,12 +311,13 @@ export default function EmployeesPage() {
     };
 
     const openEditModal = (employee: Profile) => {
+        const branchId = employee.branch_id ?? branchOptions.find((branch) => branch.name === employee.branch)?.id ?? '';
         setEditingEmployee(employee);
         setFormData({
             email: employee.email,
             password: '',
             full_name: employee.full_name,
-            branch: employee.branch || '',
+            branch: branchId,
             job_title: employee.job_title || '',
             shift_start: employee.shift_start || '',
             shift_duration: calculateDurationFromTimes(employee.shift_start, employee.shift_end),
@@ -150,9 +328,30 @@ export default function EmployeesPage() {
         setIsModalOpen(true);
     };
 
+    const handleSelectEmployee = async (employee: EmployeeOption) => {
+        setSearchQuery(employee.full_name);
+        setIsSelectorOpen(false);
+        await fetchSelectedEmployee(employee.id);
+    };
+
+    const handleResetEmployeeView = async () => {
+        setSearchQuery('');
+        setSelectedEmployeeId('');
+        setIsSelectorOpen(false);
+        await fetchEmployeePage('default', 1);
+    };
+
+    const handleShowAllEmployees = async (page = 1) => {
+        setSearchQuery('');
+        setSelectedEmployeeId('');
+        setIsSelectorOpen(false);
+        await fetchEmployeePage('all', page);
+    };
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setIsSubmitting(true);
+        const selectedBranch = branchOptions.find((branch) => branch.id === formData.branch);
 
         try {
             if (editingEmployee) {
@@ -163,7 +362,8 @@ export default function EmployeesPage() {
                     credentials: 'include',
                     body: JSON.stringify({
                         full_name: formData.full_name,
-                        branch: formData.branch,
+                        branch_id: formData.branch,
+                        branch: selectedBranch?.name ?? '',
                         job_title: formData.job_title,
                         shift_start: formData.shift_start || null,
                         shift_end: calculatedShiftEnd || null,
@@ -182,6 +382,8 @@ export default function EmployeesPage() {
                 const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
                 const submitData = {
                     ...formData,
+                    branch_id: formData.branch,
+                    branch: selectedBranch?.name ?? '',
                     shift_end: calculatedShiftEnd,
                 };
                 const response = await fetch('/api/employees', {
@@ -198,7 +400,7 @@ export default function EmployeesPage() {
 
             setIsModalOpen(false);
             resetForm();
-            fetchEmployees();
+            await fetchEmployees();
         } catch (error) {
             console.error('Error saving employee:', error);
             addToast(
@@ -218,7 +420,12 @@ export default function EmployeesPage() {
             const result = await response.json();
             if (!result.success) throw new Error(result.error || t('deleteError'));
             addToast(t('employeeDeleted'), 'success');
-            fetchEmployees();
+            if (selectedEmployeeId === id) {
+                await handleResetEmployeeView();
+                await fetchEmployeeOptions();
+            } else {
+                await fetchEmployees();
+            }
         } catch (error) {
             console.error('Error deleting employee:', error);
             addToast(t('deleteError'), 'error');
@@ -244,28 +451,31 @@ export default function EmployeesPage() {
         }
     };
 
-    const filteredEmployees = useMemo(() => {
-        const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
-        if (!normalizedQuery) return employees;
+    const selectorResults = useMemo(
+        () => filterEmployeeOptions(employeeOptions, deferredSearchQuery).slice(0, SELECTOR_RESULT_LIMIT),
+        [employeeOptions, deferredSearchQuery]
+    );
 
-        return employees.filter(
-            (employee) =>
-                employee.full_name.toLowerCase().includes(normalizedQuery) ||
-                employee.email.toLowerCase().includes(normalizedQuery) ||
-                employee.branch?.toLowerCase().includes(normalizedQuery)
-        );
-    }, [employees, deferredSearchQuery]);
+    const selectedEmployeeOption = useMemo(
+        () => employeeOptions.find((employee) => employee.id === selectedEmployeeId),
+        [employeeOptions, selectedEmployeeId]
+    );
 
     const stats = useMemo(() => {
-        const branchCount = new Set(employees.map((employee) => employee.branch).filter(Boolean)).size;
-        const overtimeEnabledCount = employees.filter((employee) => employee.overtime_enabled).length;
-
         return [
-            { label: t('employees'), value: employees.length },
-            { label: t('branches'), value: branchCount },
-            { label: t('overtimeEnabled'), value: overtimeEnabledCount },
+            { label: t('employees'), value: employeeStats.employees },
+            { label: t('branches'), value: employeeStats.branches },
+            { label: t('overtimeEnabled'), value: employeeStats.overtimeEnabled },
         ];
-    }, [employees, t]);
+    }, [employeeStats, t]);
+
+    const totalPages = Math.max(1, Math.ceil(totalEmployees / EMPLOYEE_PAGE_SIZE));
+    const visibleStart = viewMode === 'all' && totalEmployees > 0 ? (currentPage - 1) * EMPLOYEE_PAGE_SIZE + 1 : 1;
+    const visibleEnd = viewMode === 'all'
+        ? Math.min(currentPage * EMPLOYEE_PAGE_SIZE, totalEmployees)
+        : Math.min(employees.length, totalEmployees || employees.length);
+    const skeletonCount = viewMode === 'all' ? 6 : DEFAULT_EMPLOYEE_LIMIT;
+    const emptyTitle = searchQuery ? t('noSearchResults') : t('noEmployees');
 
     const dayLabel = (day: string) => t(`days.${day}`);
 
@@ -322,15 +532,112 @@ export default function EmployeesPage() {
 
             <PageReveal delay={0.08}>
                 <Card className="rounded-2xl">
-                    <CardContent className="p-4 sm:p-5">
-                        <div className="relative">
-                            <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
-                            <Input
-                                placeholder={t('searchPlaceholder')}
-                                value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
-                                className="ps-11"
-                            />
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                            <div className="relative">
+                                <label
+                                    htmlFor="employee-selector"
+                                    className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted-strong)]"
+                                >
+                                    {t('selectorLabel')}
+                                </label>
+                                <div className="relative">
+                                    <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+                                    <Input
+                                        id="employee-selector"
+                                        placeholder={t('searchPlaceholder')}
+                                        value={searchQuery}
+                                        onFocus={() => setIsSelectorOpen(true)}
+                                        onBlur={() => window.setTimeout(() => setIsSelectorOpen(false), 120)}
+                                        onChange={(event) => {
+                                            setSearchQuery(event.target.value);
+                                            setIsSelectorOpen(true);
+                                        }}
+                                        className="ps-11 pe-12"
+                                        autoComplete="off"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            type="button"
+                                            onClick={handleResetEmployeeView}
+                                            className="focus-ring absolute end-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
+                                            title={t('clearSelection')}
+                                        >
+                                            <X className="h-4 w-4" />
+                                        </button>
+                                    )}
+                                </div>
+                                {isSelectorOpen && (
+                                    <div
+                                        className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-card)]"
+                                        onMouseDown={(event) => event.preventDefault()}
+                                    >
+                                        {isSelectorLoading ? (
+                                            <div className="px-3 py-3 text-sm text-[var(--muted)]">{t('selectorLoading')}</div>
+                                        ) : selectorResults.length === 0 ? (
+                                            <div className="px-3 py-3 text-sm text-[var(--muted)]">{t('noSelectorResults')}</div>
+                                        ) : (
+                                            selectorResults.map((employee) => (
+                                                <button
+                                                    key={employee.id}
+                                                    type="button"
+                                                    onClick={() => handleSelectEmployee(employee)}
+                                                    className="focus-ring flex w-full items-start justify-between gap-4 rounded-xl px-3 py-3 text-start transition-colors hover:bg-[var(--surface)]"
+                                                >
+                                                    <span className="min-w-0">
+                                                        <span className="block truncate text-sm font-semibold text-[var(--foreground)]">
+                                                            {employee.full_name}
+                                                        </span>
+                                                        <span className="mt-1 block truncate text-xs text-[var(--muted)]">
+                                                            {[employee.email, employee.branch, employee.job_title].filter(Boolean).join(' / ')}
+                                                        </span>
+                                                    </span>
+                                                </button>
+                                            ))
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleResetEmployeeView}
+                                    className="w-full sm:w-auto"
+                                >
+                                    <X className="h-4 w-4" />
+                                    {t('clearSelection')}
+                                </Button>
+                                {viewMode === 'all' ? (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={handleResetEmployeeView}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        {t('showLess')}
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        variant="secondary"
+                                        onClick={() => handleShowAllEmployees(1)}
+                                        className="w-full sm:w-auto"
+                                    >
+                                        <Users className="h-4 w-4" />
+                                        {t('showAllEmployees')}
+                                    </Button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
+                            {viewMode === 'selected'
+                                ? t('showingSelected', { name: selectedEmployeeOption?.full_name ?? employees[0]?.full_name ?? '' })
+                                : viewMode === 'all'
+                                    ? t('showingAll', { start: visibleStart, end: visibleEnd, total: totalEmployees })
+                                    : t('showingDefault', { count: employees.length, total: totalEmployees })}
                         </div>
                     </CardContent>
                 </Card>
@@ -338,7 +645,7 @@ export default function EmployeesPage() {
 
             {isLoading ? (
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, index) => (
+                    {Array.from({ length: skeletonCount }).map((_, index) => (
                         <Card key={index} className="rounded-2xl">
                             <CardContent className="space-y-4 p-6">
                                 <div className="flex items-center gap-3">
@@ -355,21 +662,21 @@ export default function EmployeesPage() {
                         </Card>
                     ))}
                 </div>
-            ) : filteredEmployees.length === 0 ? (
+            ) : employees.length === 0 ? (
                 <Card className="rounded-2xl">
                     <CardContent className="p-12 text-center">
                         <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-strong)] text-[var(--muted)]">
                             <Users className="h-6 w-6" />
                         </div>
                         <h2 className="mt-4 text-xl font-semibold text-[var(--foreground)]">
-                            {searchQuery ? t('noSearchResults') : t('noEmployees')}
+                            {emptyTitle}
                         </h2>
                     </CardContent>
                 </Card>
             ) : (
                 <AnimatePresence>
                 <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredEmployees.map((employee) => (
+                    {employees.map((employee) => (
                         <motion.div
                             key={employee.id}
                             initial={{ opacity: 0, y: 22 }}
@@ -477,6 +784,34 @@ export default function EmployeesPage() {
                 </AnimatePresence>
             )}
 
+            {viewMode === 'all' && totalPages > 1 && (
+                <div className="flex flex-col items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row">
+                    <p className="text-sm text-[var(--muted)]">
+                        {t('pageOf', { page: currentPage, totalPages })}
+                    </p>
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleShowAllEmployees(currentPage - 1)}
+                            disabled={currentPage <= 1 || isLoading}
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            {t('previousPage')}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleShowAllEmployees(currentPage + 1)}
+                            disabled={currentPage >= totalPages || isLoading}
+                        >
+                            {t('nextPage')}
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+            )}
+
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => {
@@ -532,7 +867,7 @@ export default function EmployeesPage() {
                             }
                             options={[
                                 { value: '', label: t('selectBranch') },
-                                ...BRANCHES.map((branch) => ({ value: branch, label: branch })),
+                                ...branchOptions.map((branch) => ({ value: branch.id, label: branch.name })),
                             ]}
                         />
                         <Input

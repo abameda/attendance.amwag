@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import {
+    Building2,
     ChevronRight,
     ClipboardList,
     Archive,
@@ -27,6 +28,7 @@ import { cn } from '@/lib/utils';
 const navItemsConfig = [
     { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard', adminOnly: true },
     { href: '/admin/employees', icon: Users, labelKey: 'employees', adminOnly: true },
+    { href: '/admin/branches', icon: Building2, labelKey: 'branches', adminOnly: true },
     { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs', adminOnly: false },
     { href: '/admin/branch-ips', icon: Network, labelKey: 'branchIps', adminOnly: true },
     { href: '/admin/backups', icon: Archive, labelKey: 'systemBackups', adminOnly: true },

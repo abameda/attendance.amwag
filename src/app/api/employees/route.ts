@@ -1,12 +1,13 @@
 import { randomUUID } from 'node:crypto';
 
-import { desc, eq } from 'drizzle-orm';
+import { desc, eq, sql } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { isAdmin } from '@/lib/auth';
 import { hashPassword } from '@/lib/auth/password';
 import { db } from '@/lib/db';
-import { users, type User } from '@/lib/db/schema';
+import { branches, users, type User } from '@/lib/db/schema';
+import { normalizeEmployeeListParams } from '@/lib/employeeDirectory';
 
 function serializeEmployee(user: User) {
   return {
@@ -15,6 +16,7 @@ function serializeEmployee(user: User) {
     full_name: user.fullName,
     role: user.role,
     branch: user.branch,
+    branch_id: user.branchId,
     job_title: user.jobTitle,
     shift_start: user.shiftStart,
     shift_end: user.shiftEnd,
@@ -26,6 +28,80 @@ function serializeEmployee(user: User) {
   };
 }
 
+type EmployeeOptionRow = Pick<User, 'id' | 'email' | 'fullName' | 'branch' | 'branchId' | 'jobTitle'>;
+
+function serializeEmployeeOption(user: EmployeeOptionRow) {
+  return {
+    id: user.id,
+    email: user.email,
+    full_name: user.fullName,
+    branch: user.branch,
+    branch_id: user.branchId,
+    job_title: user.jobTitle,
+  };
+}
+
+async function resolveBranchAssignment(input: { branchId?: unknown; branchName?: unknown }) {
+  const branchId = typeof input.branchId === 'string' ? input.branchId.trim() : '';
+  const branchName = typeof input.branchName === 'string' ? input.branchName.trim() : '';
+
+  if (branchId) {
+    const rows = await db.select().from(branches).where(eq(branches.id, branchId)).limit(1);
+    const branch = rows[0];
+    if (!branch || !branch.isActive) {
+      return { ok: false as const, error: 'Choose an active branch' };
+    }
+    return { ok: true as const, branchId: branch.id, branchName: branch.name };
+  }
+
+  if (branchName) {
+    const rows = await db.select().from(branches).where(eq(branches.name, branchName)).limit(1);
+    const branch = rows[0];
+    return {
+      ok: true as const,
+      branchId: branch?.isActive ? branch.id : null,
+      branchName,
+    };
+  }
+
+  return { ok: true as const, branchId: null, branchName: null };
+}
+
+function toCount(value: unknown): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'bigint') {
+    return Number(value);
+  }
+
+  if (typeof value === 'string') {
+    return Number.parseInt(value, 10) || 0;
+  }
+
+  return 0;
+}
+
+async function getEmployeeStats() {
+  const rows = await db
+    .select({
+      employees: sql<number>`count(*)`,
+      branches: sql<number>`count(distinct ${users.branch})`,
+      overtimeEnabled: sql<number>`sum(case when ${users.overtimeEnabled} = 1 then 1 else 0 end)`,
+    })
+    .from(users)
+    .where(eq(users.role, 'employee'));
+
+  const stats = rows[0];
+
+  return {
+    employees: toCount(stats?.employees),
+    branches: toCount(stats?.branches),
+    overtimeEnabled: toCount(stats?.overtimeEnabled),
+  };
+}
+
 export async function GET(request: NextRequest) {
   try {
     const auth = await isAdmin(request);
@@ -34,6 +110,62 @@ export async function GET(request: NextRequest) {
         { success: false, error: auth.error },
         { status: auth.status }
       );
+    }
+
+    const searchParams = request.nextUrl.searchParams;
+    const isOptionsRequest = searchParams.get('view') === 'options' || searchParams.get('options') === 'true';
+    const isPagedRequest = searchParams.has('limit') || searchParams.has('page') || searchParams.has('pageSize');
+
+    if (isOptionsRequest) {
+      const rows = await db
+        .select({
+          id: users.id,
+          email: users.email,
+          fullName: users.fullName,
+          branch: users.branch,
+          branchId: users.branchId,
+          jobTitle: users.jobTitle,
+        })
+        .from(users)
+        .where(eq(users.role, 'employee'))
+        .orderBy(desc(users.createdAt));
+
+      return NextResponse.json({
+        success: true,
+        data: rows.map(serializeEmployeeOption),
+      });
+    }
+
+    if (isPagedRequest) {
+      const pagination = normalizeEmployeeListParams(searchParams);
+      const includeStats = searchParams.get('includeStats') === 'true';
+
+      const [rows, countRows, stats] = await Promise.all([
+        db
+          .select()
+          .from(users)
+          .where(eq(users.role, 'employee'))
+          .orderBy(desc(users.createdAt))
+          .limit(pagination.pageSize)
+          .offset(pagination.offset),
+        db
+          .select({ total: sql<number>`count(*)` })
+          .from(users)
+          .where(eq(users.role, 'employee')),
+        includeStats ? getEmployeeStats() : Promise.resolve(null),
+      ]);
+
+      const total = toCount(countRows[0]?.total);
+
+      return NextResponse.json({
+        success: true,
+        data: rows.map(serializeEmployee),
+        total,
+        page: pagination.page,
+        pageSize: pagination.pageSize,
+        totalPages: Math.ceil(total / pagination.pageSize),
+        ...(stats && { stats }),
+      });
     }
 
     const rows = await db
@@ -70,6 +202,7 @@ export async function POST(request: NextRequest) {
       email,
       password,
       full_name,
+      branch_id,
       branch,
       job_title,
       shift_start,
@@ -108,6 +241,10 @@ export async function POST(request: NextRequest) {
 
     const id = randomUUID();
     const passwordHash = await hashPassword(password);
+    const branchAssignment = await resolveBranchAssignment({ branchId: branch_id, branchName: branch });
+    if (!branchAssignment.ok) {
+      return NextResponse.json({ success: false, error: branchAssignment.error }, { status: 400 });
+    }
 
     await db.insert(users).values({
       id,
@@ -115,7 +252,8 @@ export async function POST(request: NextRequest) {
       passwordHash,
       fullName: String(full_name).trim(),
       role: 'employee',
-      branch: branch ? String(branch).trim() : null,
+      branch: branchAssignment.branchName,
+      branchId: branchAssignment.branchId,
       jobTitle: job_title ? String(job_title).trim() : null,
       shiftStart: shift_start || null,
       shiftEnd: shift_end || null,

@@ -29,6 +29,13 @@
       "when": 1779229929539,
       "tag": "0003_purple_captain_america",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1779235200000,
+      "tag": "0004_branch_management",
+      "breakpoints": true
     }
   ]
 }

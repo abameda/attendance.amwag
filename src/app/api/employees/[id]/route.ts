@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { isAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
-import { attendance, sessions, users, type User } from '@/lib/db/schema';
+import { attendance, branches, sessions, users, type User } from '@/lib/db/schema';
 
 function serializeEmployee(user: User) {
   return {
@@ -12,6 +12,7 @@ function serializeEmployee(user: User) {
     full_name: user.fullName,
     role: user.role,
     branch: user.branch,
+    branch_id: user.branchId,
     job_title: user.jobTitle,
     shift_start: user.shiftStart,
     shift_end: user.shiftEnd,
@@ -21,6 +22,32 @@ function serializeEmployee(user: User) {
     created_at: user.createdAt,
     updated_at: user.updatedAt,
   };
+}
+
+async function resolveBranchAssignment(input: { branchId?: unknown; branchName?: unknown }) {
+  const branchId = typeof input.branchId === 'string' ? input.branchId.trim() : '';
+  const branchName = typeof input.branchName === 'string' ? input.branchName.trim() : '';
+
+  if (branchId) {
+    const rows = await db.select().from(branches).where(eq(branches.id, branchId)).limit(1);
+    const branch = rows[0];
+    if (!branch || !branch.isActive) {
+      return { ok: false as const, error: 'Choose an active branch' };
+    }
+    return { ok: true as const, branchId: branch.id, branchName: branch.name };
+  }
+
+  if (branchName) {
+    const rows = await db.select().from(branches).where(eq(branches.name, branchName)).limit(1);
+    const branch = rows[0];
+    return {
+      ok: true as const,
+      branchId: branch?.isActive ? branch.id : null,
+      branchName,
+    };
+  }
+
+  return { ok: true as const, branchId: null, branchName: null };
 }
 
 async function findEmployee(id: string): Promise<User | null> {
@@ -92,6 +119,7 @@ export async function PUT(
     const body = await request.json();
     const {
       full_name,
+      branch_id,
       branch,
       job_title,
       shift_start,
@@ -108,11 +136,17 @@ export async function PUT(
       );
     }
 
+    const branchAssignment = await resolveBranchAssignment({ branchId: branch_id, branchName: branch });
+    if (!branchAssignment.ok) {
+      return NextResponse.json({ success: false, error: branchAssignment.error }, { status: 400 });
+    }
+
     await db
       .update(users)
       .set({
         fullName: String(full_name).trim(),
-        branch: branch ? String(branch).trim() : null,
+        branch: branchAssignment.branchName,
+        branchId: branchAssignment.branchId,
         jobTitle: job_title ? String(job_title).trim() : null,
         shiftStart: shift_start || null,
         shiftEnd: shift_end || null,

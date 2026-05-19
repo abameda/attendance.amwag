@@ -5,6 +5,7 @@ export interface Profile {
   full_name: string;
   role: 'admin' | 'employee' | 'accountant';
   branch: string | null;
+  branch_id?: string | null;
   job_title: string | null;
   shift_start: string | null;
   shift_end: string | null;
@@ -49,6 +50,7 @@ export interface CreateEmployeeForm {
   email: string;
   password: string;
   full_name: string;
+  branch_id?: string;
   branch: string;
   job_title: string;
   shift_start: string;
@@ -59,6 +61,7 @@ export interface CreateEmployeeForm {
 
 export interface UpdateEmployeeForm {
   full_name?: string;
+  branch_id?: string;
   branch?: string;
   job_title?: string;
   shift_start?: string;
