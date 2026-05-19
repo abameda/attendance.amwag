@@ -10,6 +10,7 @@ import {
     LayoutDashboard,
     LogOut,
     Menu,
+    Network,
     Settings,
     Users,
     X,
@@ -26,6 +27,7 @@ const navItemsConfig = [
     { href: '/admin', icon: LayoutDashboard, labelKey: 'dashboard', adminOnly: true },
     { href: '/admin/employees', icon: Users, labelKey: 'employees', adminOnly: true },
     { href: '/admin/attendance', icon: ClipboardList, labelKey: 'attendanceLogs', adminOnly: false },
+    { href: '/admin/branch-ips', icon: Network, labelKey: 'branchIps', adminOnly: true },
     { href: '/admin/settings', icon: Settings, labelKey: 'settings', adminOnly: true },
 ];
 

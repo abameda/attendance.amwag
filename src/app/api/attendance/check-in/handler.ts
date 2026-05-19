@@ -8,6 +8,7 @@ import { calculateAttendanceWorkDate, calculateLateMinutes } from '@/lib/attenda
 import { db } from '@/lib/db';
 import { attendance, branchAllowedIps } from '@/lib/db/schema';
 import { getGlobalSettings } from '@/lib/globalSettings';
+import { isIpAllowedForBranch, resolveClientIp } from '@/lib/ipValidation';
 import { getEgyptNow, isWithinTimeWindow } from '@/lib/timezone';
 
 type CheckInDependencies = {
@@ -29,25 +30,36 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
         return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
       }
 
-      const currentIp =
-        request.headers.get('x-real-ip') ||
-        request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
-        'Unknown';
+      const currentIp = resolveClientIp(request.headers, {
+        trustForwardedFor: process.env.TRUST_X_FORWARDED_FOR === 'true',
+      });
 
-      const ipv4Parts = currentIp.split('.');
-      const ipNetwork = ipv4Parts.length === 4 ? ipv4Parts.slice(0, 3).join('.') : currentIp;
+      if (!user.branch) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'Your account is not assigned to a branch. Contact an administrator.',
+          },
+          { status: 403 }
+        );
+      }
 
-      const matchingBranchRows = await dependencies.db
+      const branchIpRows = await dependencies.db
         .select({
           branchName: branchAllowedIps.branchName,
+          ruleType: branchAllowedIps.ruleType,
+          ipNetwork: branchAllowedIps.ipNetwork,
+          isActive: branchAllowedIps.isActive,
         })
         .from(branchAllowedIps)
-        .where(and(eq(branchAllowedIps.ipNetwork, ipNetwork), eq(branchAllowedIps.isActive, 1)))
-        .limit(1);
+        .where(and(eq(branchAllowedIps.branchName, user.branch), eq(branchAllowedIps.isActive, 1)));
 
-      const matchingBranch = matchingBranchRows[0] ?? null;
+      const matchingBranch = isIpAllowedForBranch(
+        currentIp,
+        branchIpRows.filter((rule) => rule.branchName === user.branch)
+      );
 
-      if (!matchingBranch) {
+      if (!matchingBranch.allowed) {
         return NextResponse.json(
           {
             success: false,

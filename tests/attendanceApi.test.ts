@@ -112,7 +112,10 @@ function createQueuedDb(selectResponses: unknown[][], options: { affectedRows?: 
 
 test('POST /api/attendance/check-in records a late check-in using the mocked clock', async () => {
   await withClock('2026-07-01T06:25:00.000Z', async () => {
-    const fake = createQueuedDb([[{ branchName: 'HQ' }], []]);
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+      [],
+    ]);
     const post = createCheckInHandler({
       db: fake.db as never,
       getCurrentUser: async () => employee,
@@ -145,7 +148,7 @@ test('POST /api/attendance/check-in records a late check-in using the mocked clo
 test('POST /api/attendance/check-out records early checkout using the mocked clock', async () => {
   await withClock('2026-07-01T13:30:00.000Z', async () => {
     const fake = createQueuedDb([
-      [{ branchName: 'HQ' }],
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
       [
         {
           id: 'attendance-1',
@@ -232,7 +235,10 @@ test('finalization marks a missing checkout after the configured checkout window
 test('POST /api/attendance/check-in assigns an after-midnight overnight check-in to the previous work date', async () => {
   await withClock('2026-07-01T21:30:00.000Z', async () => {
     const overnightEmployee = { ...employee, shiftStart: '22:00', shiftEnd: '06:00' };
-    const fake = createQueuedDb([[{ branchName: 'HQ' }], []]);
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+      [],
+    ]);
     const post = createCheckInHandler({
       db: fake.db as never,
       getCurrentUser: async () => overnightEmployee,
@@ -247,6 +253,71 @@ test('POST /api/attendance/check-in assigns an after-midnight overnight check-in
     assert.equal((fake.inserts[0] as { date: Date }).date.toISOString(), '2026-07-01T00:00:00.000Z');
     assert.equal(body.data.status, 'late');
     assert.equal(body.data.late_minutes, 150);
+  });
+});
+
+test('POST /api/attendance/check-in rejects neighboring IP when branch rule is exact', async () => {
+  await withClock('2026-07-01T06:25:00.000Z', async () => {
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'exact_ip', ipNetwork: '10.0.0.45', isActive: 1 }],
+    ]);
+    const post = createCheckInHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => employee,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(
+      request('http://localhost/api/attendance/check-in', {
+        headers: { 'x-real-ip': '10.0.0.46' },
+      })
+    );
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.success, false);
+    assert.equal(fake.inserts.length, 0);
+  });
+});
+
+test('POST /api/attendance/check-in accepts client IP inside branch CIDR', async () => {
+  await withClock('2026-07-01T06:25:00.000Z', async () => {
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+      [],
+    ]);
+    const post = createCheckInHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => employee,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(request('http://localhost/api/attendance/check-in'));
+    const body = await response.json();
+
+    assert.equal(response.status, 200);
+    assert.equal(body.success, true);
+    assert.equal(body.data.check_in_location, 'HQ');
+  });
+});
+
+test('POST /api/attendance/check-in rejects matching IP rule from another branch', async () => {
+  await withClock('2026-07-01T06:25:00.000Z', async () => {
+    const fake = createQueuedDb([
+      [{ branchName: 'Other Branch', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+    ]);
+    const post = createCheckInHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => employee,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(request('http://localhost/api/attendance/check-in'));
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.success, false);
+    assert.equal(fake.inserts.length, 0);
   });
 });
 

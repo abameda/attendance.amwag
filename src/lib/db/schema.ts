@@ -87,12 +87,18 @@ export const branchAllowedIps = mysqlTable(
   {
     id: char('id', { length: 36 }).primaryKey(),
     branchName: varchar('branch_name', { length: 255 }).notNull(),
+    ruleType: mysqlEnum('rule_type', ['exact_ip', 'cidr']).notNull().default('exact_ip'),
     ipNetwork: varchar('ip_network', { length: 45 }).notNull(),
     description: text('description'),
     isActive: tinyint('is_active').notNull().default(1),
+    createdBy: char('created_by', { length: 36 }),
     createdAt: datetime('created_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
+    updatedAt: datetime('updated_at', { fsp: 3 }).notNull().default(sql`CURRENT_TIMESTAMP(3)`),
   },
   (table) => ({
+    branchIdx: index('idx_branch_allowed_ips_branch').on(table.branchName),
+    activeIdx: index('idx_branch_allowed_ips_active').on(table.isActive),
+    ruleTypeIdx: index('idx_branch_allowed_ips_rule_type').on(table.ruleType),
     networkIdx: index('idx_branch_allowed_ips_network').on(table.ipNetwork),
   })
 );
