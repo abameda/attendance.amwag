@@ -32,9 +32,11 @@ export function getEgyptTime(date: Date = new Date()): {
     hour: 'numeric',
     minute: 'numeric',
     hour12: false,
+    hourCycle: 'h23',
   }).formatToParts(date);
 
-  const hours = parseInt(parts.find((p) => p.type === 'hour')?.value ?? '0', 10);
+  const rawHours = parseInt(parts.find((p) => p.type === 'hour')?.value ?? '0', 10);
+  const hours = rawHours === 24 ? 0 : rawHours;
   const minutes = parseInt(parts.find((p) => p.type === 'minute')?.value ?? '0', 10);
 
   return { hours, minutes, totalMinutes: hours * 60 + minutes };

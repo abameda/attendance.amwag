@@ -15,6 +15,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { motion } from 'framer-motion';
 import Footer from '@/components/Footer';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
+import { selectCurrentEmployeeAttendanceRecord } from '@/lib/attendanceCalculations';
 import { formatLateness, formatOvertime, formatTimestamp, formatTime } from '@/lib/utils';
 import type { AttendanceRecord, Profile } from '@/types';
 import {
@@ -45,7 +46,7 @@ async function fetchTodayRecord() {
 
     const today = getEgyptToday();
     const records = (result.data || []) as AttendanceRecord[];
-    return records.find((record) => record.date === today) ?? null;
+    return selectCurrentEmployeeAttendanceRecord(records, today);
 }
 
 export default function EmployeePortal() {

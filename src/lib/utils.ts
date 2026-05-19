@@ -183,6 +183,7 @@ export interface AttendanceSummaryBranchMetrics {
     expectedEmployees: number;
     presentCount: number;
     lateCount: number;
+    missingCheckoutCount?: number;
 }
 
 export interface AttendanceSummaryMetrics {
@@ -206,7 +207,7 @@ export function buildDashboardSummary(metrics: AttendanceSummaryMetrics): Dashbo
         .map((branch) => ({
             name: branch.branch,
             attendanceRate: toPercent(
-                branch.presentCount + branch.lateCount,
+                branch.presentCount + branch.lateCount + (branch.missingCheckoutCount ?? 0),
                 branch.expectedEmployees
             ),
         }))

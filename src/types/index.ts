@@ -104,6 +104,29 @@ export interface DashboardSummaryTopBranch {
   attendanceRate: number;
 }
 
+export interface DashboardEmployeeAttendanceSummary {
+  user_id: string;
+  full_name: string | null;
+  branch: string;
+  expected_days: number;
+  attended_days: number;
+  present_days: number;
+  late_days: number;
+  absent_days: number;
+  missing_checkout_days: number;
+}
+
+export interface DashboardBranchAttendanceSummary {
+  branch: string;
+  expected_days: number;
+  attended_days: number;
+  present_days: number;
+  late_days: number;
+  absent_days: number;
+  missing_checkout_days: number;
+  attendance_rate: number;
+}
+
 export interface DashboardSummary {
   date: string;
   periodType?: 'day' | 'month';
@@ -115,6 +138,8 @@ export interface DashboardSummary {
   attendanceRate: number;
   departureCompletionRate: number;
   topBranch: DashboardSummaryTopBranch | null;
+  employeeSummaries?: DashboardEmployeeAttendanceSummary[];
+  branchSummaries?: DashboardBranchAttendanceSummary[];
 }
 
 export interface InternalFinalizationResult {
