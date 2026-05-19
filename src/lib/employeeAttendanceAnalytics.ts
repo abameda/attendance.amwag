@@ -444,6 +444,7 @@ function buildComparison(
     };
   }
 
+  const employeeIds = new Set(employees.map((employee) => employee.id));
   const rowKeySet = new Set(
     rows.filter((row) => row.status !== 'absent').map((row) => `${row.userId}:${toIsoDate(row.date)}`)
   );
@@ -456,9 +457,10 @@ function buildComparison(
       }).length,
     0
   );
-  const presentDays = Array.from(rowKeySet).filter((key) =>
-    employees.some((employee) => key.startsWith(`${employee.id}:`))
-  ).length;
+  const presentDays = Array.from(rowKeySet).filter((key) => {
+    const userId = key.slice(0, key.indexOf(':'));
+    return employeeIds.has(userId);
+  }).length;
 
   return {
     attendanceRate: expectedWorkingDays > 0 ? toPercent(presentDays, expectedWorkingDays) : null,

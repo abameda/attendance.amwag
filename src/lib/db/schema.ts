@@ -79,6 +79,8 @@ export const attendance = mysqlTable(
     userIdx: index('idx_attendance_user_id').on(table.userId),
     dateIdx: index('idx_attendance_date').on(table.date),
     dashIdx: index('idx_attendance_user_date_status').on(table.userId, table.date, table.status),
+    statusDateIdx: index('idx_attendance_status_date').on(table.status, table.date),
+    dateCheckInIdx: index('idx_attendance_date_check_in').on(table.date, table.checkInTime),
   })
 );
 

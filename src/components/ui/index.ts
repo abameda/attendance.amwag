@@ -13,4 +13,3 @@ export { AnimatePresence, PageReveal, StaggerGroup, StaggerItem, motion } from '
 export { PageTransition } from './PageTransition';
 export { AnimatedCounter } from './AnimatedCounter';
 export { GlowingCard } from './GlowingCard';
-export { ChartWrapper, DarkTooltip, darkChartDefaults } from './ChartWrapper';

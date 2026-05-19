@@ -224,6 +224,7 @@ export default function AdminDashboard() {
                 page: '1',
                 pageSize: '10000',
                 includeExpected: 'true',
+                export: 'true',
                 date: exportDate,
             });
             const response = await fetch(`/api/attendance?${params.toString()}`);

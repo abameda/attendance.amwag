@@ -11,6 +11,7 @@ import {
   createSystemBackup,
   deleteBackup,
   readBackupPayloadForTests,
+  type BackupRecord,
   type BackupTableExporters,
 } from '../src/lib/backups';
 import {
@@ -161,8 +162,9 @@ test('createSystemBackup writes an encrypted json.gz.enc backup when BACKUP_ENCR
     });
 
     assert.equal(payload['metadata.json'].encrypted, true);
-    assert.equal(payload.tables.sessions, undefined);
-    assert.equal(payload.tables.users[0].email, 'admin@example.com');
+    const tables = payload.tables as Record<string, Array<{ email?: string }> | undefined>;
+    assert.equal(tables.sessions, undefined);
+    assert.equal(tables.users?.[0]?.email, 'admin@example.com');
   });
 });
 
@@ -216,21 +218,30 @@ test('POST /api/admin/backups/create allows admin and passes creator id to the s
     createSystemBackup: async (options) => {
       generatedBy = options.generatedBy;
       return {
+        appName: 'Amwag Attendance System',
+        backupName: 'backup-amwag-attendance-2026-05-20-10-15-30.json.gz',
         id: 'backup-amwag-attendance-2026-05-20-10-15-30.json.gz',
         fileName: 'backup-amwag-attendance-2026-05-20-10-15-30.json.gz',
         name: 'backup-amwag-attendance-2026-05-20-10-15-30.json.gz',
+        generatedAt: '2026-05-20T10:15:30.000Z',
+        generatedBy: 'admin-1',
         createdAt: '2026-05-20T10:15:30.000Z',
         createdBy: 'admin-1',
         fileSize: 123,
         status: 'ready',
-        includedTables: ['users'],
+        includedTables: ['users', 'attendance', 'branch_allowed_ips', 'global_settings'],
         excludedTables: ['sessions'],
-        rowCounts: { users: 1 },
+        rowCounts: {
+          users: 1,
+          attendance: 0,
+          branch_allowed_ips: 0,
+          global_settings: 0,
+        },
         encrypted: false,
         checksum: 'a'.repeat(64),
         databaseType: 'mysql',
         backupVersion: 1,
-      };
+      } satisfies BackupRecord;
     },
   });
 

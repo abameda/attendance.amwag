@@ -219,6 +219,7 @@ export default function AttendanceLogsPage() {
             page: '1',
             pageSize: '50000',
             includeExpected: 'true',
+            export: 'true',
         });
 
         if (!showAllHistory) {

@@ -2,6 +2,7 @@ import { and, desc, eq, gte, isNull, like, lte, ne, or, sql, type SQL } from 'dr
 import { NextRequest, NextResponse } from 'next/server';
 
 import { isAdminOrAccountant } from '@/lib/auth';
+import { normalizeAttendancePagination } from '@/lib/attendancePagination';
 import { db } from '@/lib/db';
 import { attendance, users } from '@/lib/db/schema';
 import { getEgyptDate, isValidISODateString } from '@/lib/timezone';
@@ -235,18 +236,6 @@ async function fetchAttendanceRows(whereClause?: SQL, limit?: number, offset?: n
   return orderedQuery;
 }
 
-async function fetchAttendanceCount(whereClause?: SQL) {
-  const countQuery = db
-    .select({
-      total: sql<number>`count(*)`.mapWith(Number),
-    })
-    .from(attendance)
-    .leftJoin(users, eq(attendance.userId, users.id));
-
-  const rows = whereClause ? await countQuery.where(whereClause) : await countQuery;
-  return rows[0]?.total ?? 0;
-}
-
 async function fetchAttendanceSummary(whereClause?: SQL): Promise<AttendanceSummaryCounts> {
   const summaryQuery = db
     .select({
@@ -293,12 +282,6 @@ export async function GET(request: NextRequest) {
 
     const { searchParams } = new URL(request.url);
 
-    const parsedPage = Number.parseInt(searchParams.get('page') ?? '1', 10);
-    const parsedPageSize = Number.parseInt(searchParams.get('pageSize') ?? '10', 10);
-
-    const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
-    const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 10 : parsedPageSize;
-
     const date = searchParams.get('date')?.trim() ?? '';
     const dateFrom = searchParams.get('dateFrom')?.trim() ?? '';
     const dateTo = searchParams.get('dateTo')?.trim() ?? '';
@@ -307,6 +290,12 @@ export async function GET(request: NextRequest) {
     const employeeId = searchParams.get('employeeId')?.trim() ?? '';
     const branch = searchParams.get('branch')?.trim() ?? '';
     const includeExpected = searchParams.get('includeExpected') === 'true';
+    const exportMode = searchParams.get('export') === 'true';
+    const { page, pageSize, offset: from } = normalizeAttendancePagination({
+      page: searchParams.get('page'),
+      pageSize: searchParams.get('pageSize'),
+      exportMode,
+    });
 
     if (status && !VALID_STATUSES.includes(status as AttendanceRecord['status'])) {
       return NextResponse.json(
@@ -343,7 +332,6 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const from = (page - 1) * pageSize;
     const escapedSearch = search.replace(/[\\%_]/g, '\\$&');
     const searchPattern = search ? `%${escapedSearch}%` : '';
 
@@ -465,16 +453,15 @@ export async function GET(request: NextRequest) {
     }
 
     const whereClause = buildAttendanceWhere({ date, dateFrom, dateTo, status, searchPattern, employeeId, branch });
-    const [rows, total, summary] = await Promise.all([
+    const [rows, summary] = await Promise.all([
       fetchAttendanceRows(whereClause, pageSize, from),
-      fetchAttendanceCount(whereClause),
       fetchAttendanceSummary(whereClause),
     ]);
 
     return NextResponse.json({
       success: true,
       data: rows.map(mapAttendanceRow),
-      total,
+      total: summary.totalRecords,
       summary,
       page,
       pageSize,

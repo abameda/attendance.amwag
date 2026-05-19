@@ -34,15 +34,13 @@ import {
     Button,
     Card,
     CardContent,
-    ChartWrapper,
-    DarkTooltip,
     GlowingCard,
     Input,
     PageReveal,
     Skeleton,
-    darkChartDefaults,
     addToast,
 } from '@/components/ui';
+import { ChartWrapper, DarkTooltip, darkChartDefaults } from '@/components/ui/ChartWrapper';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
 
 type RangePreset = 'this_month' | 'last_month' | 'last_7_days' | 'last_30_days' | 'custom' | 'all';

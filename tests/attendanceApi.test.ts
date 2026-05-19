@@ -5,6 +5,7 @@ import { createCheckInHandler } from '../src/app/api/attendance/check-in/handler
 import { createCheckOutHandler } from '../src/app/api/attendance/check-out/handler';
 import { createAttendanceSummaryHandler } from '../src/app/api/attendance/summary/handler';
 import { createMarkAbsentForEndedShifts } from '../src/lib/attendanceFinalization';
+import { normalizeAttendancePagination } from '../src/lib/attendancePagination';
 
 type AttendanceRow = {
   id: string;
@@ -40,6 +41,34 @@ const settings = {
   checkout_window_minutes: 60,
   max_overtime_minutes: 180,
 };
+
+test('normalizeAttendancePagination caps normal requests and preserves explicit export requests', () => {
+  assert.deepEqual(
+    normalizeAttendancePagination({
+      page: '2',
+      pageSize: '50000',
+      exportMode: false,
+    }),
+    {
+      page: 2,
+      pageSize: 100,
+      offset: 100,
+    }
+  );
+
+  assert.deepEqual(
+    normalizeAttendancePagination({
+      page: '1',
+      pageSize: '50000',
+      exportMode: true,
+    }),
+    {
+      page: 1,
+      pageSize: 50000,
+      offset: 0,
+    }
+  );
+});
 
 function request(url: string, init?: RequestInit) {
   return new Request(url, {
