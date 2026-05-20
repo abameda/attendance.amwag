@@ -52,27 +52,28 @@ const PAGE = {
 };
 
 const COLORS = {
-  primary: "#29A0D3",
-  secondary: "#FBB03B",
-  navy: "#2c3e50",
-  text: "#2c3e50",
-  muted: "#64748b",
-  label: "#7f8c8d",
-  line: "#d8e0e8",
-  softLine: "#e7edf3",
-  headerFill: "#29A0D3",
-  rowAlt: "#fafbfc",
-  cardShadow: "#edf2f7",
-  white: "#ffffff",
-  success: "#047857",
-  successBg: "#dcfce7",
-  warning: "#b45309",
-  warningBg: "#fef3c7",
-  danger: "#b91c1c",
-  dangerBg: "#fee2e2",
-  info: "#1d4ed8",
-  infoBg: "#dbeafe",
-  neutralBg: "#f1f5f9",
+  canvas: "#f6f2e5",
+  surface: "#fbf9f1",
+  surfaceMuted: "#f2eddc",
+  primary: "#30775a",
+  primarySoft: "#d9eadf",
+  ink: "#303a31",
+  text: "#303a31",
+  muted: "#6c725f",
+  label: "#797563",
+  line: "#d9d0b8",
+  softLine: "#e8dfc8",
+  headerFill: "#f2eddc",
+  rowAlt: "#f8f4e9",
+  success: "#27724d",
+  successBg: "#dcf2e2",
+  warning: "#93681f",
+  warningBg: "#f7e7bc",
+  danger: "#a43b2f",
+  dangerBg: "#f4d9d2",
+  info: "#356f98",
+  infoBg: "#dceaf1",
+  neutralBg: "#ece6d5",
 };
 
 const FONT = {
@@ -367,6 +368,13 @@ function drawFooter(pdf: jsPDF, pageNum: number, totalPages: number, generatedAt
   text(pdf, `Page ${pageNum} of ${totalPages}`, pageW - PAGE.marginX, y, { align: "right" });
 }
 
+function drawPageBackground(pdf: jsPDF) {
+  const pageW = pdf.internal.pageSize.getWidth();
+  const pageH = pdf.internal.pageSize.getHeight();
+  setFill(pdf, COLORS.canvas);
+  pdf.rect(0, 0, pageW, pageH, "F");
+}
+
 function drawHeader(
   pdf: jsPDF,
   records: AttendanceRecord[],
@@ -375,42 +383,32 @@ function drawHeader(
   useArabic: boolean
 ) {
   const pageW = pdf.internal.pageSize.getWidth();
-  const startY = PAGE.marginTop;
   const headerX = PAGE.marginX;
-  const headerY = PAGE.marginTop + 1;
   const headerW = pageW - PAGE.marginX * 2;
-  const headerH = 24;
-  const logoX = headerX + 4;
-  const logoY = headerY + 5;
+  const logoX = headerX;
+  const logoY = PAGE.marginTop + 1;
 
-  setFill(pdf, COLORS.white);
-  pdf.rect(0, 0, pageW, 37, "F");
-  setFill(pdf, COLORS.primary);
-  pdf.rect(0, 0, pageW, 5, "F");
+  setFill(pdf, COLORS.surface);
+  setStroke(pdf, COLORS.line);
+  pdf.setLineWidth(0.2);
+  pdf.roundedRect(headerX, PAGE.marginTop, headerW, 25, 2.2, 2.2, "FD");
 
-  setFill(pdf, COLORS.cardShadow);
-  pdf.roundedRect(headerX + 0.7, headerY + 0.8, headerW, headerH, 2.5, 2.5, "F");
-  setFill(pdf, COLORS.white);
-  setStroke(pdf, COLORS.softLine);
-  pdf.setLineWidth(0.18);
-  pdf.roundedRect(headerX, headerY, headerW, headerH, 2.5, 2.5, "FD");
-
-  setFill(pdf, "#eaf7fc");
+  setFill(pdf, COLORS.primarySoft);
   setStroke(pdf, COLORS.primary);
   pdf.setLineWidth(0.25);
-  pdf.roundedRect(logoX, logoY, 14, 14, 2.2, 2.2, "FD");
+  pdf.roundedRect(logoX + 4, logoY + 4, 13, 13, 1.8, 1.8, "FD");
   setText(pdf, COLORS.primary);
-  setFont(pdf, 7.5, "bold");
-  text(pdf, "AT", logoX + 7, logoY + 8.8, { align: "center" });
+  setFont(pdf, 7.2, "bold");
+  text(pdf, "AW", logoX + 10.5, logoY + 12.2, { align: "center" });
   // Placeholder for a future base64 logo:
   // pdf.addImage(base64Logo, "PNG", logoX, logoY, 14, 14);
 
-  setText(pdf, COLORS.navy);
-  setFont(pdf, 16, "bold", useArabic);
-  text(pdf, "Amwag Travel", headerX + 22, startY + 8);
-  setFont(pdf, 10, "bold", useArabic);
+  setText(pdf, COLORS.ink);
+  setFont(pdf, 14.5, "bold", useArabic);
+  text(pdf, "Amwag Attendance", headerX + 22, PAGE.marginTop + 9);
+  setFont(pdf, 9.5, "bold", useArabic);
   setText(pdf, COLORS.primary);
-  text(pdf, resolveReportTitle(records, options), headerX + 22, startY + 14);
+  text(pdf, resolveReportTitle(records, options), headerX + 22, PAGE.marginTop + 15.2);
 
   const metaX = headerX + headerW - 4;
   const employeeLabel = resolveEmployeeLabel(records, options);
@@ -426,15 +424,19 @@ function drawHeader(
   setFont(pdf, 7.4, "normal", useArabic);
   setText(pdf, COLORS.text);
   meta.forEach((line, index) => {
-    text(pdf, line, metaX, startY + 5 + index * 4.5, { align: "right" });
+    text(pdf, line, metaX, PAGE.marginTop + 5.5 + index * 4.2, { align: "right" });
   });
+
+  setFill(pdf, COLORS.primary);
+  pdf.rect(headerX, 30, headerW, 0.6, "F");
 
   const filterParts: string[] = [];
   if (options.statusFilter) filterParts.push(`Status: ${statusLabel(options.statusFilter)}`);
   if (options.searchQuery) filterParts.push(`Search: ${options.searchQuery}`);
   if (filterParts.length) {
     setText(pdf, COLORS.label);
-    text(pdf, filterParts.join(" | "), headerX + 22, startY + 20);
+    setFont(pdf, 7.2, "normal", useArabic);
+    text(pdf, filterParts.join(" | "), headerX + 22, PAGE.marginTop + 21);
   }
 }
 
@@ -457,19 +459,14 @@ function drawSummary(pdf: jsPDF, records: AttendanceRecord[], y: number) {
 
   metrics.forEach(([label, value], index) => {
     const x = PAGE.marginX + index * (cellW + gap);
-    const accent = index % 2 === 0 ? COLORS.secondary : COLORS.primary;
-    setFill(pdf, COLORS.cardShadow);
-    pdf.roundedRect(x + 0.5, y + 0.7, cellW, cardH, 2, 2, "F");
-    setFill(pdf, COLORS.white);
-    setStroke(pdf, COLORS.softLine);
+    setFill(pdf, COLORS.surface);
+    setStroke(pdf, COLORS.line);
     pdf.setLineWidth(0.18);
     pdf.roundedRect(x, y, cellW, cardH, 2, 2, "FD");
-    setFill(pdf, accent);
-    pdf.rect(x, y + cardH - 3, cellW, 3, "F");
     setText(pdf, COLORS.label);
     setFont(pdf, 6.4, "bold");
     text(pdf, String(label).toUpperCase(), x + cellW / 2, y + 4.7, { align: "center" });
-    setText(pdf, COLORS.navy);
+    setText(pdf, index === 0 ? COLORS.ink : COLORS.primary);
     setFont(pdf, 12, "bold");
     text(pdf, String(value), x + cellW / 2, y + 11.4, { align: "center" });
   });
@@ -495,14 +492,14 @@ function rowValues(record: AttendanceRecord, index: number): Record<PdfColumn["k
 function drawTableHeader(pdf: jsPDF, y: number) {
   let x = PAGE.marginX;
   setFill(pdf, COLORS.headerFill);
-  setStroke(pdf, COLORS.headerFill);
+  setStroke(pdf, COLORS.line);
   pdf.setLineWidth(0.1);
   setFont(pdf, 6.8, "bold");
 
   for (const column of COLUMNS) {
     setFill(pdf, COLORS.headerFill);
     pdf.rect(x, y, column.width, 8, "FD");
-    setText(pdf, COLORS.white);
+    setText(pdf, COLORS.ink);
     text(pdf, column.header.toUpperCase(), x + column.width / 2, y + 5.2, { align: "center" });
     x += column.width;
   }
@@ -517,7 +514,7 @@ function drawRow(
   useArabic: boolean
 ) {
   let x = PAGE.marginX;
-  setFill(pdf, rowIndex % 2 === 0 ? COLORS.white : COLORS.rowAlt);
+  setFill(pdf, rowIndex % 2 === 0 ? COLORS.surface : COLORS.rowAlt);
   pdf.rect(PAGE.marginX, y, COLUMNS.reduce((sum, column) => sum + column.width, 0), rowH, "F");
 
   for (const column of COLUMNS) {
@@ -587,6 +584,7 @@ function addReportPage(
   isFirstPage: boolean
 ) {
   if (!isFirstPage) pdf.addPage();
+  drawPageBackground(pdf);
   drawHeader(pdf, records, options, generatedAt, useArabic);
   if (isFirstPage) {
     drawSummary(pdf, records, 39);

@@ -116,6 +116,76 @@
   letter-spacing: 0;
 }
 
+.admin-ledger-surface {
+  --bg-primary: oklch(96.2% 0.018 88);
+  --bg-secondary: oklch(93.4% 0.023 88);
+  --bg-tertiary: oklch(94.8% 0.018 88);
+  --bg-elevated: oklch(98.5% 0.012 88);
+  --surface: oklch(98.5% 0.012 88);
+  --surface-hover: oklch(94.8% 0.018 88);
+  --surface-strong: oklch(94.8% 0.018 88);
+  --surface-elevated: oklch(98.5% 0.012 88);
+  --surface-muted: oklch(94.8% 0.018 88);
+  --line: oklch(84% 0.022 88);
+  --line-strong: oklch(74% 0.028 88);
+  --line-active: oklch(42% 0.075 165 / 0.3);
+  --foreground: oklch(24.5% 0.018 125);
+  --foreground-soft: oklch(36% 0.018 125);
+  --muted: oklch(49% 0.018 125);
+  --muted-strong: oklch(42% 0.018 125);
+  --accent: oklch(42% 0.075 165);
+  --accent-strong: oklch(35% 0.08 165);
+  --accent-soft: oklch(89% 0.045 165);
+  --accent-glow: oklch(89% 0.045 165);
+  --secondary: oklch(49% 0.075 230);
+  --secondary-soft: oklch(91% 0.045 230);
+  --info: oklch(49% 0.075 230);
+  --info-soft: oklch(91% 0.045 230);
+  --success: oklch(45% 0.09 150);
+  --success-soft: oklch(91% 0.048 150);
+  --warning: oklch(58% 0.105 75);
+  --warning-soft: oklch(90% 0.056 75);
+  --danger: oklch(50% 0.13 28);
+  --danger-soft: oklch(91% 0.05 28);
+  --shadow-sm: 0 1px 2px oklch(24.5% 0.018 125 / 0.08);
+  --shadow-md: 0 12px 28px oklch(24.5% 0.018 125 / 0.14);
+  --shadow-lg: 0 20px 44px oklch(24.5% 0.018 125 / 0.18);
+  --shadow-glow-blue: 0 1px 2px oklch(24.5% 0.018 125 / 0.08);
+  --shadow-glow-violet: 0 1px 2px oklch(24.5% 0.018 125 / 0.08);
+  --footer-muted: var(--muted);
+  --footer-strong: var(--foreground-soft);
+  --footer-accent: var(--accent);
+  --toast-surface: var(--surface-elevated);
+  --toast-foreground: var(--foreground);
+  --toast-muted: var(--muted);
+  --toast-line: var(--line);
+  --toast-hover: var(--surface-muted);
+  --toast-shadow: var(--shadow-md);
+  --toast-accent: var(--accent);
+  --toast-success: var(--success);
+  --toast-warning: var(--warning);
+  --toast-danger: var(--danger);
+  --skeleton-bg: oklch(89% 0.02 88);
+  background:
+    linear-gradient(180deg, var(--bg-primary), var(--bg-secondary));
+  color: var(--foreground);
+  color-scheme: light;
+}
+
+.admin-ledger-surface * {
+  letter-spacing: 0;
+}
+
+.admin-ledger-surface .focus-ring:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--accent),
+    0 0 0 4px var(--surface);
+}
+
+.admin-ledger-surface .custom-scrollbar {
+  scrollbar-color: var(--line-strong) transparent;
+}
+
 @theme inline {
   --color-background: var(--bg-primary);
   --color-background-strong: var(--bg-secondary);
@@ -414,6 +484,17 @@ html[dir="rtl"] .switch-thumb-on {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.15) transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 /* ─── Focus Ring ─── */

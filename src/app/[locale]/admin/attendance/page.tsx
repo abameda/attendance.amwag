@@ -12,7 +12,7 @@ import {
     Search,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { Badge, Button, Card, CardContent, GlowingCard, AnimatedCounter, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
+import { Badge, Button, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
 import { exportAttendancePremiumPDF } from '@/lib/pdfExport';
 import type { AttendanceRecord } from '@/types';
@@ -88,6 +88,7 @@ export default function AttendanceLogsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [showAllHistory, setShowAllHistory] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isExporting, setIsExporting] = useState(false);
 
     const selectedEmployee = useMemo(
         () => employees.find((employee) => employee.id === employeeFilter),
@@ -209,14 +210,20 @@ export default function AttendanceLogsPage() {
             ? `${dateFrom} - ${dateTo}`
             : dateFrom || dateTo || todayIsoDate();
     const summaryCards = [
-        { label: t('records'), value: summary.totalRecords },
-        { label: t('present'), value: summary.present },
-        { label: t('absent'), value: summary.absent },
-        { label: t('late'), value: summary.late },
-        { label: t('earlyLeave'), value: summary.earlyLeave },
-        { label: t('missingCheckout'), value: summary.missingCheckout },
-        { label: t('overtime'), value: summary.overtime },
+        { label: t('records'), value: summary.totalRecords, tone: 'text-[var(--foreground)]' },
+        { label: t('present'), value: summary.present, tone: 'text-[var(--success)]' },
+        { label: t('absent'), value: summary.absent, tone: 'text-[var(--danger)]' },
+        { label: t('late'), value: summary.late, tone: 'text-[var(--warning)]' },
+        { label: t('earlyLeave'), value: summary.earlyLeave, tone: 'text-[var(--danger)]' },
+        { label: t('missingCheckout'), value: summary.missingCheckout, tone: 'text-[var(--warning)]' },
+        { label: t('overtime'), value: summary.overtime, tone: 'text-[var(--info)]' },
     ];
+
+    function statusText(status: AttendanceRecord['status']) {
+        if (status === 'missing_checkout') return t('missingCheckout');
+        if (status === 'pending') return t('pending');
+        return t(status);
+    }
 
     async function fetchAllFilteredRecords() {
         const params = new URLSearchParams({
@@ -253,6 +260,7 @@ export default function AttendanceLogsPage() {
     }
 
     async function handleExportPDF() {
+        setIsExporting(true);
         try {
             const allFilteredRecords = await fetchAllFilteredRecords();
             let generatedBy: string | undefined;
@@ -285,60 +293,63 @@ export default function AttendanceLogsPage() {
                 error instanceof Error ? error.message : t('exportError'),
                 'error'
             );
+        } finally {
+            setIsExporting(false);
         }
     }
 
     return (
-        <div className="space-y-6">
-            <PageReveal className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <GlowingCard>
-                    <div className="space-y-6 p-6 sm:p-8">
-                        <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('title')}</p>
-                            <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
-                                {t('heroTitle')}
-                            </h1>
-                            <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                                {t('heroDescription')}
-                            </p>
+        <div className="space-y-5">
+            <PageReveal className="rounded-lg border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+                <div className="grid gap-5 p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
+                    <div className="min-w-0 space-y-4">
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t('title')}</p>
+                                <h1 className="mt-1 text-2xl font-bold leading-tight text-[var(--foreground)] sm:text-3xl">
+                                    {t('heroTitle')}
+                                </h1>
+                                <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
+                                    {t('heroDescription')}
+                                </p>
+                            </div>
+                            <div className="shrink-0 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2">
+                                <p className="text-xs font-semibold uppercase text-[var(--muted)]">{t('dateRange')}</p>
+                                <p className="mt-1 max-w-64 truncate text-sm font-semibold text-[var(--foreground)]">{activeDateLabel}</p>
+                            </div>
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <div className="flex flex-wrap gap-2">
                             {summaryCards.map((item) => (
-                                <div key={item.label} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                    <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.18em]">{item.label}</p>
-                                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
-                                        <AnimatedCounter value={isLoading ? 0 : item.value} />
+                                <div key={item.label} className="min-w-32 flex-1 rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-3">
+                                    <p className="truncate text-xs font-semibold uppercase text-[var(--muted)]">{item.label}</p>
+                                    <p className={`mt-2 text-xl font-semibold ${item.tone}`}>
+                                        {isLoading ? '-' : item.value}
                                     </p>
                                 </div>
                             ))}
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.18em]">{t('dateRange')}</p>
-                                <p className="mt-3 truncate text-base font-semibold text-[var(--foreground)]">{activeDateLabel}</p>
-                            </div>
                         </div>
                     </div>
-                </GlowingCard>
 
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-3 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('exports')}</p>
+                    <div className="rounded-md border border-[var(--line)] bg-[var(--surface-muted)] p-3 xl:w-56">
+                        <p className="text-xs font-semibold uppercase text-[var(--muted)]">{t('exports')}</p>
                         <Button
                             size="sm"
-                            onClick={() => handleExportPDF()}
-                            disabled={isLoading}
-                            className="justify-between"
+                            onClick={() => void handleExportPDF()}
+                            disabled={isLoading || isExporting}
+                            isLoading={isExporting}
+                            className="attendance-export-action mt-3 w-full justify-between rounded-md shadow-none hover:translate-y-0 hover:shadow-none"
                         >
                             <span>{t('exportPDF')}</span>
                             <FileText className="h-4 w-4" />
                         </Button>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </PageReveal>
 
             <PageReveal delay={0.08}>
-                <Card className="rounded-2xl">
-                    <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto_auto] xl:p-5">
+                <div className="attendance-filter-band rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]">
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto_auto]">
                         <div className="relative min-w-0">
                             <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                             <Input
@@ -348,7 +359,7 @@ export default function AttendanceLogsPage() {
                                     setSearchQuery(event.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="ps-11"
+                                className="rounded-md ps-11"
                             />
                         </div>
 
@@ -358,7 +369,7 @@ export default function AttendanceLogsPage() {
                                 setEmployeeFilter(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]"
+                            className="focus-ring min-h-10 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allEmployees')}</option>
                             {employees.map((employee) => (
@@ -375,7 +386,7 @@ export default function AttendanceLogsPage() {
                                 setBranchFilter(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]"
+                            className="focus-ring min-h-10 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allBranches')}</option>
                             {branchOptions.map((branch) => (
@@ -396,7 +407,7 @@ export default function AttendanceLogsPage() {
                                     setCurrentPage(1);
                                 }}
                                 aria-label={t('dateFrom')}
-                                className="ps-11"
+                                className="rounded-md ps-11"
                             />
                         </div>
 
@@ -411,7 +422,7 @@ export default function AttendanceLogsPage() {
                                     setCurrentPage(1);
                                 }}
                                 aria-label={t('dateTo')}
-                                className="ps-11"
+                                className="rounded-md ps-11"
                             />
                         </div>
 
@@ -422,7 +433,7 @@ export default function AttendanceLogsPage() {
                                 setShowAllHistory((currentValue) => !currentValue);
                                 setCurrentPage(1);
                             }}
-                            className="w-full xl:w-auto"
+                            className="w-full rounded-md shadow-none hover:translate-y-0 hover:shadow-none xl:w-auto"
                         >
                             {t('allHistory')}
                         </Button>
@@ -430,7 +441,7 @@ export default function AttendanceLogsPage() {
                         <select
                             value={statusFilter}
                             onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }}
-                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] xl:w-44"
+                            className="focus-ring min-h-10 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] xl:w-44"
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allStatus')}</option>
                             <option value="present" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('present')}</option>
@@ -453,7 +464,7 @@ export default function AttendanceLogsPage() {
                                 setShowAllHistory(false);
                                 setCurrentPage(1);
                             }}
-                            className="w-full xl:w-auto"
+                            className="w-full rounded-md shadow-none hover:translate-y-0 hover:shadow-none xl:w-auto"
                         >
                             <RotateCcw className="h-4 w-4" />
                             <span className="xl:hidden 2xl:inline">{t('resetFilters')}</span>
@@ -466,20 +477,20 @@ export default function AttendanceLogsPage() {
                                 setRefreshKey((value) => value + 1);
                                 setCurrentPage(1);
                             }}
-                            className="w-full xl:w-auto"
+                            className="w-full rounded-md shadow-none hover:translate-y-0 hover:shadow-none xl:w-auto"
                         >
                             <RefreshCw className="h-4 w-4" />
                         </Button>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </PageReveal>
 
-            <Card className="rounded-2xl">
+            <section className="attendance-records-table overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
                     <div className="md:hidden">
                         {isLoading ? (
                             <div className="space-y-3 p-3">
                                 {Array.from({ length: 4 }).map((_, index) => (
-                                    <div key={index} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                    <div key={index} className="rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] p-4">
                                         <Skeleton className="h-5 w-40" />
                                         <Skeleton className="mt-2 h-4 w-24" />
                                         <div className="mt-4 grid grid-cols-2 gap-2">
@@ -497,10 +508,10 @@ export default function AttendanceLogsPage() {
                         ) : (
                             <div className="space-y-3 p-3">
                                 {records.map((record) => (
-                                    <div key={record.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                    <article key={record.id} className="rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] p-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex min-w-0 items-center gap-3">
-                                                <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] bg-[var(--surface-strong)] font-semibold text-[var(--foreground-soft)]">
+                                                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[var(--surface-muted)] font-semibold text-[var(--foreground-soft)]">
                                                     {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                 </div>
                                                 <div className="min-w-0">
@@ -513,53 +524,29 @@ export default function AttendanceLogsPage() {
                                                 </div>
                                             </div>
                                             <Badge variant={record.status}>
-                                                {record.status === 'missing_checkout'
-                                                    ? t('missingCheckout')
-                                                    : record.status === 'pending'
-                                                        ? t('pending')
-                                                        : t(record.status)}
+                                                {statusText(record.status)}
                                             </Badge>
                                         </div>
 
-                                        <div className="mt-4 grid grid-cols-2 gap-2">
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('branch')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]" dir="auto">{record.profiles?.branch || '-'}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('date')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatDate(record.date)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('shift')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatShift(record)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('checkIn')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_in_time)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('checkOut')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_out_time)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('lateness')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatLateness(record.late_minutes)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('earlyLeave')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatEarlyDeparture(record.early_departure_minutes || 0)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('overtime')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatOvertime(record.overtime_minutes || 0)}</p>
-                                            </div>
-                                            <div className="col-span-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('location')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]" dir="auto">{formatLocation(record)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--line)] pt-4 text-sm">
+                                            {[
+                                                [t('branch'), record.profiles?.branch || '-', 'auto'],
+                                                [t('date'), formatDate(record.date)],
+                                                [t('shift'), formatShift(record)],
+                                                [t('checkIn'), formatTimestamp(record.check_in_time)],
+                                                [t('checkOut'), formatTimestamp(record.check_out_time)],
+                                                [t('lateness'), formatLateness(record.late_minutes)],
+                                                [t('earlyLeave'), formatEarlyDeparture(record.early_departure_minutes || 0)],
+                                                [t('overtime'), formatOvertime(record.overtime_minutes || 0)],
+                                                [t('location'), formatLocation(record), 'auto'],
+                                            ].map(([label, value, dir]) => (
+                                                <div key={String(label)} className={label === t('location') ? 'col-span-2' : ''}>
+                                                    <dt className="text-xs font-semibold uppercase text-[var(--muted)]">{label}</dt>
+                                                    <dd className="mt-1 text-[var(--foreground-soft)]" dir={dir || undefined}>{value}</dd>
+                                                </div>
+                                            ))}
+                                        </dl>
+                                    </article>
                                 ))}
                             </div>
                         )}
@@ -568,7 +555,7 @@ export default function AttendanceLogsPage() {
                     <div className="custom-scrollbar hidden overflow-x-auto md:block">
                         <table className="w-full min-w-[1200px]">
                             <thead>
-                                <tr className="border-b border-[var(--line)] bg-[var(--surface)]">
+                                <tr className="border-b border-[var(--line)] bg-[var(--surface-muted)]">
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('employee')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('branch')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('date')}</th>
@@ -606,7 +593,7 @@ export default function AttendanceLogsPage() {
                                         <tr key={record.id} className="border-b border-[var(--line)] hover:bg-[var(--surface-hover)]">
                                             <td className="px-4 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-[1rem] bg-[var(--surface-strong)] font-semibold text-[var(--foreground-soft)]">
+                                                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[var(--surface-muted)] font-semibold text-[var(--foreground-soft)]">
                                                         {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                     </div>
                                                     <div>
@@ -625,11 +612,7 @@ export default function AttendanceLogsPage() {
                                             <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatOvertime(record.overtime_minutes || 0)}</td>
                                             <td className="px-4 py-4">
                                                 <Badge variant={record.status}>
-                                                    {record.status === 'missing_checkout'
-                                                        ? t('missingCheckout')
-                                                        : record.status === 'pending'
-                                                            ? t('pending')
-                                                    : t(record.status)}
+                                                    {statusText(record.status)}
                                                 </Badge>
                                             </td>
                                             <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]" dir="auto">{formatLocation(record)}</td>
@@ -665,6 +648,7 @@ export default function AttendanceLogsPage() {
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
+                                    className="rounded-md shadow-none hover:translate-y-0 hover:shadow-none"
                                 >
                                     <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
                                 </Button>
@@ -673,13 +657,14 @@ export default function AttendanceLogsPage() {
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                     disabled={currentPage === totalPages}
+                                    className="rounded-md shadow-none hover:translate-y-0 hover:shadow-none"
                                 >
                                     <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                                 </Button>
                             </div>
                         </div>
                     )}
-            </Card>
+            </section>
         </div>
     );
 }

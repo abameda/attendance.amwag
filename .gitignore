@@ -30,6 +30,8 @@ __pycache__/
 # local agent/spec workflow files
 /.agent/
 /.specify/
+/.superpowers/
+/.impeccable/live/
 /.codex/skills/ui-ux-pro-max/
 /docs/
 /ATTENDANCE-SCENARIOS 2.md

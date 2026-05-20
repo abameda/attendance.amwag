@@ -1,114 +1,83 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
     AlarmClock,
     ArrowRight,
+    AlertCircle,
     Building2,
-    Calendar,
+    CalendarDays,
     CheckCircle2,
     ClipboardList,
-    Clock3,
     Download,
     FileText,
     Hourglass,
     Network,
+    RefreshCw,
     ShieldAlert,
     TimerOff,
-    TrendingUp,
     TriangleAlert,
     UserCheck,
     UserCog,
     UserX,
     Users,
+    type LucideIcon,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { motion, useSpring, useMotionValue, useInView } from 'framer-motion';
+
+import { Badge, Card, CardContent, Input, Skeleton, addToast } from '@/components/ui';
 import {
-    AnimatedCounter,
-    Badge,
-    Card,
-    CardContent,
-    GlowingCard,
-    Input,
-    PageReveal,
-    Skeleton,
-    StaggerGroup,
-    StaggerItem,
-    addToast,
-} from '@/components/ui';
+    buildBranchHealthRows,
+    buildDashboardOperations,
+    buildExceptionGroups,
+    normalizeDashboardPeriod,
+    type BranchHealthStatus,
+    type DashboardExceptionKey,
+} from '@/lib/adminDashboardOperations';
 import { exportAttendancePremiumPDF } from '@/lib/pdfExport';
 import { getEgyptDate, getEgyptMonth } from '@/lib/timezone';
 import type { AttendanceRecord, DashboardSummary } from '@/types';
 
 type KpiCard = {
     label: string;
-    value: number;
-    suffix?: string;
-    icon: typeof Users;
-    tone: string;
-    helper?: string;
+    value: string;
+    meta?: string;
+    icon: LucideIcon;
+    tone: 'neutral' | 'success' | 'warning' | 'danger' | 'info';
 };
 
-function AttendanceGauge({ value, label }: { value: number; label: string }) {
-    const radius = 78;
-    const cx = 110;
-    const cy = 100;
-    const circumference = Math.PI * radius;
-    const containerRef = useRef<HTMLDivElement>(null);
-    const isInView = useInView(containerRef, { once: true });
-    const motionOffset = useMotionValue(circumference);
-    const springOffset = useSpring(motionOffset, { stiffness: 40, damping: 20 });
+const exceptionIcon: Record<DashboardExceptionKey, LucideIcon> = {
+    absent: UserX,
+    late: AlarmClock,
+    missing_checkout: TriangleAlert,
+    early_leave: TimerOff,
+};
 
-    useEffect(() => {
-        if (isInView) {
-            motionOffset.set(circumference * (1 - value / 100));
-        }
-    }, [isInView, value, circumference, motionOffset]);
+const exceptionTone: Record<DashboardExceptionKey, 'warning' | 'danger'> = {
+    absent: 'danger',
+    late: 'warning',
+    missing_checkout: 'warning',
+    early_leave: 'danger',
+};
 
-    const gradId = `gauge-${label.replace(/\s+/g, '-')}`;
+function toneClass(tone: KpiCard['tone']) {
+    if (tone === 'success') return 'bg-[var(--success-soft)] text-[var(--success)]';
+    if (tone === 'warning') return 'bg-[var(--warning-soft)] text-[var(--warning)]';
+    if (tone === 'danger') return 'bg-[var(--danger-soft)] text-[var(--danger)]';
+    if (tone === 'info') return 'bg-[var(--info-soft)] text-[var(--info)]';
+    return 'bg-[var(--surface-muted)] text-[var(--foreground-soft)]';
+}
 
-    return (
-        <div ref={containerRef} className="flex flex-col items-center">
-            <svg width="220" height="120" viewBox="0 0 220 110" aria-hidden="true">
-                <defs>
-                    <linearGradient id={gradId} x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#EF4444" />
-                        <stop offset="50%" stopColor="#F59E0B" />
-                        <stop offset="100%" stopColor="#10B981" />
-                    </linearGradient>
-                </defs>
-                <path
-                    d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
-                    fill="none"
-                    stroke="rgba(255,255,255,0.06)"
-                    strokeWidth="10"
-                    strokeLinecap="round"
-                />
-                <motion.path
-                    d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
-                    fill="none"
-                    stroke={`url(#${gradId})`}
-                    strokeWidth="10"
-                    strokeLinecap="round"
-                    strokeDasharray={circumference}
-                    style={{ strokeDashoffset: springOffset }}
-                />
-                <text x={cx} y={cy - 18} textAnchor="middle" fill="var(--foreground)" fontSize="24" fontWeight="700">
-                    {value}%
-                </text>
-                <text x={cx} y={cy - 2} textAnchor="middle" fill="var(--muted)" fontSize="10">
-                    {label}
-                </text>
-            </svg>
-        </div>
-    );
+function healthBadge(status: BranchHealthStatus) {
+    if (status === 'needs_attention') return 'absent';
+    if (status === 'watch') return 'late';
+    return 'present';
 }
 
 function EmptyState({ children }: { children: string }) {
     return (
-        <div className="rounded-xl border border-dashed border-[var(--line-strong)] bg-[var(--surface)] p-5 text-sm leading-6 text-[var(--muted)]">
+        <div className="rounded-lg border border-dashed border-[var(--line-strong)] bg-[var(--surface-muted)] px-4 py-5 text-sm leading-6 text-[var(--muted)]">
             {children}
         </div>
     );
@@ -123,23 +92,26 @@ export default function AdminDashboard() {
     const [summary, setSummary] = useState<DashboardSummary | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [isExporting, setIsExporting] = useState(false);
-    const activePeriod = selectedDate || selectedMonth;
-    const isDayView = Boolean(selectedDate);
+    const [loadError, setLoadError] = useState<string | null>(null);
+    const [retryNonce, setRetryNonce] = useState(0);
+    const period = useMemo(
+        () => normalizeDashboardPeriod({ selectedDate, selectedMonth, fallbackDate: today }),
+        [selectedDate, selectedMonth, today]
+    );
+    const isDayView = period.isDayView;
+    const resolvedLocale = locale === 'ar' ? 'ar-EG' : 'en-US';
+    const numberFormatter = useMemo(() => new Intl.NumberFormat(resolvedLocale), [resolvedLocale]);
+    const formatCount = (value: number) => numberFormatter.format(value);
+    const formatPercent = (value: number) => `${numberFormatter.format(value)}%`;
 
     useEffect(() => {
-        const params = new URLSearchParams();
-        if (selectedDate) {
-            params.set('date', selectedDate);
-        } else {
-            params.set('month', selectedMonth);
-        }
-
         const controller = new AbortController();
         setIsLoading(true);
+        setLoadError(null);
 
         void (async () => {
             try {
-                const response = await fetch(`/api/attendance/summary?${params.toString()}`, {
+                const response = await fetch(`/api/attendance/summary?${period.queryString}`, {
                     signal: controller.signal,
                 });
                 const result: {
@@ -160,6 +132,7 @@ export default function AdminDashboard() {
 
                 console.error('Dashboard summary error:', error);
                 setSummary(null);
+                setLoadError(t('loadErrorDetail'));
                 addToast(t('loadError'), 'error');
             } finally {
                 if (!controller.signal.aborted) {
@@ -169,54 +142,96 @@ export default function AdminDashboard() {
         })();
 
         return () => controller.abort();
-    }, [activePeriod, selectedDate, selectedMonth, t]);
+    }, [period.queryString, retryNonce, t]);
 
-    const formattedSelectedDate = selectedDate
-        ? new Date(`${selectedDate}T12:00:00Z`).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
+    const operations = useMemo(
+        () =>
+            summary
+                ? buildDashboardOperations(summary)
+                : { checkedInCount: 0, expectedEmployees: 0, attendanceRate: 0, needsActionCount: 0 },
+        [summary]
+    );
+    const exceptionGroups = useMemo(() => (summary ? buildExceptionGroups(summary) : []), [summary]);
+    const branchHealthRows = useMemo(() => (summary ? buildBranchHealthRows(summary) : []), [summary]);
+
+    const formattedSelectedDate = period.selectedDate
+        ? new Date(`${period.selectedDate}T12:00:00Z`).toLocaleDateString(resolvedLocale, {
               weekday: 'long',
               year: 'numeric',
               month: 'long',
               day: 'numeric',
           })
-        : new Date(`${selectedMonth}-01T12:00:00Z`).toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
+        : new Date(`${period.selectedMonth}-01T12:00:00Z`).toLocaleDateString(resolvedLocale, {
               year: 'numeric',
               month: 'long',
           });
 
-    const presentTotal = (summary?.presentCount ?? 0) + (summary?.lateCount ?? 0) + (summary?.missingCheckoutCount ?? 0);
-    const lowAttendanceBranches = useMemo(
-        () =>
-            (summary?.branchSummaries ?? [])
-                .filter((branch) => branch.expected_days > 0 && branch.attendance_rate < 80)
-                .sort((left, right) => left.attendance_rate - right.attendance_rate)
-                .slice(0, 3),
-        [summary?.branchSummaries]
-    );
-
-    const employeeNames = useMemo(() => {
-        const employees = summary?.employeeSummaries ?? [];
-        return {
-            late: employees.filter((employee) => employee.late_days > 0).map((employee) => employee.full_name || employee.user_id),
-            missing: employees.filter((employee) => employee.missing_checkout_days > 0).map((employee) => employee.full_name || employee.user_id),
-            early: employees.filter((employee) => (employee.early_leave_days ?? 0) > 0).map((employee) => employee.full_name || employee.user_id),
-        };
-    }, [summary?.employeeSummaries]);
-
     const kpis: KpiCard[] = [
-        { label: t('expectedEmployees'), value: summary?.expectedEmployees ?? 0, icon: Users, tone: 'bg-[var(--accent-soft)] text-[var(--accent)]' },
-        { label: t('presentCount'), value: presentTotal, icon: UserCheck, tone: 'bg-[var(--success-soft)] text-[var(--success)]', helper: t('presentHelper') },
-        { label: t('absentCount'), value: summary?.absentCount ?? 0, icon: UserX, tone: 'bg-[var(--danger-soft)] text-[var(--danger)]' },
-        { label: t('onTimeCount'), value: summary?.onTimeCount ?? summary?.presentCount ?? 0, icon: CheckCircle2, tone: 'bg-[var(--success-soft)] text-[var(--success)]' },
-        { label: t('lateCount'), value: summary?.lateCount ?? 0, icon: AlarmClock, tone: 'bg-[var(--warning-soft)] text-[var(--warning)]' },
-        { label: t('earlyLeaveCount'), value: summary?.earlyLeaveCount ?? 0, icon: TimerOff, tone: 'bg-[var(--danger-soft)] text-[var(--danger)]' },
-        { label: t('missingCheckoutCount'), value: summary?.missingCheckoutCount ?? 0, icon: TriangleAlert, tone: 'bg-[var(--warning-soft)] text-[var(--warning)]' },
-        { label: t('overtimeCount'), value: summary?.overtimeCount ?? 0, icon: Hourglass, tone: 'bg-[var(--secondary-soft)] text-[var(--secondary)]' },
-        { label: t('attendanceRate'), value: summary?.attendanceRate ?? 0, suffix: '%', icon: TrendingUp, tone: 'bg-[var(--accent-soft)] text-[var(--accent)]' },
-        { label: t('departureCompletionRate'), value: summary?.departureCompletionRate ?? 0, suffix: '%', icon: Clock3, tone: 'bg-[var(--success-soft)] text-[var(--success)]' },
+        {
+            label: t('expectedEmployees'),
+            value: formatCount(summary?.expectedEmployees ?? 0),
+            icon: Users,
+            tone: 'neutral',
+        },
+        {
+            label: t('presentCount'),
+            value: formatCount(operations.checkedInCount),
+            meta: t('rawAttendance', {
+                present: formatCount(operations.checkedInCount),
+                expected: formatCount(operations.expectedEmployees),
+            }),
+            icon: UserCheck,
+            tone: 'success',
+        },
+        {
+            label: t('absentCount'),
+            value: formatCount(summary?.absentCount ?? 0),
+            icon: UserX,
+            tone: 'danger',
+        },
+        {
+            label: t('lateCount'),
+            value: formatCount(summary?.lateCount ?? 0),
+            icon: AlarmClock,
+            tone: 'warning',
+        },
+        {
+            label: t('earlyLeaveCount'),
+            value: formatCount(summary?.earlyLeaveCount ?? 0),
+            icon: TimerOff,
+            tone: 'danger',
+        },
+        {
+            label: t('missingCheckoutCount'),
+            value: formatCount(summary?.missingCheckoutCount ?? 0),
+            icon: TriangleAlert,
+            tone: 'warning',
+        },
+        {
+            label: t('overtimeCount'),
+            value: formatCount(summary?.overtimeCount ?? 0),
+            icon: Hourglass,
+            tone: 'info',
+        },
+        {
+            label: t('attendanceRate'),
+            value: formatPercent(operations.attendanceRate),
+            meta: t('rawAttendance', {
+                present: formatCount(operations.checkedInCount),
+                expected: formatCount(operations.expectedEmployees),
+            }),
+            icon: CheckCircle2,
+            tone: operations.attendanceRate >= 95 ? 'success' : operations.attendanceRate >= 80 ? 'warning' : 'danger',
+        },
     ];
 
     async function handleExportTodayReport() {
-        const exportDate = selectedDate || today;
+        if (!period.selectedDate) {
+            addToast(t('selectDateToExport'), 'warning');
+            return;
+        }
+
+        const exportDate = period.selectedDate;
         setIsExporting(true);
 
         try {
@@ -252,420 +267,385 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="space-y-6">
-            <PageReveal className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-                <GlowingCard halo>
-                    <div className="space-y-6 p-6 sm:p-8">
-                        <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('title')}</p>
-                            <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
-                                {t('heroTitle')}
-                            </h1>
-                            <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                                {t('heroDescription')}
-                            </p>
-                        </div>
+        <div className="space-y-5">
+            <section className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-4 shadow-[var(--shadow-sm)] sm:px-5">
+                <div className="flex flex-col gap-4 2xl:flex-row 2xl:items-end 2xl:justify-between">
+                    <div className="min-w-0 space-y-2">
+                        <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">
+                            {t('operationsLabel')}
+                        </p>
+                        <h1 className="text-2xl font-bold leading-tight text-[var(--foreground)] sm:text-3xl">
+                            {isDayView ? t('todayOperationsTitle') : t('monthlyReportTitle')}
+                        </h1>
+                        <p className="max-w-3xl text-sm leading-6 text-[var(--muted)]">
+                            {t('operationsDescription')}
+                        </p>
+                    </div>
 
-                        <div className="grid gap-4 md:grid-cols-3">
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('attendanceRate')}</p>
-                                {isLoading ? (
-                                    <Skeleton className="mt-3 h-8 w-20" />
-                                ) : (
-                                    <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                        <AnimatedCounter value={summary?.attendanceRate ?? 0} suffix="%" />
-                                    </p>
-                                )}
-                            </div>
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('needsAction')}</p>
-                                {isLoading ? (
-                                    <Skeleton className="mt-3 h-8 w-20" />
-                                ) : (
-                                    <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                        <AnimatedCounter
-                                            value={
-                                                (summary?.lateCount ?? 0) +
-                                                (summary?.missingCheckoutCount ?? 0) +
-                                                (summary?.earlyLeaveCount ?? 0) +
-                                                lowAttendanceBranches.length
-                                            }
-                                        />
-                                    </p>
-                                )}
-                            </div>
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('departureCompletionRate')}</p>
-                                {isLoading ? (
-                                    <Skeleton className="mt-3 h-8 w-20" />
-                                ) : (
-                                    <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                        <AnimatedCounter value={summary?.departureCompletionRate ?? 0} suffix="%" />
-                                    </p>
-                                )}
-                            </div>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_auto_auto] 2xl:min-w-[42rem]">
+                        <Input
+                            id="dashboard-selected-date"
+                            label={t('selectedDate')}
+                            type="date"
+                            value={selectedDate}
+                            onChange={(event) => {
+                                const nextDate = event.target.value;
+                                setSelectedDate(nextDate);
+                                if (nextDate) {
+                                    setSelectedMonth(nextDate.slice(0, 7));
+                                } else if (!selectedMonth) {
+                                    setSelectedMonth(today.slice(0, 7));
+                                }
+                            }}
+                            className="h-10 rounded-md bg-[var(--surface)] py-2"
+                        />
+                        <Input
+                            id="dashboard-selected-month"
+                            label={t('selectedMonth')}
+                            type="month"
+                            value={period.selectedMonth}
+                            onChange={(event) => {
+                                setSelectedMonth(event.target.value || today.slice(0, 7));
+                                setSelectedDate('');
+                            }}
+                            className="h-10 rounded-md bg-[var(--surface)] py-2"
+                        />
+                        <Link
+                            href={`/${locale}/admin/attendance`}
+                            className="inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md border border-[var(--line)] bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--foreground-soft)] transition hover:border-[var(--line-strong)] hover:bg-[var(--surface-muted)]"
+                        >
+                            <FileText className="h-4 w-4" />
+                            {t('viewAttendanceLogs')}
+                        </Link>
+                        <button
+                            type="button"
+                            onClick={() => void handleExportTodayReport()}
+                            disabled={isExporting || !period.selectedDate}
+                            className="inline-flex min-h-10 items-center justify-center gap-2 self-end rounded-md border border-transparent bg-[var(--accent)] px-3 text-sm font-semibold text-[var(--surface)] transition hover:bg-[var(--accent-strong)] disabled:pointer-events-none disabled:opacity-55"
+                            aria-disabled={isExporting || !period.selectedDate}
+                        >
+                            {isExporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+                            {isExporting ? t('exportingReport') : period.selectedDate ? t('exportTodayReport') : t('selectDateToExport')}
+                        </button>
+                    </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-[var(--line)] pt-4 text-sm text-[var(--muted)]">
+                    <CalendarDays className="h-4 w-4 text-[var(--accent)]" />
+                    <span className="font-medium text-[var(--foreground-soft)]">{formattedSelectedDate}</span>
+                    <Badge variant={isDayView ? 'info' : 'default'} className="ms-1">
+                        {isDayView ? t('dayMode') : t('monthMode')}
+                    </Badge>
+                    <span className="text-[var(--muted)]">{t('egyptTimezone')}</span>
+                </div>
+            </section>
+
+            {loadError ? (
+                <section
+                    role="alert"
+                    className="flex flex-col gap-3 rounded-lg border border-[var(--danger)]/25 bg-[var(--danger-soft)] px-4 py-4 text-[var(--danger)] sm:flex-row sm:items-center sm:justify-between"
+                >
+                    <div className="flex min-w-0 items-start gap-3">
+                        <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                        <div className="min-w-0">
+                            <p className="text-sm font-semibold">{t('loadErrorTitle')}</p>
+                            <p className="mt-1 text-sm leading-6">{loadError}</p>
                         </div>
                     </div>
-                </GlowingCard>
+                    <button
+                        type="button"
+                        onClick={() => setRetryNonce((value) => value + 1)}
+                        className="focus-ring inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-md border border-[var(--danger)]/30 bg-[var(--surface)] px-3 text-sm font-semibold text-[var(--danger)] hover:bg-[var(--danger-soft)]"
+                    >
+                        <RefreshCw className="h-4 w-4" />
+                        {t('retry')}
+                    </button>
+                </section>
+            ) : null}
 
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <div className="flex items-center gap-2">
-                            <Calendar className="h-4 w-4 text-[var(--accent)]" />
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
-                                {selectedDate ? t('selectedDate') : t('selectedMonth')}
-                            </p>
-                        </div>
-                        <div className="grid gap-3">
-                            <Input
-                                type="date"
-                                value={selectedDate}
-                                onChange={(event) => {
-                                    const nextDate = event.target.value;
-                                    setSelectedDate(nextDate);
-                                    if (nextDate) {
-                                        setSelectedMonth(nextDate.slice(0, 7));
-                                    }
-                                }}
-                            />
-                            <Input
-                                type="month"
-                                value={selectedMonth}
-                                onChange={(event) => {
-                                    setSelectedMonth(event.target.value);
-                                    setSelectedDate('');
-                                }}
-                            />
-                        </div>
-                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                            <div className="flex items-start justify-between gap-3">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('focusPeriod')}</p>
-                                    <p className="mt-3 text-sm font-medium text-[var(--foreground)]">
-                                        {formattedSelectedDate}
-                                    </p>
-                                </div>
-                                <Badge variant={isDayView ? 'info' : 'default'}>
-                                    {isDayView ? t('dayMode') : t('monthMode')}
-                                </Badge>
+            <section className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {kpis.map((card) => (
+                    <KpiTile key={card.label} card={card} isLoading={isLoading} />
+                ))}
+            </section>
+
+            <section className="grid gap-4 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+                <Card className="rounded-lg backdrop-blur-none">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                        <PanelHeader
+                            icon={TriangleAlert}
+                            tone="warning"
+                            kicker={t('todayAlerts')}
+                            title={t('actionQueue')}
+                            detail={t('actionQueueDetail', { count: operations.needsActionCount })}
+                        />
+
+                        {!isDayView ? (
+                            <EmptyState>{t('dailyAlertsEmpty')}</EmptyState>
+                        ) : isLoading ? (
+                            <div className="space-y-3">
+                                <Skeleton className="h-20 w-full" />
+                                <Skeleton className="h-20 w-full" />
+                                <Skeleton className="h-20 w-full" />
                             </div>
-                            <p className="mt-3 text-sm leading-6 text-[var(--muted)]">
-                                {t('dateFirstHint')}
-                            </p>
+                        ) : exceptionGroups.length ? (
+                            <div className="space-y-3">
+                                {exceptionGroups.map((group) => (
+                                    <ExceptionRow
+                                        key={group.key}
+                                        icon={exceptionIcon[group.key]}
+                                        title={t(`exceptions.${group.key}`)}
+                                        value={formatCount(group.count)}
+                                        employees={group.employees}
+                                        tone={exceptionTone[group.key]}
+                                        href={`/${locale}/admin/attendance`}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <EmptyState>{t('alertsEmpty')}</EmptyState>
+                        )}
+
+                        <div className="flex items-start gap-3 rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+                            <div className="rounded-md bg-[var(--info-soft)] p-2 text-[var(--info)]">
+                                <ShieldAlert className="h-4 w-4" />
+                            </div>
+                            <div className="min-w-0">
+                                <p className="text-sm font-semibold text-[var(--foreground)]">{t('unauthorizedIpTitle')}</p>
+                                <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{t('unauthorizedIpUnavailable')}</p>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
-            </PageReveal>
 
-            <StaggerGroup className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-                {kpis.map((card) => (
-                    <StaggerItem key={card.label}>
-                        <GlowingCard>
-                            <div className="min-h-36 p-5">
-                                <div className="flex items-start justify-between gap-4">
-                                    <div className="min-w-0 space-y-3">
-                                        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--muted)]">
-                                            {card.label}
-                                        </p>
-                                        {isLoading ? (
-                                            <Skeleton className="h-10 w-20" />
-                                        ) : (
-                                            <p className="text-4xl font-semibold text-[var(--foreground)]">
-                                                <AnimatedCounter value={card.value} suffix={card.suffix} />
-                                            </p>
-                                        )}
-                                        {card.helper && <p className="text-xs leading-5 text-[var(--muted)]">{card.helper}</p>}
-                                    </div>
-                                    <div className={`shrink-0 rounded-xl p-3 ${card.tone}`}>
-                                        <card.icon className="h-5 w-5" />
-                                    </div>
-                                </div>
+                <Card className="rounded-lg backdrop-blur-none">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                        <PanelHeader
+                            icon={Building2}
+                            tone="accent"
+                            kicker={t('branchPerformance')}
+                            title={t('branchPerformanceTitle')}
+                            detail={t('branchPerformanceDetail')}
+                        />
+
+                        {isLoading ? (
+                            <div className="space-y-3">
+                                <Skeleton className="h-12 w-full" />
+                                <Skeleton className="h-12 w-full" />
+                                <Skeleton className="h-12 w-full" />
                             </div>
-                        </GlowingCard>
-                    </StaggerItem>
-                ))}
-            </StaggerGroup>
-
-            <StaggerGroup className="grid grid-cols-1 gap-4 xl:grid-cols-[0.9fr_1.1fr]">
-                <StaggerItem>
-                    <Card className="rounded-2xl">
-                        <CardContent className="space-y-5 p-6">
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-xl bg-[var(--warning-soft)] p-2.5">
-                                    <TriangleAlert className="h-5 w-5 text-[var(--warning)]" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('todayAlerts')}</p>
-                                    <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                                        {t('actionQueue')}
-                                    </h2>
-                                </div>
-                            </div>
-
-                            {!isDayView ? (
-                                <EmptyState>{t('dailyAlertsEmpty')}</EmptyState>
-                            ) : isLoading ? (
-                                <div className="space-y-3">
-                                    <Skeleton className="h-16 w-full" />
-                                    <Skeleton className="h-16 w-full" />
-                                    <Skeleton className="h-16 w-full" />
-                                </div>
-                            ) : summary &&
-                              ((summary.lateCount ?? 0) > 0 ||
-                                  (summary.missingCheckoutCount ?? 0) > 0 ||
-                                  (summary.earlyLeaveCount ?? 0) > 0 ||
-                                  lowAttendanceBranches.length > 0) ? (
-                                <div className="space-y-3">
-                                    {summary.lateCount > 0 && (
-                                        <AlertRow
-                                            icon={AlarmClock}
-                                            title={t('lateEmployeesAlert')}
-                                            value={summary.lateCount}
-                                            detail={employeeNames.late.slice(0, 3).join(', ')}
-                                            tone="warning"
-                                        />
-                                    )}
-                                    {summary.missingCheckoutCount > 0 && (
-                                        <AlertRow
-                                            icon={TriangleAlert}
-                                            title={t('missingCheckoutAlert')}
-                                            value={summary.missingCheckoutCount}
-                                            detail={employeeNames.missing.slice(0, 3).join(', ')}
-                                            tone="warning"
-                                        />
-                                    )}
-                                    {(summary.earlyLeaveCount ?? 0) > 0 && (
-                                        <AlertRow
-                                            icon={TimerOff}
-                                            title={t('earlyLeaveAlert')}
-                                            value={summary.earlyLeaveCount ?? 0}
-                                            detail={employeeNames.early.slice(0, 3).join(', ')}
-                                            tone="danger"
-                                        />
-                                    )}
-                                    {lowAttendanceBranches.map((branch) => (
-                                        <AlertRow
-                                            key={branch.branch}
-                                            icon={Building2}
-                                            title={t('lowAttendanceAlert')}
-                                            value={branch.attendance_rate}
-                                            suffix="%"
-                                            detail={`${branch.branch}: ${branch.present_days + branch.late_days + branch.missing_checkout_days}/${branch.expected_days}`}
-                                            tone="danger"
-                                        />
-                                    ))}
-                                </div>
-                            ) : (
-                                <EmptyState>{t('alertsEmpty')}</EmptyState>
-                            )}
-
-                            <div className="flex items-start gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <ShieldAlert className="mt-0.5 h-4 w-4 shrink-0 text-[var(--muted)]" />
-                                <div>
-                                    <p className="text-sm font-medium text-[var(--foreground-soft)]">{t('unauthorizedIpTitle')}</p>
-                                    <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{t('unauthorizedIpUnavailable')}</p>
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </StaggerItem>
-
-                <StaggerItem>
-                    <Card className="rounded-2xl">
-                        <CardContent className="space-y-5 p-6">
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-xl bg-[var(--accent-soft)] p-2.5">
-                                    <Building2 className="h-5 w-5 text-[var(--accent)]" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('branchPerformance')}</p>
-                                    <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                                        {t('branchPerformanceTitle')}
-                                    </h2>
-                                </div>
-                            </div>
-
-                            {isLoading ? (
-                                <div className="space-y-3">
-                                    <Skeleton className="h-10 w-full" />
-                                    <Skeleton className="h-10 w-full" />
-                                    <Skeleton className="h-10 w-full" />
-                                </div>
-                            ) : summary?.branchSummaries?.length ? (
-                                <div className="overflow-x-auto">
-                                    <table className="w-full min-w-[660px] text-left text-sm">
-                                        <thead className="text-xs uppercase tracking-[0.18em] text-[var(--muted)]">
-                                            <tr className="border-b border-[var(--line)]">
-                                                <th className="py-3 pe-4 font-semibold">{t('branchName')}</th>
-                                                <th className="px-4 py-3 font-semibold">{t('expectedShort')}</th>
-                                                <th className="px-4 py-3 font-semibold">{t('presentShort')}</th>
-                                                <th className="px-4 py-3 font-semibold">{t('absentShort')}</th>
-                                                <th className="px-4 py-3 font-semibold">{t('lateShort')}</th>
-                                                <th className="px-4 py-3 font-semibold">{t('attendancePercent')}</th>
+                        ) : branchHealthRows.length ? (
+                            <div className="overflow-x-auto">
+                                <table className="w-full min-w-[720px] text-start text-sm">
+                                    <thead className="bg-[var(--surface-muted)] text-xs uppercase tracking-[0.12em] text-[var(--muted)]">
+                                        <tr className="border-y border-[var(--line)]">
+                                            <th className="py-3 pe-4 ps-3 font-semibold">{t('branchName')}</th>
+                                            <th className="px-3 py-3 font-semibold">{t('expectedShort')}</th>
+                                            <th className="px-3 py-3 font-semibold">{t('presentShort')}</th>
+                                            <th className="px-3 py-3 font-semibold">{t('attendancePercent')}</th>
+                                            <th className="px-3 py-3 font-semibold">{t('lateShort')}</th>
+                                            <th className="px-3 py-3 font-semibold">{t('missingShort')}</th>
+                                            <th className="px-3 py-3 font-semibold">{t('status')}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {branchHealthRows.map((branch) => (
+                                            <tr key={branch.branch} className="border-b border-[var(--line)] last:border-0">
+                                                <td className="max-w-64 truncate py-3 pe-4 ps-3 font-semibold text-[var(--foreground)]" title={branch.branch}>
+                                                    {branch.branch}
+                                                </td>
+                                                <td className="px-3 py-3 text-[var(--foreground-soft)]">{formatCount(branch.expected)}</td>
+                                                <td className="px-3 py-3 text-[var(--foreground-soft)]">
+                                                    {formatCount(branch.present)}/{formatCount(branch.expected)}
+                                                </td>
+                                                <td className="px-3 py-3 text-[var(--foreground-soft)]">{formatPercent(branch.attendanceRate)}</td>
+                                                <td className="px-3 py-3 text-[var(--foreground-soft)]">{formatCount(branch.late)}</td>
+                                                <td className="px-3 py-3 text-[var(--foreground-soft)]">{formatCount(branch.missingCheckout)}</td>
+                                                <td className="px-3 py-3">
+                                                    <Badge variant={healthBadge(branch.status)}>{t(`branchStatus.${branch.status}`)}</Badge>
+                                                </td>
                                             </tr>
-                                        </thead>
-                                        <tbody>
-                                            {summary.branchSummaries.map((branch) => (
-                                                <tr key={branch.branch} className="border-b border-[var(--line)] last:border-0">
-                                                    <td className="py-3 pe-4 font-medium text-[var(--foreground)]">{branch.branch}</td>
-                                                    <td className="px-4 py-3 text-[var(--foreground-soft)]">{branch.expected_days}</td>
-                                                    <td className="px-4 py-3 text-[var(--foreground-soft)]">
-                                                        {branch.present_days + branch.late_days + branch.missing_checkout_days}
-                                                    </td>
-                                                    <td className="px-4 py-3 text-[var(--foreground-soft)]">{branch.absent_days}</td>
-                                                    <td className="px-4 py-3 text-[var(--foreground-soft)]">{branch.late_days}</td>
-                                                    <td className="px-4 py-3">
-                                                        <Badge variant={branch.attendance_rate >= 80 ? 'present' : 'late'}>
-                                                            {branch.attendance_rate}%
-                                                        </Badge>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ) : (
-                                <EmptyState>{t('branchPerformanceEmpty')}</EmptyState>
-                            )}
-                        </CardContent>
-                    </Card>
-                </StaggerItem>
-            </StaggerGroup>
-
-            <StaggerGroup className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.85fr]">
-                <StaggerItem>
-                    <Card className="rounded-2xl">
-                        <CardContent className="space-y-5 p-6">
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-xl bg-[var(--secondary-soft)] p-2.5">
-                                    <ClipboardList className="h-5 w-5 text-[var(--secondary)]" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('quickActions')}</p>
-                                    <h2 className="text-xl font-semibold text-[var(--foreground)]">{t('quickActionsTitle')}</h2>
-                                </div>
+                                        ))}
+                                    </tbody>
+                                </table>
                             </div>
+                        ) : (
+                            <EmptyState>{t('branchPerformanceEmpty')}</EmptyState>
+                        )}
+                    </CardContent>
+                </Card>
+            </section>
 
-                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                <QuickAction href={`/${locale}/admin/attendance`} icon={FileText} label={t('viewAttendanceLogs')} />
-                                <button
-                                    type="button"
-                                    onClick={() => void handleExportTodayReport()}
-                                    disabled={isExporting}
-                                    className="group flex min-h-24 items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-start transition hover:border-[var(--line-strong)] hover:bg-[var(--surface-hover)] disabled:pointer-events-none disabled:opacity-50"
-                                >
-                                    <span className="flex items-center gap-3">
-                                        <span className="rounded-xl bg-[var(--accent-soft)] p-2.5 text-[var(--accent)]">
-                                            <Download className="h-5 w-5" />
-                                        </span>
-                                        <span className="text-sm font-semibold text-[var(--foreground-soft)]">{t('exportTodayReport')}</span>
-                                    </span>
-                                    <ArrowRight className="h-4 w-4 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--foreground)]" />
-                                </button>
-                                <QuickAction href={`/${locale}/admin/employees`} icon={UserCog} label={t('manageEmployees')} />
-                                <QuickAction href={`/${locale}/admin/branch-ips`} icon={Network} label={t('manageBranchIps')} />
-                                <QuickAction href={`/${locale}/admin/attendance`} icon={TriangleAlert} label={t('reviewMissingCheckouts')} />
-                            </div>
-                        </CardContent>
-                    </Card>
-                </StaggerItem>
+            <section className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_0.85fr]">
+                <Card className="rounded-lg backdrop-blur-none">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                        <PanelHeader
+                            icon={ClipboardList}
+                            tone="accent"
+                            kicker={t('quickActions')}
+                            title={t('quickActionsTitle')}
+                            detail={t('quickActionsDetail')}
+                        />
+                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                            <QuickAction href={`/${locale}/admin/attendance`} icon={FileText} label={t('viewAttendanceLogs')} />
+                            <QuickAction href={`/${locale}/admin/employees`} icon={UserCog} label={t('manageEmployees')} />
+                            <QuickAction href={`/${locale}/admin/branches`} icon={Building2} label={t('branches')} />
+                            <QuickAction href={`/${locale}/admin/branch-ips`} icon={Network} label={t('manageBranchIps')} />
+                            <QuickAction href={`/${locale}/admin/attendance`} icon={TriangleAlert} label={t('reviewMissingCheckouts')} />
+                        </div>
+                    </CardContent>
+                </Card>
 
-                <StaggerItem>
-                    <Card className="rounded-2xl">
-                        <CardContent className="space-y-5 p-6">
-                            <div className="flex items-center gap-3">
-                                <div className="rounded-xl bg-[var(--accent-soft)] p-2.5">
-                                    <TrendingUp className="h-5 w-5 text-[var(--accent)]" />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('insightsTitle')}</p>
-                                    <h2 className="text-xl font-semibold text-[var(--foreground)]">
-                                        {t('snapshotMetrics')}
-                                    </h2>
-                                </div>
-                            </div>
-
-                            <div className="grid gap-4 sm:grid-cols-2">
-                                <div className="flex flex-col items-center rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                    {isLoading ? (
-                                        <Skeleton className="h-[120px] w-full" />
-                                    ) : (
-                                        <AttendanceGauge value={summary?.attendanceRate ?? 0} label={t('attendanceRate')} />
-                                    )}
-                                </div>
-                                <div className="flex flex-col items-center rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                    {isLoading ? (
-                                        <Skeleton className="h-[120px] w-full" />
-                                    ) : (
-                                        <AttendanceGauge value={summary?.departureCompletionRate ?? 0} label={t('departureCompletionRate')} />
-                                    )}
-                                </div>
-                            </div>
-                        </CardContent>
-                    </Card>
-                </StaggerItem>
-            </StaggerGroup>
+                <Card className="rounded-lg backdrop-blur-none">
+                    <CardContent className="space-y-4 p-4 sm:p-5">
+                        <PanelHeader
+                            icon={CheckCircle2}
+                            tone="success"
+                            kicker={t('insightsTitle')}
+                            title={t('snapshotMetrics')}
+                            detail={t('snapshotMetricsDetail')}
+                        />
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <RateTile
+                                label={t('attendanceRate')}
+                                value={formatPercent(operations.attendanceRate)}
+                                meta={t('rawAttendance', {
+                                    present: formatCount(operations.checkedInCount),
+                                    expected: formatCount(operations.expectedEmployees),
+                                })}
+                                loading={isLoading}
+                            />
+                            <RateTile
+                                label={t('departureCompletionRate')}
+                                value={formatPercent(summary?.departureCompletionRate ?? 0)}
+                                meta={t('departureCompletionMeta')}
+                                loading={isLoading}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+            </section>
         </div>
     );
 }
 
-function AlertRow({
+function KpiTile({ card, isLoading }: { card: KpiCard; isLoading: boolean }) {
+    return (
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)]">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">{card.label}</p>
+                    {isLoading ? (
+                        <Skeleton className="mt-3 h-8 w-20" />
+                    ) : (
+                        <p className="mt-3 text-3xl font-semibold leading-none text-[var(--foreground)]">{card.value}</p>
+                    )}
+                    {card.meta ? <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{card.meta}</p> : null}
+                </div>
+                <div className={`rounded-md p-2.5 ${toneClass(card.tone)}`}>
+                    <card.icon className="h-4 w-4" />
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function PanelHeader({
+    icon: Icon,
+    tone,
+    kicker,
+    title,
+    detail,
+}: {
+    icon: LucideIcon;
+    tone: 'accent' | 'success' | 'warning';
+    kicker: string;
+    title: string;
+    detail: string;
+}) {
+    const toneClasses = {
+        accent: 'bg-[var(--accent-soft)] text-[var(--accent)]',
+        success: 'bg-[var(--success-soft)] text-[var(--success)]',
+        warning: 'bg-[var(--warning-soft)] text-[var(--warning)]',
+    };
+
+    return (
+        <div className="flex items-start gap-3">
+            <div className={`rounded-md p-2.5 ${toneClasses[tone]}`}>
+                <Icon className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">{kicker}</p>
+                <h2 className="mt-1 text-lg font-semibold text-[var(--foreground)]">{title}</h2>
+                <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{detail}</p>
+            </div>
+        </div>
+    );
+}
+
+function ExceptionRow({
     icon: Icon,
     title,
     value,
-    detail,
-    suffix = '',
+    employees,
     tone,
-}: {
-    icon: typeof Users;
-    title: string;
-    value: number;
-    detail: string;
-    suffix?: string;
-    tone: 'warning' | 'danger';
-}) {
-    const toneClass = tone === 'danger' ? 'bg-[var(--danger-soft)] text-[var(--danger)]' : 'bg-[var(--warning-soft)] text-[var(--warning)]';
-
-    return (
-        <div className="flex items-center justify-between gap-4 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-            <div className="flex min-w-0 items-center gap-3">
-                <div className={`shrink-0 rounded-xl p-2.5 ${toneClass}`}>
-                    <Icon className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                    <p className="text-sm font-semibold text-[var(--foreground-soft)]">{title}</p>
-                    {detail ? <p className="mt-1 truncate text-xs text-[var(--muted)]">{detail}</p> : null}
-                </div>
-            </div>
-            <p className="shrink-0 text-2xl font-semibold text-[var(--foreground)]">
-                {value}
-                {suffix}
-            </p>
-        </div>
-    );
-}
-
-function QuickAction({
     href,
-    icon: Icon,
-    label,
 }: {
+    icon: LucideIcon;
+    title: string;
+    value: string;
+    employees: Array<{ name: string; branch: string }>;
+    tone: 'warning' | 'danger';
     href: string;
-    icon: typeof Users;
-    label: string;
 }) {
+    const toneClasses = tone === 'danger' ? 'bg-[var(--danger-soft)] text-[var(--danger)]' : 'bg-[var(--warning-soft)] text-[var(--warning)]';
+    const sample = employees.map((employee) => `${employee.name}, ${employee.branch}`).join(' | ');
+
     return (
         <Link
             href={href}
-            className="group flex min-h-24 items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:border-[var(--line-strong)] hover:bg-[var(--surface-hover)]"
+            className="group flex items-center justify-between gap-4 rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:border-[var(--line-strong)] hover:bg-[var(--surface-muted)]"
         >
-            <span className="flex items-center gap-3">
-                <span className="rounded-xl bg-[var(--accent-soft)] p-2.5 text-[var(--accent)]">
-                    <Icon className="h-5 w-5" />
-                </span>
-                <span className="text-sm font-semibold text-[var(--foreground-soft)]">{label}</span>
-            </span>
-            <ArrowRight className="h-4 w-4 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--foreground)]" />
+            <div className="flex min-w-0 items-center gap-3">
+                <div className={`shrink-0 rounded-md p-2.5 ${toneClasses}`}>
+                    <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[var(--foreground)]">{title}</p>
+                    {sample ? <p className="mt-1 truncate text-xs text-[var(--muted)]">{sample}</p> : null}
+                </div>
+            </div>
+            <div className="flex shrink-0 items-center gap-3">
+                <span className="text-2xl font-semibold text-[var(--foreground)]">{value}</span>
+                <ArrowRight className="h-4 w-4 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--foreground)] rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
+            </div>
         </Link>
+    );
+}
+
+function QuickAction({ href, icon: Icon, label }: { href: string; icon: LucideIcon; label: string }) {
+    return (
+        <Link
+            href={href}
+            className="group flex min-h-20 items-center justify-between rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 transition hover:border-[var(--line-strong)] hover:bg-[var(--surface-muted)]"
+        >
+            <span className="flex min-w-0 items-center gap-3">
+                <span className="rounded-md bg-[var(--accent-soft)] p-2.5 text-[var(--accent)]">
+                    <Icon className="h-4 w-4" />
+                </span>
+                <span className="min-w-0 break-words text-sm font-semibold text-[var(--foreground)]">{label}</span>
+            </span>
+            <ArrowRight className="h-4 w-4 text-[var(--muted)] transition group-hover:translate-x-0.5 group-hover:text-[var(--foreground)] rtl:rotate-180 rtl:group-hover:-translate-x-0.5" />
+        </Link>
+    );
+}
+
+function RateTile({ label, value, meta, loading }: { label: string; value: string; meta: string; loading: boolean }) {
+    return (
+        <div className="rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] p-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-[var(--muted)]">{label}</p>
+            {loading ? <Skeleton className="mt-3 h-8 w-20" /> : <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">{value}</p>}
+            <p className="mt-2 text-xs leading-5 text-[var(--muted)]">{meta}</p>
+        </div>
     );
 }

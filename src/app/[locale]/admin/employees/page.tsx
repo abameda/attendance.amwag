@@ -37,7 +37,6 @@ import {
     Button,
     Card,
     CardContent,
-    GlowingCard,
     Input,
     Modal,
     AnimatedCounter,
@@ -481,191 +480,178 @@ export default function EmployeesPage() {
 
     return (
         <div className="space-y-6">
-            <PageReveal className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <GlowingCard>
-                    <div className="space-y-6 p-6 sm:p-8">
-                        <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('kicker')}</p>
-                            <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
-                                {t('title')}
-                            </h1>
-                            <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                                {t('subtitle')}
+            <PageReveal className="space-y-5">
+                <div className="flex flex-col gap-5 border-b border-[var(--line)] pb-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div className="max-w-3xl space-y-3">
+                        <p className="section-kicker">{t('kicker')}</p>
+                        <h1 className="text-3xl font-bold leading-tight text-[var(--foreground)] sm:text-4xl">
+                            {t('title')}
+                        </h1>
+                        <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
+                            {t('subtitle')}
+                        </p>
+                    </div>
+                    <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                        <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="w-full justify-between rounded-md sm:w-auto">
+                            <span>{t('bulkImport')}</span>
+                            <Upload className="h-4 w-4" />
+                        </Button>
+                        <Button onClick={openAddModal} className="w-full justify-between rounded-md sm:w-auto">
+                            <span>{t('addEmployee')}</span>
+                            <UserPlus className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                    {stats.map((stat) => (
+                        <div
+                            key={stat.label}
+                            className="rounded-lg border border-[var(--line)] bg-[var(--surface)] px-4 py-3 shadow-[var(--shadow-sm)]"
+                        >
+                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">{stat.label}</p>
+                            <p className="mt-2 text-2xl font-semibold text-[var(--foreground)]">
+                                {isLoading ? '...' : <AnimatedCounter value={stat.value} />}
                             </p>
                         </div>
-
-                        <div className="grid gap-4 sm:grid-cols-3">
-                            {stats.map((stat) => (
-                                <div
-                                    key={stat.label}
-                                    className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
-                                >
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{stat.label}</p>
-                                    <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                        {isLoading ? '...' : <AnimatedCounter value={stat.value} />}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </GlowingCard>
-
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('actions')}</p>
-                        <div className="grid gap-3">
-                            <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="justify-between">
-                                <span>{t('bulkImport')}</span>
-                                <Upload className="h-4 w-4" />
-                            </Button>
-                            <Button onClick={openAddModal} className="justify-between">
-                                <span>{t('addEmployee')}</span>
-                                <UserPlus className="h-4 w-4" />
-                            </Button>
-                        </div>
-                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm leading-6 text-[var(--muted)]">
-                            {t('actionsHint')}
-                        </div>
-                    </CardContent>
-                </Card>
+                    ))}
+                </div>
             </PageReveal>
 
             <PageReveal delay={0.08}>
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-4 sm:p-5">
-                        <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                <section className="rounded-lg border border-[var(--line)] bg-[var(--surface)] p-4 shadow-[var(--shadow-sm)] sm:p-5">
+                    <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
+                        <div className="relative">
+                            <label
+                                htmlFor="employee-selector"
+                                className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.16em] text-[var(--muted-strong)]"
+                            >
+                                {t('selectorLabel')}
+                            </label>
                             <div className="relative">
-                                <label
-                                    htmlFor="employee-selector"
-                                    className="mb-2 block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted-strong)]"
-                                >
-                                    {t('selectorLabel')}
-                                </label>
-                                <div className="relative">
-                                    <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
-                                    <Input
-                                        id="employee-selector"
-                                        placeholder={t('searchPlaceholder')}
-                                        value={searchQuery}
-                                        onFocus={() => setIsSelectorOpen(true)}
-                                        onBlur={() => window.setTimeout(() => setIsSelectorOpen(false), 120)}
-                                        onChange={(event) => {
-                                            setSearchQuery(event.target.value);
-                                            setIsSelectorOpen(true);
-                                        }}
-                                        className="ps-11 pe-12"
-                                        autoComplete="off"
-                                    />
-                                    {searchQuery && (
-                                        <button
-                                            type="button"
-                                            onClick={handleResetEmployeeView}
-                                            className="focus-ring absolute end-3 top-1/2 -translate-y-1/2 rounded-full p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
-                                            title={t('clearSelection')}
-                                        >
-                                            <X className="h-4 w-4" />
-                                        </button>
-                                    )}
-                                </div>
-                                {isSelectorOpen && (
-                                    <div
-                                        className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-2xl border border-[var(--line)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-card)]"
-                                        onMouseDown={(event) => event.preventDefault()}
+                                <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
+                                <Input
+                                    id="employee-selector"
+                                    placeholder={t('searchPlaceholder')}
+                                    value={searchQuery}
+                                    onFocus={() => setIsSelectorOpen(true)}
+                                    onBlur={() => window.setTimeout(() => setIsSelectorOpen(false), 120)}
+                                    onChange={(event) => {
+                                        setSearchQuery(event.target.value);
+                                        setIsSelectorOpen(true);
+                                    }}
+                                    className="rounded-md ps-11 pe-12"
+                                    autoComplete="off"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={handleResetEmployeeView}
+                                        className="focus-ring absolute end-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
+                                        title={t('clearSelection')}
                                     >
-                                        {isSelectorLoading ? (
-                                            <div className="px-3 py-3 text-sm text-[var(--muted)]">{t('selectorLoading')}</div>
-                                        ) : selectorResults.length === 0 ? (
-                                            <div className="px-3 py-3 text-sm text-[var(--muted)]">{t('noSelectorResults')}</div>
-                                        ) : (
-                                            selectorResults.map((employee) => (
-                                                <button
-                                                    key={employee.id}
-                                                    type="button"
-                                                    onClick={() => handleSelectEmployee(employee)}
-                                                    className="focus-ring flex w-full items-start justify-between gap-4 rounded-xl px-3 py-3 text-start transition-colors hover:bg-[var(--surface)]"
-                                                >
-                                                    <span className="min-w-0">
-                                                        <span className="block truncate text-sm font-semibold text-[var(--foreground)]">
-                                                            {employee.full_name}
-                                                        </span>
-                                                        <span className="mt-1 block truncate text-xs text-[var(--muted)]">
-                                                            {[employee.email, employee.branch, employee.job_title].filter(Boolean).join(' / ')}
-                                                        </span>
-                                                    </span>
-                                                </button>
-                                            ))
-                                        )}
-                                    </div>
+                                        <X className="h-4 w-4" />
+                                    </button>
                                 )}
                             </div>
+                            {isSelectorOpen && (
+                                <div
+                                    className="absolute z-30 mt-2 max-h-80 w-full overflow-y-auto rounded-lg border border-[var(--line)] bg-[var(--bg-elevated)] p-2 shadow-[var(--shadow-md)]"
+                                    onMouseDown={(event) => event.preventDefault()}
+                                >
+                                    {isSelectorLoading ? (
+                                        <div className="px-3 py-3 text-sm text-[var(--muted)]">{t('selectorLoading')}</div>
+                                    ) : selectorResults.length === 0 ? (
+                                        <div className="px-3 py-3 text-sm text-[var(--muted)]">{t('noSelectorResults')}</div>
+                                    ) : (
+                                        selectorResults.map((employee) => (
+                                            <button
+                                                key={employee.id}
+                                                type="button"
+                                                onClick={() => handleSelectEmployee(employee)}
+                                                className="focus-ring flex w-full items-start justify-between gap-4 rounded-md px-3 py-3 text-start transition-colors hover:bg-[var(--surface-muted)]"
+                                            >
+                                                <span className="min-w-0">
+                                                    <span className="block truncate text-sm font-semibold text-[var(--foreground)]">
+                                                        {employee.full_name}
+                                                    </span>
+                                                    <span className="mt-1 block truncate text-xs text-[var(--muted)]">
+                                                        {[employee.email, employee.branch, employee.job_title].filter(Boolean).join(' / ')}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
-                            <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                        <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleResetEmployeeView}
+                                className="w-full rounded-md sm:w-auto"
+                            >
+                                <X className="h-4 w-4" />
+                                {t('clearSelection')}
+                            </Button>
+                            {viewMode === 'all' ? (
                                 <Button
                                     type="button"
                                     variant="outline"
                                     onClick={handleResetEmployeeView}
-                                    className="w-full sm:w-auto"
+                                    className="w-full rounded-md sm:w-auto"
                                 >
-                                    <X className="h-4 w-4" />
-                                    {t('clearSelection')}
+                                    {t('showLess')}
                                 </Button>
-                                {viewMode === 'all' ? (
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={handleResetEmployeeView}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        {t('showLess')}
-                                    </Button>
-                                ) : (
-                                    <Button
-                                        type="button"
-                                        variant="secondary"
-                                        onClick={() => handleShowAllEmployees(1)}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        <Users className="h-4 w-4" />
-                                        {t('showAllEmployees')}
-                                    </Button>
-                                )}
-                            </div>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => handleShowAllEmployees(1)}
+                                    className="w-full rounded-md sm:w-auto"
+                                >
+                                    <Users className="h-4 w-4" />
+                                    {t('showAllEmployees')}
+                                </Button>
+                            )}
                         </div>
+                    </div>
 
-                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--muted)]">
-                            {viewMode === 'selected'
-                                ? t('showingSelected', { name: selectedEmployeeOption?.full_name ?? employees[0]?.full_name ?? '' })
-                                : viewMode === 'all'
-                                    ? t('showingAll', { start: visibleStart, end: visibleEnd, total: totalEmployees })
-                                    : t('showingDefault', { count: employees.length, total: totalEmployees })}
-                        </div>
-                    </CardContent>
-                </Card>
+                    <div className="mt-4 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-4 py-3 text-sm text-[var(--muted)]">
+                        {viewMode === 'selected'
+                            ? t('showingSelected', { name: selectedEmployeeOption?.full_name ?? employees[0]?.full_name ?? '' })
+                            : viewMode === 'all'
+                                ? t('showingAll', { start: visibleStart, end: visibleEnd, total: totalEmployees })
+                                : t('showingDefault', { count: employees.length, total: totalEmployees })}
+                    </div>
+                </section>
             </PageReveal>
 
             {isLoading ? (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                     {Array.from({ length: skeletonCount }).map((_, index) => (
-                        <Card key={index} className="rounded-2xl">
-                            <CardContent className="space-y-4 p-6">
+                        <Card key={index} className="rounded-lg">
+                            <CardContent className="space-y-4 p-5">
                                 <div className="flex items-center gap-3">
-                                    <Skeleton className="h-14 w-14 rounded-[1.2rem]" />
+                                    <Skeleton className="h-12 w-12 rounded-lg" />
                                     <div className="space-y-2">
                                         <Skeleton className="h-4 w-32" />
                                         <Skeleton className="h-3 w-44" />
                                     </div>
                                 </div>
                                 {Array.from({ length: 4 }).map((__, metricIndex) => (
-                                    <Skeleton key={metricIndex} className="h-12 rounded-[1.2rem]" />
+                                    <Skeleton key={metricIndex} className="h-10 rounded-lg" />
                                 ))}
                             </CardContent>
                         </Card>
                     ))}
                 </div>
             ) : employees.length === 0 ? (
-                <Card className="rounded-2xl">
-                    <CardContent className="p-12 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-strong)] text-[var(--muted)]">
+                <Card className="rounded-lg">
+                    <CardContent className="p-10 text-center">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-lg bg-[var(--surface-strong)] text-[var(--muted)]">
                             <Users className="h-6 w-6" />
                         </div>
                         <h2 className="mt-4 text-xl font-semibold text-[var(--foreground)]">
@@ -675,112 +661,114 @@ export default function EmployeesPage() {
                 </Card>
             ) : (
                 <AnimatePresence>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {employees.map((employee) => (
-                        <motion.div
-                            key={employee.id}
-                            initial={{ opacity: 0, y: 22 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                        >
-                            <Card interactive className="group rounded-2xl">
-                                <CardContent className="space-y-5 p-6">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex min-w-0 items-center gap-3">
-                                            {/* Avatar with gradient border ring */}
-                                            <div className="relative flex-shrink-0">
-                                                <div className="absolute -inset-[2px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--secondary)] opacity-70" />
-                                                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-lg font-semibold text-[var(--foreground)]">
-                                                    {employee.full_name.charAt(0).toUpperCase()}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        {employees.map((employee) => (
+                            <motion.div
+                                key={employee.id}
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.98 }}
+                                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                            >
+                                <Card className="rounded-lg">
+                                    <CardContent className="space-y-4 p-5">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg border border-[var(--line)] bg-[var(--surface-muted)] text-base font-semibold text-[var(--foreground)]">
+                                                    {employee.full_name.charAt(0).toLocaleUpperCase(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="truncate text-base font-semibold text-[var(--foreground)]">
+                                                        {employee.full_name}
+                                                    </h3>
+                                                    <p className="truncate text-sm text-[var(--muted)]">
+                                                        {employee.email}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h3 className="truncate text-lg font-semibold text-[var(--foreground)]">
-                                                    {employee.full_name}
-                                                </h3>
-                                                <p className="truncate text-sm text-[var(--muted)]">
-                                                    {employee.email}
-                                                </p>
+                                            <div className="flex gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditModal(employee)}
+                                                    className="focus-ring rounded-md p-2 text-[var(--muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--foreground)]"
+                                                    title={t('editEmployee')}
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleResetPassword(employee.id, employee.full_name)}
+                                                    className="focus-ring rounded-md p-2 text-[var(--muted)] transition-colors hover:bg-[var(--warning-soft)] hover:text-[var(--warning)]"
+                                                    title={t('resetPassword')}
+                                                >
+                                                    <KeyRound className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(employee.id)}
+                                                    className="focus-ring rounded-md p-2 text-[var(--muted)] transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                                                    title={t('deleteEmployee')}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-1">
-                                            <button
-                                                onClick={() => openEditModal(employee)}
-                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] transition-colors"
-                                                title={t('editEmployee')}
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleResetPassword(employee.id, employee.full_name)}
-                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--warning)] transition-colors"
-                                                title={t('resetPassword')}
-                                            >
-                                                <KeyRound className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(employee.id)}
-                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] transition-colors"
-                                                title={t('deleteEmployee')}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
+
+                                        <dl className="grid gap-2 text-sm">
+                                            {employee.job_title && (
+                                                <div className="flex items-center gap-3 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-[var(--foreground-soft)]">
+                                                    <Briefcase className="h-4 w-4 text-[var(--accent)]" />
+                                                    <dt className="sr-only">{t('jobTitle')}</dt>
+                                                    <dd className="truncate">{employee.job_title}</dd>
+                                                </div>
+                                            )}
+                                            {employee.branch && (
+                                                <div className="flex items-center gap-3 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-[var(--foreground-soft)]">
+                                                    <MapPin className="h-4 w-4 text-[var(--accent)]" />
+                                                    <dt className="sr-only">{t('branch')}</dt>
+                                                    <dd className="truncate">{employee.branch}</dd>
+                                                </div>
+                                            )}
+                                            {(employee.shift_start || employee.shift_end) && (
+                                                <div className="flex items-center gap-3 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-[var(--foreground-soft)]">
+                                                    <Clock className="h-4 w-4 text-[var(--accent)]" />
+                                                    <dt className="sr-only">{t('shiftStartTime')}</dt>
+                                                    <dd>
+                                                        {formatTime(employee.shift_start)} - {formatTime(employee.shift_end)}
+                                                    </dd>
+                                                </div>
+                                            )}
+                                            {employee.off_day && (
+                                                <div className="flex items-center gap-3 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5 text-[var(--foreground-soft)]">
+                                                    <CalendarOff className="h-4 w-4 text-[var(--warning)]" />
+                                                    <dt className="sr-only">{t('offDayLabel')}</dt>
+                                                    <dd>{t('offDay', { day: dayLabel(employee.off_day) })}</dd>
+                                                </div>
+                                            )}
+                                        </dl>
+
+                                        <div className="flex items-center justify-between rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2.5">
+                                            <div className="flex items-center gap-3 text-sm text-[var(--foreground-soft)]">
+                                                <Timer className="h-4 w-4 text-[var(--accent)]" />
+                                                <span>{t('overtimeTracking')}</span>
+                                            </div>
+                                            <span className={`rounded-md px-2 py-1 text-xs font-semibold ${employee.overtime_enabled ? 'bg-[var(--success-soft)] text-[var(--success)]' : 'bg-[var(--surface)] text-[var(--muted)]'}`}>
+                                                {employee.overtime_enabled ? t('enabled') : t('disabled')}
+                                            </span>
                                         </div>
-                                    </div>
 
-                                    <div className="grid gap-2">
-                                        {employee.job_title && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <Briefcase className="h-4 w-4 text-[var(--accent)]" />
-                                                <span>{employee.job_title}</span>
-                                            </div>
-                                        )}
-                                        {employee.branch && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <MapPin className="h-4 w-4 text-[var(--accent)]" />
-                                                <span>{employee.branch}</span>
-                                            </div>
-                                        )}
-                                        {(employee.shift_start || employee.shift_end) && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <Clock className="h-4 w-4 text-[var(--accent)]" />
-                                                <span>
-                                                    {formatTime(employee.shift_start)} - {formatTime(employee.shift_end)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {employee.off_day && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <CalendarOff className="h-4 w-4 text-[var(--warning)]" />
-                                                <span>{t('offDay', { day: dayLabel(employee.off_day) })}</span>
-                                            </div>
-                                        )}
-                                    </div>
-
-                                    {/* Overtime toggle */}
-                                    <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                                        <div className="flex items-center gap-3 text-sm text-[var(--foreground-soft)]">
-                                            <Timer className="h-4 w-4 text-[var(--accent)]" />
-                                            <span>{t('overtimeTracking')}</span>
-                                        </div>
-                                        <span className={`text-sm font-semibold ${employee.overtime_enabled ? 'text-[var(--success)]' : 'text-[var(--muted)]'}`}>
-                                            {employee.overtime_enabled ? t('enabled') : t('disabled')}
-                                        </span>
-                                    </div>
-
-                                    <Link
-                                        href={`/${locale}/admin/employees/${employee.id}/analytics`}
-                                        className="focus-ring flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-                                    >
-                                        <span>{t('attendanceAnalytics')}</span>
-                                        <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
-                                    </Link>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    ))}
-                </div>
+                                        <Link
+                                            href={`/${locale}/admin/employees/${employee.id}/analytics`}
+                                            className="employee-analytics-action focus-ring flex min-h-11 items-center justify-between rounded-md border border-[var(--accent)]/30 bg-[var(--accent-soft)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:border-[var(--accent)] hover:bg-[var(--surface-muted)]"
+                                        >
+                                            <span>{t('attendanceAnalytics')}</span>
+                                            <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
+                                        </Link>
+                                    </CardContent>
+                                </Card>
+                            </motion.div>
+                        ))}
+                    </div>
                 </AnimatePresence>
             )}
 
@@ -795,6 +783,7 @@ export default function EmployeesPage() {
                             variant="outline"
                             onClick={() => handleShowAllEmployees(currentPage - 1)}
                             disabled={currentPage <= 1 || isLoading}
+                            className="rounded-md"
                         >
                             <ChevronLeft className="h-4 w-4" />
                             {t('previousPage')}
@@ -804,6 +793,7 @@ export default function EmployeesPage() {
                             variant="outline"
                             onClick={() => handleShowAllEmployees(currentPage + 1)}
                             disabled={currentPage >= totalPages || isLoading}
+                            className="rounded-md"
                         >
                             {t('nextPage')}
                             <ChevronRight className="h-4 w-4" />
