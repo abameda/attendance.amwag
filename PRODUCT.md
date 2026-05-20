@@ -6,58 +6,60 @@ product
 
 ## Users
 
-Amwag Attendance is used by three primary internal groups.
+Amwag Attendance is used by employees, HR and operations admins, accountants, and management.
 
-Employees use it to clock in, clock out, see their current attendance status, and understand whether they are late, missing checkout, outside allowed branch/IP rules, or otherwise blocked from a valid attendance action. Their flow should be fast, obvious, and reliable on mobile, desktop, and shared office devices.
+Employees use the product to clock in, clock out, verify their current attendance state, and understand why an action may be blocked. Their experience must be fast, obvious, and resilient on mobile, desktop, and shared office devices. They need large actions, clear identity context, visible branch and time information, and immediate feedback after every attendance action.
 
-Admins, HR, and operations users manage employees, monitor daily attendance, review logs, manage branches and allowed IP rules, export attendance reports, and handle operational exceptions such as absence, lateness, early leave, missing checkout, overtime, and unauthorized IP activity. They need to understand the attendance situation in seconds and act without hunting through decorative UI.
+Admins, HR, and operations users manage employees, monitor daily attendance, review exceptions, manage branches and allowed IP rules, export reports, and resolve operational problems such as absence, lateness, early leave, missing checkout, overtime, and unauthorized IP activity. They need a dashboard that feels premium without slowing down the work: the state of the workforce should be readable in seconds.
 
-Accountants and management users review attendance records, export PDFs or attendance logs, and use reports for payroll, review, and operational decisions. They need trustworthy records, clear filters, and reports that match the visible data.
+Accountants and management users review attendance records, export PDFs and logs, and use reports for payroll, audit, and operational decisions. They need records that feel trustworthy, filters that match exported data, and KPI presentation strong enough for executive review.
 
 ## Product Purpose
 
-Amwag Attendance is an internal operational attendance management product for Amwag. It exists to make daily workforce attendance accurate, auditable, and easy to act on across employees, branches, HR, operations, accountants, and management.
+Amwag Attendance is an internal attendance management system for Amwag. It exists to make daily workforce attendance accurate, auditable, and easy to act on across employees, branches, HR, operations, accounting, and management.
 
-Success means users can quickly answer the operational questions that matter: who is present, who is absent, who is late, who left early, who missed checkout, which branch has issues, and what needs action today.
+The product is pivoting to a Premium Liquid Glass aesthetic: a modern, dimensional, animated SaaS interface with frosted glass panels, luminous depth, fluid backgrounds, and polished motion. The visual language should feel top-tier and current while preserving the operational seriousness of attendance, payroll, and compliance workflows.
+
+Success means users can quickly answer the questions that matter: who is present, who is absent, who is late, who left early, who missed checkout, which branch has issues, what requires action today, and what should be exported for payroll or review.
 
 ## Brand Personality
 
-Precise, calm, authoritative.
+Premium, fluid, precise, authoritative.
 
-The product should feel professional, reliable, operational, clear, fast, and serious without becoming cold. Arabic and English users should both feel that the interface was designed for their daily work, not translated as an afterthought.
+The interface should feel like a high-end operational command center made of light, depth, and glass. It should be calm enough for daily HR use, vivid enough to feel modern, and precise enough to support payroll-grade trust. Arabic and English users should both feel that the product was designed intentionally for their workflow, not translated after the fact.
+
+The product voice is concise and direct. Labels, empty states, errors, and confirmations should explain the operational consequence of a state or action without marketing language.
 
 ## Anti-references
 
-Avoid flashy SaaS visuals, childish gamification, generic blue-glass dashboards, overly futuristic cyber UI, heavy decorative backgrounds that distract from data, marketing-style hero sections inside admin pages, excessive gradients or glows, empty card grids, and beautiful but useless statistics.
+Do not return to the previous flat ledger look: beige canvas, opaque paper cards, low-motion layouts, timid KPI scale, and purely functional panels are no longer the design direction.
 
-The product should not use decoration as a substitute for operational clarity. Admin surfaces should not feel like landing pages. Dashboards should prioritize actionable state, exception handling, and trustworthy records over visual spectacle.
+Avoid generic admin templates, default Tailwind dashboards, harsh black cyber UI, neon gaming aesthetics, childish gamification, busy decorative charts, low-contrast frosted panels, and beautiful metrics that do not help the user act.
+
+Avoid motion that blocks work, distracts from attendance state, or ignores reduced-motion preferences. Animation should make the interface feel fluid and premium, not slow or theatrical.
+
+Avoid flat line charts for key dashboard analytics. Attendance trends should feel dimensional through gradient area fills, soft grid lines, and clear labels.
 
 ## Design Principles
 
-1. Make the attendance situation readable in seconds.
-2. Treat operational trust as the core aesthetic.
-3. Design Arabic, English, LTR, and RTL as first-class experiences.
-4. Show actionable exceptions before ornamental metrics.
-5. Keep workflows fast, explicit, and hard to misuse on shared devices.
+1. Make operational status instantly readable, even inside a highly stylized glass interface.
+2. Use depth, blur, translucency, and motion as the product identity, not as random decoration.
+3. Make KPI moments heroic: attendance rates, counts, exceptions, and today totals must command attention.
+4. Treat Arabic, English, LTR, and RTL as first-class design constraints.
+5. Keep every premium effect subordinate to trust, accessibility, performance, and action clarity.
 
 ## Accessibility & Inclusion
 
-Aim for WCAG 2.2 AA as the practical baseline. The product should be usable with keyboard navigation, screen readers, high contrast needs, and reduced-motion preferences.
+Aim for WCAG 2.2 AA as the practical baseline. Premium glass cannot come at the cost of readability. Text on glass must maintain strong contrast through dark slate or zinc text, calibrated panel opacity, backdrop blur, and fallback solid layers where needed.
 
-Arabic and English must both be first-class experiences. RTL layouts are a core requirement. Arabic text should have proper spacing, alignment, truncation, and readable typography. Do not rely on English-only labels, icons, or layout assumptions.
+Arabic and English are first-class experiences. RTL layouts must be intentionally checked for navigation, tables, charts, filters, modals, forms, truncation, icon placement, and motion direction.
 
-Attendance status should never depend on color alone. Late, absent, present, missing checkout, early leave, overtime, and unauthorized IP states should use color plus text and, where useful, icons. These states must remain distinguishable for color-blind users and maintain strong text/background contrast in both light and dark mode.
+Attendance status must never depend on color alone. Present, absent, late, missing checkout, early leave, overtime, and unauthorized IP states should use color, text, and where useful, Lucide icons. Statuses must remain distinguishable for color-blind users and readable on translucent surfaces.
 
-Support reduced-motion preferences. Avoid unnecessary animation on operational screens. Any animation should be subtle, fast, and non-blocking. Avoid flashing, pulsing, distracting glows, and motion-heavy dashboards.
+Support `prefers-reduced-motion`. Framer Motion transitions should have reduced-motion variants that preserve clarity without large movement, blur sweeps, or staggered choreography. Background motion must slow or stop when reduced motion is requested.
 
-All admin and employee actions must be accessible by keyboard. Focus states must be visible and clear. Modals, dropdowns, date pickers, tables, filters, and forms must support keyboard use without keyboard traps.
+All admin and employee actions must be accessible by keyboard. Focus states must be visible on glass panels and controls. Modals, dropdowns, date pickers, tables, filters, and forms must support keyboard use without traps.
 
-Employee clock-in and clock-out actions should use large, obvious touch targets. Important actions should be easy to tap on mobile and shared devices. Critical actions should not rely on tiny icons as the only control.
+Employee clock-in and clock-out actions require large touch targets, clear identity context, explicit branch/time/status information, and visible logout behavior on shared devices. Critical actions should not rely on tiny icon-only controls.
 
-The employee flow should be fast and clear for shared office devices. Clock-in/out screens should avoid accidental taps. Confirm destructive or sensitive actions. Clearly show the current user, branch, date, time, and attendance status. Logout should be visible on shared devices.
-
-Error messages must be clear and specific. Validation should not depend only on color. Required fields should be clearly marked. Admin forms should explain invalid IP/CIDR values clearly.
-
-Attendance tables should remain readable with many rows. Filters, sorting, and exports should be accessible. Row status should be readable without relying on background color only. PDF/export actions should have clear labels and loading states.
-
-Every important action should provide feedback for saving, success, error, loading, and export progress. Users should not be left guessing after clock-in/out or admin updates.
+Every important operation needs feedback for loading, saving, success, error, export progress, and disabled states. Users should never wonder whether a clock action, admin update, report export, or filter change succeeded.
