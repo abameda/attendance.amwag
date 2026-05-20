@@ -1,0 +1,141 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-05-20T09:03:26Z",
+  "title": "Design System: Amwag Attendance",
+  "extensions": {
+    "northStar": {
+      "name": "Operational Ledger",
+      "summary": "A warm, official, paper-and-ink operations interface for payroll-grade attendance records."
+    },
+    "colorMeta": {
+      "canvas": {
+        "role": "neutral",
+        "displayName": "Ledger Canvas",
+        "canonical": "oklch(96.2% 0.018 88)",
+        "tonalRamp": [
+          "oklch(98.5% 0.012 88)",
+          "oklch(96.2% 0.018 88)",
+          "oklch(93.4% 0.023 88)",
+          "oklch(84% 0.022 88)"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Ledger Ink",
+        "canonical": "oklch(24.5% 0.018 125)",
+        "tonalRamp": [
+          "oklch(24.5% 0.018 125)",
+          "oklch(49% 0.018 125)",
+          "oklch(63% 0.014 125)"
+        ]
+      },
+      "primary": {
+        "role": "primary",
+        "displayName": "Operations Green",
+        "canonical": "oklch(42% 0.075 165)",
+        "tonalRamp": [
+          "oklch(89% 0.045 165)",
+          "oklch(65% 0.07 165)",
+          "oklch(42% 0.075 165)",
+          "oklch(35% 0.08 165)"
+        ]
+      },
+      "warning": {
+        "role": "secondary",
+        "displayName": "Ledger Gold",
+        "canonical": "oklch(58% 0.105 75)",
+        "tonalRamp": [
+          "oklch(90% 0.056 75)",
+          "oklch(72% 0.09 75)",
+          "oklch(58% 0.105 75)"
+        ]
+      },
+      "danger": {
+        "role": "semantic",
+        "displayName": "Exception Red",
+        "canonical": "oklch(50% 0.13 28)",
+        "tonalRamp": [
+          "oklch(91% 0.05 28)",
+          "oklch(68% 0.1 28)",
+          "oklch(50% 0.13 28)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "Highest page title only. Avoid inside dense admin panels."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Major workflow and section headers."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Card titles, form groups, table panels, and modal titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Readable prose, helper text, and operational descriptions."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Field labels, metadata, badges, compact controls, and table labels."
+      }
+    },
+    "elevation": {
+      "philosophy": "Flat by default. Use tonal layers and borders before shadows.",
+      "tokens": {
+        "surfaceLift": "0 1px 2px oklch(24.5% 0.018 125 / 0.08)",
+        "popoverLift": "0 12px 28px oklch(24.5% 0.018 125 / 0.14)",
+        "dialogLift": "0 20px 44px oklch(24.5% 0.018 125 / 0.18)"
+      }
+    },
+    "motion": {
+      "durationFast": "150ms",
+      "durationDefault": "200ms",
+      "durationSlow": "250ms",
+      "easing": "cubic-bezier(0.16, 1, 0.3, 1)",
+      "rules": [
+        "Motion conveys state, not decoration.",
+        "Respect prefers-reduced-motion.",
+        "Avoid flashing, pulsing, glow, and page-load choreography."
+      ]
+    },
+    "breakpoints": {
+      "mobile": "0-767px",
+      "tablet": "768-1023px",
+      "desktop": "1024px+"
+    },
+    "componentRules": {
+      "buttons": "6px radius, restrained fills, visible focus, 44px minimum touch height for employee actions.",
+      "tables": "Readable density, sticky headers where useful, status text plus icon, row dividers over color fills.",
+      "navigation": "Compact side navigation with text labels. No thick side stripes.",
+      "forms": "Clear labels, visible required fields, specific validation messages, keyboard support.",
+      "clockSurface": "Large action targets with current user, branch, date, time, status, and next action visible."
+    },
+    "rules": [
+      "Operations Green marks action or selection. It is not decoration.",
+      "No generic blue-glass dashboard style.",
+      "Status color must always be paired with visible text and, where useful, an icon.",
+      "Cards are only for real units of work.",
+      "Arabic and English are first-class experiences."
+    ],
+    "donts": [
+      "Flashy SaaS visuals",
+      "Childish gamification",
+      "Generic blue-glass dashboards",
+      "Overly futuristic cyber UI",
+      "Heavy decorative backgrounds",
+      "Marketing-style hero sections inside admin pages",
+      "Too many gradients, glows, and empty cards",
+      "Beautiful but useless statistics",
+      "Glassmorphism as default",
+      "Gradient text",
+      "Colored side-stripe borders greater than 1px",
+      "Color-only status design",
+      "Hidden focus states",
+      "Motion-heavy dashboards"
+    ]
+  }
+}

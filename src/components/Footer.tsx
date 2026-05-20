@@ -17,13 +17,13 @@ export default function Footer({ className, compact = false }: FooterProps) {
 
     return (
         <footer className={cn('text-center', className)}>
-            <p className={`${textSize} text-[var(--muted)]`}>
+            <p className={`${textSize} text-[var(--footer-muted)]`}>
                 {tc('developedBy')}{' '}
                 <a
                     href="https://www.shorbagy.space/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="font-semibold text-[var(--foreground-soft)] transition-colors hover:text-[var(--accent)]"
+                    className="font-semibold text-[var(--footer-strong)] transition-colors hover:text-[var(--footer-accent)]"
                 >
                     {tc('devName')}
                 </a>
@@ -33,7 +33,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://github.com/abameda"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[var(--muted)] transition-colors hover:text-[var(--foreground)]"
+                    className="text-[var(--footer-muted)] transition-colors hover:text-[var(--footer-strong)]"
                     title="GitHub"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">
@@ -44,7 +44,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://www.instagram.com/abamedax/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+                    className="text-[var(--footer-muted)] transition-colors hover:text-[var(--footer-accent)]"
                     title="Instagram"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">
@@ -55,7 +55,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
                     href="https://www.linkedin.com/in/abameda/"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-[var(--muted)] transition-colors hover:text-[var(--accent)]"
+                    className="text-[var(--footer-muted)] transition-colors hover:text-[var(--footer-accent)]"
                     title="LinkedIn"
                 >
                     <svg className={iconSize} fill="currentColor" viewBox="0 0 24 24">

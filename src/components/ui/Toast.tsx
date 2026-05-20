@@ -47,24 +47,24 @@ export function removeToast(id: string) {
 }
 
 const icons: Record<ToastType, React.ReactNode> = {
-    success: <CheckCircle className="h-5 w-5 shrink-0 text-[var(--success)]" />,
-    error: <AlertCircle className="h-5 w-5 shrink-0 text-[var(--danger)]" />,
-    info: <Info className="h-5 w-5 shrink-0 text-[var(--accent)]" />,
-    warning: <AlertTriangle className="h-5 w-5 shrink-0 text-[var(--warning)]" />,
+    success: <CheckCircle className="h-5 w-5 shrink-0 text-[var(--toast-success)]" />,
+    error: <AlertCircle className="h-5 w-5 shrink-0 text-[var(--toast-danger)]" />,
+    info: <Info className="h-5 w-5 shrink-0 text-[var(--toast-accent)]" />,
+    warning: <AlertTriangle className="h-5 w-5 shrink-0 text-[var(--toast-warning)]" />,
 };
 
 const accentColors: Record<ToastType, string> = {
-    success: 'bg-[var(--success)]',
-    error: 'bg-[var(--danger)]',
-    info: 'bg-[var(--accent)]',
-    warning: 'bg-[var(--warning)]',
+    success: 'bg-[var(--toast-success)]',
+    error: 'bg-[var(--toast-danger)]',
+    info: 'bg-[var(--toast-accent)]',
+    warning: 'bg-[var(--toast-warning)]',
 };
 
 const progressColors: Record<ToastType, string> = {
-    success: 'bg-[var(--success)]/40',
-    error: 'bg-[var(--danger)]/40',
-    info: 'bg-[var(--accent)]/40',
-    warning: 'bg-[var(--warning)]/40',
+    success: 'bg-[var(--toast-success)]/40',
+    error: 'bg-[var(--toast-danger)]/40',
+    info: 'bg-[var(--toast-accent)]/40',
+    warning: 'bg-[var(--toast-warning)]/40',
 };
 
 export function ToastContainer() {
@@ -91,17 +91,17 @@ export function ToastContainer() {
                 <div
                     key={toast.id}
                     className={cn(
-                        'relative flex items-center gap-3 overflow-hidden rounded-[1.4rem] border border-[var(--line)] px-4 py-3 text-[var(--foreground)] bg-[var(--surface-elevated)] backdrop-blur-2xl shadow-[var(--shadow-md)]',
+                        'relative flex items-center gap-3 overflow-hidden rounded-[1.4rem] border border-[var(--toast-line)] bg-[var(--toast-surface)] px-4 py-3 text-[var(--toast-foreground)] shadow-[var(--toast-shadow)] backdrop-blur-2xl',
                         toast.exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'
                     )}
                 >
                     {/* Status accent bar */}
                     <div className={cn('absolute inset-y-0 start-0 w-0.5 rounded-full', accentColors[toast.type])} />
                     {icons[toast.type]}
-                    <p className="flex-1 text-sm font-medium">{toast.message}</p>
+                    <p className="flex-1 text-sm font-medium" dir="auto">{toast.message}</p>
                     <button
                         onClick={() => handleDismiss(toast.id)}
-                        className="ms-1 shrink-0 rounded-full p-1 text-[var(--muted)] transition-colors hover:bg-[var(--surface)] hover:text-[var(--foreground)]"
+                        className="ms-1 shrink-0 rounded-full p-1 text-[var(--toast-muted)] transition-colors hover:bg-[var(--toast-hover)] hover:text-[var(--toast-foreground)]"
                     >
                         <X className="h-3.5 w-3.5" />
                     </button>

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { DM_Sans, Space_Grotesk } from "next/font/google";
 import localFont from "next/font/local";
+import Script from "next/script";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -69,6 +70,9 @@ export default async function RootLayout({
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
+{/* impeccable-live-script-start */}
+<Script src="http://localhost:8401/live.js" strategy="afterInteractive" />
+{/* impeccable-live-script-end */}
       </body>
     </html>
   );

@@ -47,10 +47,73 @@
   --shadow-glow-blue: 0 0 20px rgba(59, 130, 246, 0.15);
   --shadow-glow-violet: 0 0 20px rgba(139, 92, 246, 0.15);
 
+  /* SHARED COMPONENT TOKENS */
+  --footer-muted: var(--muted);
+  --footer-strong: var(--foreground-soft);
+  --footer-accent: var(--accent);
+  --toast-surface: var(--surface-elevated);
+  --toast-foreground: var(--foreground);
+  --toast-muted: var(--muted);
+  --toast-line: var(--line);
+  --toast-hover: var(--surface);
+  --toast-shadow: var(--shadow-md);
+  --toast-accent: var(--accent);
+  --toast-success: var(--success);
+  --toast-warning: var(--warning);
+  --toast-danger: var(--danger);
+
   /* LEGACY COMPAT */
   --background: var(--bg-primary);
   --background-strong: var(--bg-secondary);
   --gold: #D4A854;
+}
+
+.employee-ledger-surface {
+  --employee-canvas: oklch(96.2% 0.018 88);
+  --employee-canvas-soft: oklch(93.4% 0.023 88);
+  --employee-surface: oklch(98.5% 0.012 88);
+  --employee-surface-muted: oklch(94.8% 0.018 88);
+  --employee-ink: oklch(24.5% 0.018 125);
+  --employee-muted: oklch(49% 0.018 125);
+  --employee-line: oklch(84% 0.022 88);
+  --employee-line-strong: oklch(74% 0.028 88);
+  --employee-rule-soft: oklch(89% 0.02 88);
+  --employee-accent: oklch(42% 0.075 165);
+  --employee-accent-hover: oklch(35% 0.08 165);
+  --employee-accent-soft: oklch(89% 0.045 165);
+  --employee-focus: oklch(48% 0.095 165);
+  --employee-success: oklch(45% 0.09 150);
+  --employee-success-soft: oklch(91% 0.048 150);
+  --employee-warning: oklch(58% 0.105 75);
+  --employee-warning-soft: oklch(90% 0.056 75);
+  --employee-danger: oklch(50% 0.13 28);
+  --employee-danger-soft: oklch(91% 0.05 28);
+  --employee-info: oklch(49% 0.075 230);
+  --employee-info-soft: oklch(91% 0.045 230);
+  --employee-disabled: oklch(88% 0.012 88);
+  --employee-radius-lg: 10px;
+  --employee-shadow: 0 1px 2px oklch(24.5% 0.018 125 / 0.08);
+  --footer-muted: var(--employee-muted);
+  --footer-strong: var(--employee-ink);
+  --footer-accent: var(--employee-accent);
+  --toast-surface: var(--employee-surface);
+  --toast-foreground: var(--employee-ink);
+  --toast-muted: var(--employee-muted);
+  --toast-line: var(--employee-line-strong);
+  --toast-hover: var(--employee-surface-muted);
+  --toast-shadow: 0 12px 28px oklch(24.5% 0.018 125 / 0.14);
+  --toast-accent: var(--employee-accent);
+  --toast-success: var(--employee-success);
+  --toast-warning: var(--employee-warning);
+  --toast-danger: var(--employee-danger);
+  --skeleton-bg: oklch(89% 0.02 88);
+  background:
+    linear-gradient(180deg, var(--employee-canvas), var(--employee-canvas-soft));
+  color: var(--employee-ink);
+}
+
+.employee-ledger-surface * {
+  letter-spacing: 0;
 }
 
 @theme inline {

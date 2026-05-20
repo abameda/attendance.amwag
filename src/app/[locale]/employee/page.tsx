@@ -1,39 +1,56 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import {
+    AlertTriangle,
     Briefcase,
-    Calendar,
-    Clock,
+    CheckCircle2,
+    CircleDashed,
+    Clock3,
+    Languages,
     LogOut,
     MapPin,
     Timer,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import { motion } from 'framer-motion';
 import Footer from '@/components/Footer';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import { selectCurrentEmployeeAttendanceRecord } from '@/lib/attendanceCalculations';
-import { formatLateness, formatOvertime, formatTimestamp, formatTime } from '@/lib/utils';
-import type { AttendanceRecord, Profile } from '@/types';
-import {
-    Badge,
-    Button,
-    Skeleton,
-    ToastContainer,
-    addToast,
-    AnimatedCounter,
-    StaggerGroup,
-    StaggerItem,
-    PageReveal,
-} from '@/components/ui';
+import { cn, formatEarlyDeparture, formatLateness, formatOvertime } from '@/lib/utils';
+import type { AttendanceRecord, AttendanceStatus, Profile } from '@/types';
+import { Skeleton, ToastContainer, addToast } from '@/components/ui';
 import { ClockHero } from '@/components/employee/ClockHero';
-import { SplineScene } from '@/components/ui/splite';
+
+type StatusTone = 'ready' | 'active' | 'complete' | 'warning';
 
 function getEgyptToday() {
     return new Intl.DateTimeFormat('en-CA', { timeZone: 'Africa/Cairo' }).format(new Date());
+}
+
+function formatCairoTimestamp(timestamp: string | null, locale: string) {
+    if (!timestamp) return '-';
+
+    return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+        timeZone: 'Africa/Cairo',
+    }).format(new Date(timestamp));
+}
+
+function formatShiftTimeForLocale(time: string | null, locale: string) {
+    if (!time) return '-';
+    const [hours, minutes] = time.split(':').map(Number);
+    const date = new Date();
+    date.setHours(hours, minutes, 0, 0);
+
+    return new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    }).format(date);
 }
 
 async function fetchTodayRecord() {
@@ -49,6 +66,59 @@ async function fetchTodayRecord() {
     return selectCurrentEmployeeAttendanceRecord(records, today);
 }
 
+function statusCopy(status: AttendanceStatus | 'idle' | 'on_shift' | 'complete', t: (key: string) => string) {
+    const labels: Record<typeof status, string> = {
+        idle: t('readyToCheckIn'),
+        on_shift: t('currentlyOnShift'),
+        complete: t('dayComplete'),
+        present: t('present'),
+        late: t('late'),
+        absent: t('absent'),
+        missing_checkout: t('missingCheckout'),
+        pending: t('pending'),
+    };
+
+    return labels[status];
+}
+
+function StatusMarker({ tone }: { tone: StatusTone }) {
+    if (tone === 'complete') return <CheckCircle2 className="h-4 w-4" aria-hidden="true" />;
+    if (tone === 'warning') return <AlertTriangle className="h-4 w-4" aria-hidden="true" />;
+    if (tone === 'active') return <Clock3 className="h-4 w-4" aria-hidden="true" />;
+    return <CircleDashed className="h-4 w-4" aria-hidden="true" />;
+}
+
+function DetailRow({
+    icon: Icon,
+    label,
+    value,
+    tone = 'default',
+}: {
+    icon: typeof Briefcase;
+    label: string;
+    value: string;
+    tone?: 'default' | 'success' | 'warning' | 'danger';
+}) {
+    const toneClass = {
+        default: 'text-[var(--employee-ink)]',
+        success: 'text-[var(--employee-success)]',
+        warning: 'text-[var(--employee-warning)]',
+        danger: 'text-[var(--employee-danger)]',
+    }[tone];
+
+    return (
+        <div className="grid grid-cols-[1.25rem_minmax(0,1fr)] gap-x-3 border-b border-[var(--employee-line)] py-3 last:border-b-0">
+            <Icon className={cn('mt-0.5 h-4 w-4 text-[var(--employee-muted)]', toneClass)} aria-hidden="true" />
+            <div className="min-w-0">
+                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                    {label}
+                </p>
+                <p className={cn('mt-1 truncate text-sm font-semibold', toneClass)}>{value}</p>
+            </div>
+        </div>
+    );
+}
+
 export default function EmployeePortal() {
     const router = useRouter();
     const [profile, setProfile] = useState<Profile | null>(null);
@@ -57,6 +127,8 @@ export default function EmployeePortal() {
     const [isLoading, setIsLoading] = useState(true);
     const [isCheckingIn, setIsCheckingIn] = useState(false);
     const [isCheckingOut, setIsCheckingOut] = useState(false);
+    const [actionError, setActionError] = useState('');
+    const [actionSuccess, setActionSuccess] = useState('');
     const locale = useLocale();
     const t = useTranslations('Employee');
 
@@ -82,29 +154,42 @@ export default function EmployeePortal() {
                 setTodayRecord(await fetchTodayRecord());
             } catch (error) {
                 console.error('Error fetching data:', error);
+                setActionError(t('loadError'));
             } finally {
                 setIsLoading(false);
             }
         };
 
         fetchData();
-    }, [locale, router]);
+    }, [locale, router, t]);
 
     const refreshTodayRecord = async () => {
         setTodayRecord(await fetchTodayRecord());
     };
 
+    const runAttendanceAction = async (path: string, successMessage: string, fallbackError: string) => {
+        setActionError('');
+        setActionSuccess('');
+
+        try {
+            const response = await fetch(path, { method: 'POST' });
+            const result = await response.json();
+            if (!response.ok || !result.success) throw new Error(result.error || fallbackError);
+
+            setActionSuccess(successMessage);
+            addToast(successMessage, 'success');
+            await refreshTodayRecord();
+        } catch (error) {
+            const message = error instanceof Error ? error.message : fallbackError;
+            setActionError(message);
+            addToast(message, 'error');
+        }
+    };
+
     const handleCheckIn = async () => {
         setIsCheckingIn(true);
         try {
-            const response = await fetch('/api/attendance/check-in', { method: 'POST' });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.error);
-            addToast('Checked in successfully!', 'success');
-            await refreshTodayRecord();
-        } catch (error) {
-            console.error('Check-in error:', error);
-            addToast(error instanceof Error ? error.message : 'Failed to check in', 'error');
+            await runAttendanceAction('/api/attendance/check-in', t('checkInSuccess'), t('checkInError'));
         } finally {
             setIsCheckingIn(false);
         }
@@ -113,14 +198,7 @@ export default function EmployeePortal() {
     const handleCheckOut = async () => {
         setIsCheckingOut(true);
         try {
-            const response = await fetch('/api/attendance/check-out', { method: 'POST' });
-            const result = await response.json();
-            if (!result.success) throw new Error(result.error);
-            addToast('Checked out successfully!', 'success');
-            await refreshTodayRecord();
-        } catch (error) {
-            console.error('Check-out error:', error);
-            addToast(error instanceof Error ? error.message : 'Failed to check out', 'error');
+            await runAttendanceAction('/api/attendance/check-out', t('checkOutSuccess'), t('checkOutError'));
         } finally {
             setIsCheckingOut(false);
         }
@@ -136,329 +214,288 @@ export default function EmployeePortal() {
     const hasCheckedOut = !!todayRecord?.check_out_time;
     const isMissingCheckout = todayRecord?.status === 'missing_checkout';
     const isOnShift = hasCheckedIn && !hasCheckedOut && !isMissingCheckout;
-
     const shiftStatus = (hasCheckedOut || isMissingCheckout) ? 'complete' : isOnShift ? 'on_shift' : 'idle';
+    const employeeName = profile?.full_name || t('employeeFallback');
+    const branchName = profile?.branch || t('unassignedBranch');
 
-    // Compute shift progress (0-1) based on shift_start/shift_end
-    const shiftProgress = (() => {
+    const shiftProgress = useMemo(() => {
         if (!profile?.shift_start || !profile?.shift_end) return 0;
         if (shiftStatus === 'complete') return 1;
         if (shiftStatus === 'idle') return 0;
-        const now = currentTime;
+
         const [sh, sm] = profile.shift_start.split(':').map(Number);
         const [eh, em] = profile.shift_end.split(':').map(Number);
         const startMins = sh * 60 + sm;
         const endMins = eh * 60 + em;
-        const nowMins = now.getHours() * 60 + now.getMinutes();
+        const nowMins = currentTime.getHours() * 60 + currentTime.getMinutes();
         const total = endMins - startMins;
         if (total <= 0) return 0;
         return Math.min(Math.max((nowMins - startMins) / total, 0), 1);
-    })();
+    }, [currentTime, profile?.shift_end, profile?.shift_start, shiftStatus]);
 
     const formattedDate = currentTime.toLocaleDateString(locale === 'ar' ? 'ar-EG' : 'en-US', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
         day: 'numeric',
+        timeZone: 'Africa/Cairo',
     });
 
-    const statusBadge = isMissingCheckout
-        ? { variant: 'missing_checkout' as const, label: t('missingCheckout') }
+    const statusTone: StatusTone = isMissingCheckout
+        ? 'warning'
         : hasCheckedOut
-            ? { variant: 'present' as const, label: t('dayComplete') }
+            ? 'complete'
             : isOnShift
-                ? { variant: 'info' as const, label: t('currentlyOnShift') }
-                : { variant: 'default' as const, label: t('startYourDay') };
+                ? 'active'
+                : 'ready';
+
+    const statusLabel = isMissingCheckout
+        ? t('missingCheckout')
+        : hasCheckedOut
+            ? t('dayComplete')
+            : isOnShift
+                ? t('currentlyOnShift')
+                : t('readyToCheckIn');
+
+    const actionKind = hasCheckedOut || isMissingCheckout ? 'complete' : isOnShift ? 'check-out' : 'check-in';
+    const actionLabel = hasCheckedOut || isMissingCheckout
+        ? t('actionComplete')
+        : isOnShift
+            ? t('checkOut')
+            : t('checkIn');
+    const actionHint = isMissingCheckout
+        ? t('missingCheckoutGuidance')
+        : hasCheckedOut
+            ? t('shiftCompleted')
+            : isOnShift
+                ? t('checkOutHint')
+                : t('checkInHint');
+
+    const issueRows = [
+        {
+            label: t('late'),
+            value: formatLateness(todayRecord?.late_minutes ?? 0),
+            active: !!todayRecord && (todayRecord.late_minutes ?? 0) > 0,
+            tone: 'warning' as const,
+        },
+        {
+            label: t('earlyLeave'),
+            value: formatEarlyDeparture(todayRecord?.early_departure_minutes ?? 0),
+            active: !!todayRecord && (todayRecord.early_departure_minutes ?? 0) > 0,
+            tone: 'warning' as const,
+        },
+        {
+            label: t('overtime'),
+            value: formatOvertime(todayRecord?.overtime_minutes ?? 0),
+            active: !!todayRecord && (todayRecord.overtime_minutes ?? 0) > 0,
+            tone: 'success' as const,
+        },
+    ];
 
     if (isLoading) {
         return (
-            <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+            <div className="employee-ledger-surface min-h-screen px-4 py-6 sm:px-6 lg:px-8">
                 <div className="mx-auto flex max-w-6xl flex-col gap-6">
-                    {/* Header skeleton */}
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
-                            <Skeleton className="h-12 w-12 rounded-[1.2rem]" />
+                            <Skeleton className="h-12 w-12 rounded-lg" />
                             <div className="space-y-2">
-                                <Skeleton className="h-4 w-24" />
-                                <Skeleton className="h-3 w-40" />
+                                <Skeleton className="h-4 w-28" />
+                                <Skeleton className="h-3 w-44" />
                             </div>
                         </div>
-                        <div className="flex gap-2">
-                            <Skeleton className="h-10 w-28 rounded-full" />
-                            <Skeleton className="h-10 w-28 rounded-full" />
-                        </div>
+                        <Skeleton className="h-11 w-28 rounded-md" />
                     </div>
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <Skeleton className="h-[520px] rounded-3xl" />
-                        <div className="space-y-6">
-                            <Skeleton className="h-60 rounded-3xl" />
-                            <Skeleton className="h-52 rounded-3xl" />
-                        </div>
+                    <div className="grid gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(340px,0.9fr)]">
+                        <Skeleton className="h-[460px] rounded-lg" />
+                        <Skeleton className="h-[460px] rounded-lg" />
                     </div>
                 </div>
             </div>
         );
     }
 
-    const isRTL = locale === 'ar';
-
     return (
-        <div className={`relative flex min-h-screen overflow-hidden ${isRTL ? 'flex-row-reverse' : 'flex-row'}`}>
-
-            {/* ── Content column (65%) ── */}
-            <motion.div
-                className="w-full px-4 py-6 sm:px-6 lg:w-[65%] lg:px-8"
-                initial={{ x: isRTL ? 40 : -40, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ duration: 0.7, ease: [0.25, 0.1, 0.25, 1] }}
-            >
-            <div className="mx-auto flex max-w-4xl flex-col gap-6">
-
-                {/* Header */}
-                <PageReveal className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-[var(--line)] bg-[var(--bg-primary)]/80 px-4 py-3 backdrop-blur-lg">
+        <div className="employee-ledger-surface min-h-screen bg-[var(--employee-canvas)] text-[var(--employee-ink)]">
+            <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+                <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--employee-line)] pb-4">
                     <div className="flex min-w-0 items-center gap-3">
-                        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-[var(--surface)] p-2">
-                            <Image
-                                src="/logo.png"
-                                alt="Amwag"
-                                fill
-                                className="object-contain p-1"
-                            />
+                        <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-[var(--employee-line)] bg-[var(--employee-surface)]">
+                            <Image src="/logo.png" alt="Amwag" fill className="object-contain p-2" priority />
                         </div>
                         <div className="min-w-0">
-                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--accent)]">
+                            <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-accent)]">
                                 {t('title')}
                             </p>
-                            <h1 className="truncate text-lg font-bold text-[var(--foreground)]">
-                                {profile?.full_name || 'Employee workspace'}
+                            <h1 className="truncate text-xl font-semibold text-[var(--employee-ink)]">
+                                {employeeName}
                             </h1>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <LanguageSwitcher />
-                        <Button variant="ghost" size="sm" onClick={handleLogout}>
-                            <LogOut className="h-4 w-4" />
-                            <span className="hidden sm:inline">Logout</span>
-                        </Button>
+                        <div className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--employee-line)] bg-[var(--employee-surface)] px-2">
+                            <Languages className="h-4 w-4 text-[var(--employee-muted)]" aria-hidden="true" />
+                            <LanguageSwitcher />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={handleLogout}
+                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-[var(--employee-line)] bg-[var(--employee-surface)] px-4 text-sm font-semibold text-[var(--employee-ink)] transition-colors hover:bg-[var(--employee-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--employee-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--employee-canvas)]"
+                        >
+                            <LogOut className="h-4 w-4" aria-hidden="true" />
+                            <span>{t('logout')}</span>
+                        </button>
                     </div>
-                </PageReveal>
+                </header>
 
-                {/* Main grid */}
-                <div className="grid gap-6 lg:grid-cols-2">
-
-                    {/* Left: Clock Hero Card */}
-                    <PageReveal delay={0.08}>
-                        <div className="flex flex-col items-center gap-6 rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 backdrop-blur-2xl sm:p-8">
-                            {/* Date & status row */}
-                            <div className="flex w-full flex-wrap items-center justify-between gap-3">
-                                <div className="flex items-center gap-2 text-sm text-[var(--muted)]">
-                                    <Calendar className="h-4 w-4 text-[var(--accent)]" />
-                                    <span>{formattedDate}</span>
-                                </div>
-                                <Badge variant={statusBadge.variant}>{statusBadge.label}</Badge>
-                            </div>
-
-                            {/* Clock with check-in/out button */}
-                            <ClockHero
-                                currentTime={currentTime}
-                                shiftStatus={shiftStatus}
-                                shiftProgress={shiftProgress}
-                                onCheckIn={handleCheckIn}
-                                onCheckOut={handleCheckOut}
-                                isLoading={isCheckingIn || isCheckingOut}
-                                t={t}
-                            />
-
-                            {/* Status text */}
-                            <div className="w-full rounded-xl border border-[var(--line)] bg-[var(--surface)] px-5 py-4">
-                                <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
-                                    Next action
+                <div className="grid flex-1 gap-6 py-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)] lg:items-start">
+                    <div className="flex flex-col gap-4">
+                        <div>
+                            <div>
+                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                                    {t('today')}
                                 </p>
-                                <p className="mt-1.5 font-semibold text-[var(--foreground)]">
-                                    {isMissingCheckout
-                                        ? t('missingCheckout')
-                                        : hasCheckedOut
-                                            ? t('shiftCompleted')
-                                            : hasCheckedIn
-                                                ? t('currentlyOnShift')
-                                                : t('startYourDay')}
-                                </p>
-                                <p className="mt-1 text-sm text-[var(--muted)]">
-                                    {isMissingCheckout
-                                        ? `${t('checkIn')}: ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
-                                        : hasCheckedOut
-                                            ? `${t('checkOut')}: ${formatTimestamp(todayRecord?.check_out_time ?? null)}`
-                                            : hasCheckedIn
-                                                ? `${t('checkIn')}: ${formatTimestamp(todayRecord?.check_in_time ?? null)}`
-                                                : 'Your shift card is ready for the first tap.'}
-                                </p>
+                                <p className="mt-1 text-lg font-semibold text-[var(--employee-ink)]">{formattedDate}</p>
                             </div>
                         </div>
-                    </PageReveal>
 
-                    {/* Right: Profile + Today's Record */}
-                    <StaggerGroup className="flex flex-col gap-6" delayChildren={0.12}>
+                        <ClockHero
+                            currentTime={currentTime}
+                            locale={locale}
+                            shiftStatus={shiftStatus}
+                            shiftProgress={shiftProgress}
+                            actionKind={actionKind}
+                            actionLabel={actionLabel}
+                            actionHint={actionHint}
+                            timeLabel={t('cairoTime')}
+                            progressLabel={t('shiftProgress')}
+                            onCheckIn={handleCheckIn}
+                            onCheckOut={handleCheckOut}
+                            isLoading={isCheckingIn || isCheckingOut}
+                            isDisabled={isMissingCheckout}
+                        />
 
-                        {/* Profile Card */}
-                        <StaggerItem>
-                            <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 backdrop-blur-2xl">
-                                <p className="mb-4 text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
-                                    Profile
-                                </p>
-                                <div className="flex items-start gap-4">
-                                    {/* Avatar with animated gradient ring when on shift */}
-                                    <div className="relative shrink-0">
-                                        <motion.div
-                                            className="absolute inset-[-3px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--secondary)]"
-                                            animate={isOnShift ? { rotate: 360 } : {}}
-                                            transition={
-                                                isOnShift
-                                                    ? { duration: 8, ease: 'linear', repeat: Infinity }
-                                                    : {}
-                                            }
-                                        />
-                                        <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-xl font-bold text-[var(--foreground)]">
-                                            {profile?.full_name?.charAt(0).toUpperCase() || 'U'}
-                                        </div>
-                                    </div>
-                                    <div className="min-w-0">
-                                        <h2 className="truncate text-xl font-bold text-[var(--foreground)]">
-                                            {profile?.full_name || 'Employee'}
-                                        </h2>
-                                        <p className="mt-0.5 truncate text-sm text-[var(--muted)]">
-                                            {profile?.email || ''}
-                                        </p>
-                                    </div>
-                                </div>
-
-                                <div className="mt-4 grid gap-2">
-                                    {profile?.job_title && (
-                                        <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground-soft)]">
-                                            <Briefcase className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-                                            <span className="truncate">{profile.job_title}</span>
-                                        </div>
-                                    )}
-                                    {profile?.branch && (
-                                        <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground-soft)]">
-                                            <MapPin className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-                                            <span className="truncate">{profile.branch}</span>
-                                        </div>
-                                    )}
-                                    {(profile?.shift_start || profile?.shift_end) && (
-                                        <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-3 py-2.5 text-sm text-[var(--foreground-soft)]">
-                                            <Timer className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-                                            <span>
-                                                {formatTime(profile?.shift_start ?? null)} – {formatTime(profile?.shift_end ?? null)}
-                                            </span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </StaggerItem>
-
-                        {/* Today's Record Card */}
-                        <StaggerItem>
-                            <div className="rounded-3xl border border-[var(--line)] bg-[var(--surface)] p-6 backdrop-blur-2xl">
-                                <div className="mb-4 flex items-center justify-between gap-3">
-                                    <div>
-                                        <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
-                                            {t('todaysRecord')}
-                                        </p>
-                                        <h2 className="mt-1 text-lg font-bold text-[var(--foreground)]">
-                                            {todayRecord ? 'Your day at a glance' : 'No record yet'}
-                                        </h2>
-                                    </div>
-                                    {todayRecord?.status && (
-                                        <Badge variant={todayRecord.status}>{todayRecord.status}</Badge>
-                                    )}
-                                </div>
-
-                                {todayRecord ? (
-                                    <div className="grid gap-3 sm:grid-cols-2">
-                                        {/* Check-in */}
-                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
-                                                {t('checkIn')}
-                                            </p>
-                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
-                                                {formatTimestamp(todayRecord.check_in_time)}
-                                            </p>
-                                        </div>
-                                        {/* Check-out */}
-                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
-                                                {t('checkOut')}
-                                            </p>
-                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
-                                                {formatTimestamp(todayRecord.check_out_time)}
-                                            </p>
-                                        </div>
-                                        {/* Late minutes */}
-                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
-                                                {t('late')}
-                                            </p>
-                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
-                                                {todayRecord.late_minutes != null && todayRecord.late_minutes > 0 ? (
-                                                    <AnimatedCounter
-                                                        value={todayRecord.late_minutes}
-                                                        suffix=" min"
-                                                        className="text-[var(--warning)]"
-                                                    />
-                                                ) : (
-                                                    formatLateness(todayRecord.late_minutes)
-                                                )}
-                                            </p>
-                                        </div>
-                                        {/* Overtime */}
-                                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                            <p className="text-[0.65rem] font-semibold uppercase tracking-widest text-[var(--muted)]">
-                                                {t('overtime')}
-                                            </p>
-                                            <p className="mt-2 font-semibold text-[var(--foreground)]">
-                                                {todayRecord.overtime_minutes != null && todayRecord.overtime_minutes > 0 ? (
-                                                    <AnimatedCounter
-                                                        value={todayRecord.overtime_minutes}
-                                                        suffix=" min"
-                                                        className="text-[var(--success)]"
-                                                    />
-                                                ) : (
-                                                    formatOvertime(todayRecord.overtime_minutes || 0)
-                                                )}
-                                            </p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed border-[var(--line-strong)] bg-[var(--surface)] p-6 text-center">
-                                        <Clock className="h-8 w-8 text-[var(--muted)]" />
-                                        <p className="text-sm leading-6 text-[var(--muted)]">
-                                            Your attendance record will appear here after the first check-in.
-                                        </p>
-                                    </div>
+                        {(actionError || actionSuccess) && (
+                            <div
+                                role={actionError ? 'alert' : 'status'}
+                                className={cn(
+                                    'flex items-start gap-3 rounded-md border px-4 py-3 text-sm font-medium',
+                                    actionError
+                                        ? 'border-[var(--employee-danger)]/30 bg-[var(--employee-danger-soft)] text-[var(--employee-danger)]'
+                                        : 'border-[var(--employee-success)]/25 bg-[var(--employee-success-soft)] text-[var(--employee-success)]'
                                 )}
+                            >
+                                {actionError ? (
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                ) : (
+                                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                                )}
+                                <span dir="auto">{actionError || actionSuccess}</span>
                             </div>
-                        </StaggerItem>
-                    </StaggerGroup>
+                        )}
+                    </div>
+
+                    <aside className="rounded-[var(--employee-radius-lg)] border border-[var(--employee-line)] bg-[var(--employee-surface)] p-5 shadow-[var(--employee-shadow)] sm:p-6">
+                        <div className="flex items-start justify-between gap-4">
+                            <div className="min-w-0">
+                                <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                                    {t('employeeSummary')}
+                                </p>
+                                <h2 className="mt-1 truncate text-xl font-semibold text-[var(--employee-ink)]">
+                                    {employeeName}
+                                </h2>
+                                <p className="mt-1 truncate text-sm text-[var(--employee-muted)]">{profile?.email || '-'}</p>
+                            </div>
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[var(--employee-line)] bg-[var(--employee-surface-muted)] text-lg font-semibold text-[var(--employee-accent)]">
+                                {employeeName.charAt(0).toUpperCase()}
+                            </div>
+                        </div>
+
+                        <div className="mt-5 border-y border-[var(--employee-line)]">
+                            <DetailRow icon={Briefcase} label={t('jobTitle')} value={profile?.job_title || '-'} />
+                            <DetailRow icon={MapPin} label={t('branch')} value={branchName} />
+                            <DetailRow
+                                icon={Timer}
+                                label={t('shiftWindow')}
+                                value={`${formatShiftTimeForLocale(profile?.shift_start ?? null, locale)} - ${formatShiftTimeForLocale(profile?.shift_end ?? null, locale)}`}
+                            />
+                        </div>
+
+                        <section className="mt-6" aria-labelledby="today-record-heading">
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                                        {t('todaysRecord')}
+                                    </p>
+                                    <h3 id="today-record-heading" className="mt-1 text-base font-semibold text-[var(--employee-ink)]">
+                                        {todayRecord ? t('recordAvailable') : t('recordEmpty')}
+                                    </h3>
+                                </div>
+                                <span className="inline-flex items-center gap-2 rounded-md border border-[var(--employee-line)] bg-[var(--employee-surface-muted)] px-3 py-2 text-sm font-semibold text-[var(--employee-ink)]">
+                                    <StatusMarker tone={statusTone} />
+                                    {statusLabel}
+                                </span>
+                            </div>
+
+                            <div className="mt-4 overflow-hidden rounded-md border border-[var(--employee-line)]">
+                                <dl className="divide-y divide-[var(--employee-line)]">
+                                    <div className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 bg-[var(--employee-surface-muted)] px-4 py-3">
+                                        <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                                            {t('status')}
+                                        </dt>
+                                        <dd className="flex items-center gap-2 text-sm font-semibold text-[var(--employee-ink)]">
+                                            <StatusMarker tone={statusTone} />
+                                            {todayRecord?.status ? statusCopy(todayRecord.status, t) : statusLabel}
+                                        </dd>
+                                    </div>
+                                    <div className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 px-4 py-3">
+                                        <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                                            {t('checkInTime')}
+                                        </dt>
+                                        <dd className="text-sm font-semibold text-[var(--employee-ink)]">
+                                            {formatCairoTimestamp(todayRecord?.check_in_time ?? null, locale)}
+                                        </dd>
+                                    </div>
+                                    <div className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 px-4 py-3">
+                                        <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                                            {t('checkOutTime')}
+                                        </dt>
+                                        <dd className="text-sm font-semibold text-[var(--employee-ink)]">
+                                            {formatCairoTimestamp(todayRecord?.check_out_time ?? null, locale)}
+                                        </dd>
+                                    </div>
+                                    {issueRows.map((row) => (
+                                        <div key={row.label} className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 px-4 py-3">
+                                            <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
+                                                {row.label}
+                                            </dt>
+                                            <dd
+                                                className={cn(
+                                                    'text-sm font-semibold',
+                                                    row.active && row.tone === 'warning' && 'text-[var(--employee-warning)]',
+                                                    row.active && row.tone === 'success' && 'text-[var(--employee-success)]',
+                                                    !row.active && 'text-[var(--employee-ink)]'
+                                                )}
+                                            >
+                                                {row.value}
+                                            </dd>
+                                        </div>
+                                    ))}
+                                </dl>
+                            </div>
+
+                            {!todayRecord && (
+                                <div className="mt-4 rounded-md border border-dashed border-[var(--employee-line-strong)] bg-[var(--employee-surface-muted)] px-4 py-5 text-sm leading-6 text-[var(--employee-muted)]">
+                                    {t('recordEmptyDetail')}
+                                </div>
+                            )}
+                        </section>
+                    </aside>
                 </div>
-            </div>
 
-            <Footer className="relative z-10 pb-3 pt-8" compact />
-            </motion.div>
-
-            {/* ── Spline column (35%) — desktop only ── */}
-            <motion.div
-                className="hidden lg:block lg:w-[35%] relative overflow-hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ duration: 1.2, delay: 0.5 }}
-            >
-                <SplineScene
-                    scene="https://prod.spline.design/kZDDjO5HuC9GJUM2/scene.splinecode"
-                    className="w-full h-full"
-                />
-            </motion.div>
+                <Footer className="pb-3 pt-2" compact />
+            </main>
 
             <ToastContainer />
         </div>
