@@ -11,6 +11,13 @@ const nextConfig: NextConfig = {
   // Set output to standalone for production deployments
   output: 'standalone',
   outputFileTracingRoot: projectRoot,
+  webpack: (config, { isServer }) => {
+    if (isServer && config.output) {
+      config.output.chunkFilename = 'chunks/[name].js';
+    }
+
+    return config;
+  },
 };
 
 export default withNextIntl(nextConfig);

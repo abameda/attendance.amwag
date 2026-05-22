@@ -1,5 +1,6 @@
 'use client';
 
+import { forwardRef } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
@@ -38,6 +39,9 @@ const navItems: NavItem[] = [
 ];
 
 export type AppSidebarProps = {
+    dialogId: string;
+    labelId: string;
+    isMobileDialog: boolean;
     isOpen: boolean;
     onClose: () => void;
     userRole: string;
@@ -49,7 +53,11 @@ export type AppSidebarProps = {
     onLogout: () => void;
 };
 
-export default function AppSidebar({
+const AppSidebar = forwardRef<HTMLElement, AppSidebarProps>(function AppSidebar(
+{
+    dialogId,
+    labelId,
+    isMobileDialog,
     isOpen,
     onClose,
     userRole,
@@ -59,22 +67,32 @@ export default function AppSidebar({
     isProfileLoading,
     isLoggingOut,
     onLogout,
-}: AppSidebarProps) {
+},
+ref
+) {
     const pathname = usePathname();
     const locale = useLocale();
     const t = useTranslations('Sidebar');
 
     return (
         <aside
+            ref={ref}
+            id={dialogId}
+            role={isMobileDialog && isOpen ? 'dialog' : undefined}
+            aria-modal={isMobileDialog && isOpen ? true : undefined}
+            aria-labelledby={labelId}
+            aria-hidden={isMobileDialog && !isOpen ? true : undefined}
+            inert={isMobileDialog && !isOpen ? true : undefined}
+            tabIndex={isMobileDialog && isOpen ? -1 : undefined}
             className={cn(
                 'fixed inset-y-0 start-0 z-50 w-[19.5rem] max-w-[calc(100vw-1.5rem)] px-3 py-3 transition-transform duration-300 ease-out lg:px-5 lg:py-5 lg:translate-x-0 lg:rtl:-translate-x-0',
                 isOpen ? 'translate-x-0 rtl:translate-x-0' : '-translate-x-full rtl:translate-x-full'
             )}
         >
-            <div className="flex h-full flex-col bg-white/30 border border-white/50 backdrop-blur-2xl shadow-[0_16px_60px_0_rgba(45,70,140,0.12)] rounded-[1.75rem] p-4 max-lg:backdrop-blur-xl">
-                <div className="flex items-center justify-between border-b border-white/45 px-2 pb-4">
+            <div className="admin-glass-sidebar flex h-full flex-col p-4">
+                <div className="flex items-center justify-between border-b border-white/[0.12] px-2 pb-4">
                     <div className="flex min-w-0 items-center gap-3">
-                        <div className="relative h-14 w-14 shrink-0 rounded-2xl border border-white/55 bg-white/35 p-3 shadow-sm backdrop-blur-xl">
+                        <div className="admin-glass-control relative h-14 w-14 shrink-0 rounded-2xl p-3">
                             <Image
                                 src="/logo.png"
                                 alt="Amwag Transportation"
@@ -85,13 +103,16 @@ export default function AppSidebar({
                         </div>
                         <div className="min-w-0">
                             <p className="section-kicker text-slate-500">{t('adminPanel')}</p>
-                            <h1 className="truncate text-xl font-extrabold text-slate-900">Amwag</h1>
+                            <p id={labelId} className="truncate text-xl font-extrabold text-[var(--admin-ink-strong)]">
+                                Amwag
+                            </p>
                         </div>
                     </div>
                     <button
+                        data-sidebar-close
                         type="button"
                         onClick={onClose}
-                        className="focus-ring inline-flex size-10 items-center justify-center rounded-xl border border-white/50 bg-white/30 text-slate-700 transition-all duration-200 hover:bg-white/50 hover:text-slate-950 lg:hidden"
+                        className="focus-ring admin-glass-icon-button inline-flex size-10 items-center justify-center transition-all duration-200 lg:hidden"
                         aria-label={t('closeNavigation')}
                     >
                         <X className="h-5 w-5" />
@@ -117,18 +138,18 @@ export default function AppSidebar({
                                     aria-label={label}
                                     aria-current={isActive ? 'page' : undefined}
                                     className={cn(
-                                        'focus-ring group flex min-h-12 items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-200',
+                                        'focus-ring admin-nav-item group',
                                         isActive
-                                            ? 'bg-cyan-100/55 text-sky-900 border border-cyan-200/60 shadow-sm'
-                                            : 'border border-transparent text-slate-600 hover:bg-white/35 hover:text-slate-950'
+                                            ? 'admin-nav-item-active'
+                                            : ''
                                     )}
                                 >
                                     <span
                                         className={cn(
                                             'inline-flex size-9 shrink-0 items-center justify-center rounded-xl transition-colors',
                                             isActive
-                                                ? 'bg-white/40 text-sky-800'
-                                                : 'bg-white/25 text-slate-500 group-hover:text-slate-900'
+                                                ? 'border border-blue-300/[0.25] bg-blue-500/[0.18] text-blue-200'
+                                                : 'border border-white/[0.10] bg-white/[0.06] text-slate-400 group-hover:text-slate-100'
                                         )}
                                     >
                                         <Icon className="h-4 w-4" aria-hidden="true" />
@@ -140,16 +161,16 @@ export default function AppSidebar({
                         })}
                 </nav>
 
-                <div className="space-y-4 border-t border-white/45 px-2 pt-4">
+                <div className="space-y-4 border-t border-white/[0.12] px-2 pt-4">
                     <LanguageSwitcher />
 
-                    <div className="rounded-2xl border border-white/50 bg-white/35 p-4 shadow-sm backdrop-blur-xl">
+                    <div className="admin-glass-panel-muted p-4">
                         <div className="flex items-center gap-3">
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-sky-600 text-lg font-extrabold text-[oklch(99%_0.004_220)] shadow-[0_12px_30px_rgba(2,132,199,0.22)]">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-300/[0.25] bg-blue-600/[0.65] text-lg font-extrabold text-[var(--admin-ink-strong)] shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
                                 {adminInitial}
                             </div>
                             <div className="min-w-0">
-                                <p className="truncate text-sm font-bold text-slate-900">
+                                <p className="truncate text-sm font-bold text-[var(--admin-ink-strong)]">
                                     {isProfileLoading ? t('loadingProfile') : adminName || t('adminFallback')}
                                 </p>
                                 <p className="mt-1 truncate text-xs font-bold uppercase text-slate-500">
@@ -162,7 +183,7 @@ export default function AppSidebar({
                             type="button"
                             onClick={onLogout}
                             disabled={isLoggingOut}
-                            className="focus-ring mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-rose-200/70 bg-rose-100/65 px-4 py-2.5 text-sm font-bold text-rose-800 transition-all duration-200 hover:bg-white/55 disabled:pointer-events-none disabled:opacity-60"
+                            className="focus-ring mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-red-400/[0.30] bg-red-950/[0.35] px-4 py-2.5 text-sm font-bold text-red-200 transition-all duration-200 hover:bg-red-900/[0.45] disabled:pointer-events-none disabled:opacity-60"
                         >
                             <LogOut className="h-4 w-4" aria-hidden="true" />
                             <span>{isLoggingOut ? t('loggingOut') : t('logout')}</span>
@@ -172,4 +193,6 @@ export default function AppSidebar({
             </div>
         </aside>
     );
-}
+});
+
+export default AppSidebar;

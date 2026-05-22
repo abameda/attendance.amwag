@@ -7,15 +7,11 @@ import {
     AlertCircle,
     ArrowLeft,
     ArrowRight,
-    Building2,
-    CheckCircle2,
     Globe2,
     Lock,
     Mail,
-    ShieldCheck,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
-import Footer from '@/components/Footer';
 import {
     Button,
     Input,
@@ -28,6 +24,7 @@ export default function LoginPage() {
     const pathname = usePathname();
     const locale = useLocale();
     const t = useTranslations('Login');
+    const tc = useTranslations('Common');
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
@@ -111,193 +108,163 @@ export default function LoginPage() {
     };
 
     return (
-        <div className="relative z-10 flex min-h-screen flex-col bg-[oklch(96.2%_0.018_88)] text-[oklch(24.5%_0.018_125)] [--accent:oklch(42%_0.075_165)] [--accent-strong:oklch(35%_0.08_165)] [--bg-primary:oklch(96.2%_0.018_88)] [--danger:oklch(50%_0.13_28)] [--danger-soft:oklch(91%_0.05_28)] [--foreground:oklch(24.5%_0.018_125)] [--foreground-soft:oklch(39%_0.018_125)] [--line:oklch(84%_0.022_88)] [--line-strong:oklch(74%_0.028_88)] [--muted:oklch(49%_0.018_125)] [--muted-strong:oklch(37%_0.018_125)] [--shadow-glow-blue:0_0_0_3px_oklch(89%_0.045_165)] [--surface:oklch(98.5%_0.012_88)] [--surface-hover:oklch(94.8%_0.018_88)] [--surface-strong:oklch(98.5%_0.012_88)]">
-            <main className="flex flex-1 items-center px-4 py-6 sm:px-6 lg:px-10">
-                <div className="mx-auto grid w-full max-w-6xl overflow-hidden rounded-lg border border-[oklch(84%_0.022_88)] bg-[oklch(98.5%_0.012_88)] shadow-[0_18px_48px_oklch(24.5%_0.018_125_/_0.10)] lg:min-h-[680px] lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,1fr)]">
-                    <section className="relative hidden bg-[oklch(93.4%_0.023_88)] p-8 lg:flex lg:flex-col lg:justify-between xl:p-10">
-                        <div className="flex items-center gap-3 border-b border-[oklch(84%_0.022_88)] pb-6">
-                            <div className="relative h-14 w-14 overflow-hidden rounded-md border border-[oklch(84%_0.022_88)] bg-[oklch(98.5%_0.012_88)]">
+        <div className="admin-glass-surface login-graphite-shell relative z-10 flex min-h-screen w-full max-w-full overflow-hidden text-[var(--admin-ink)]">
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_8%,rgb(37_99_235_/_0.16),transparent_34rem),radial-gradient(circle_at_82%_18%,rgb(14_116_144_/_0.12),transparent_30rem),linear-gradient(135deg,var(--admin-canvas-deep),var(--admin-canvas)_52%,oklch(11%_0.012_250))]"
+            />
+            <div
+                aria-hidden="true"
+                className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[linear-gradient(180deg,rgb(255_255_255_/_0.055),transparent)]"
+            />
+
+            <div
+                aria-hidden="true"
+                className="login-background-mark pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[82vmin] w-[82vmin] min-w-[54rem] -translate-x-1/2 -translate-y-1/2 opacity-[0.055]"
+            >
+                <Image
+                    src="/logo.png"
+                    alt=""
+                    fill
+                    className="object-contain"
+                    priority
+                />
+            </div>
+
+            <main className="relative z-10 flex min-h-screen w-full min-w-0 items-center justify-center px-4 py-6 sm:px-6 lg:px-8">
+                <section className="login-card-shell admin-glass-panel-strong relative w-full max-w-[27rem] overflow-hidden p-5 sm:p-7">
+                    <div
+                        aria-hidden="true"
+                        className="absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgb(147_197_253_/_0.46),transparent)]"
+                    />
+                    <div
+                        aria-hidden="true"
+                        className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgb(96_165_250_/_0.14),transparent_16rem)]"
+                    />
+
+                    <div className="relative">
+                        <div className="mb-6 flex justify-center">
+                            <div className="admin-glass-control relative h-24 w-24 overflow-hidden rounded-[1.75rem] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.32)] sm:h-28 sm:w-28">
                                 <Image
                                     src="/logo.png"
                                     alt="Amwag Transportation"
                                     fill
-                                    className="object-contain p-2"
+                                    className="object-contain p-4"
                                     priority
                                 />
                             </div>
-                            <div>
-                                <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[oklch(42%_0.075_165)]">
-                                    {t('eyebrow')}
-                                </p>
-                                <p className="mt-1 text-base font-semibold text-[oklch(24.5%_0.018_125)]">
-                                    {t('brand')}
-                                </p>
-                            </div>
                         </div>
 
-                        <div className="relative max-w-md">
-                            <p className="text-sm font-semibold uppercase tracking-[0.14em] text-[oklch(49%_0.018_125)]">
-                                {t('accessPoint')}
+                        <div className="mb-7 text-center">
+                            <p className="text-xs font-bold uppercase text-[var(--admin-primary)]">
+                                {t('formEyebrow')}
                             </p>
-                            <h1 className="mt-4 text-[2rem] font-bold leading-[1.15] text-[oklch(24.5%_0.018_125)]">
-                                {t('title')}
+                            <h1 className="mt-2 text-2xl font-bold leading-tight text-[var(--admin-ink-strong)]">
+                                {t('formTitle')}
                             </h1>
-                            <p className="mt-5 max-w-[34rem] text-sm leading-6 text-[oklch(49%_0.018_125)]">
-                                {t('subtitle')}
+                            <p className="mt-2 text-sm leading-6 text-[var(--admin-text-soft)]">
+                                {t('brand')}
                             </p>
                         </div>
 
-                        <div className="grid gap-3 text-sm">
-                            {[
-                                { icon: ShieldCheck, title: t('trustTitle'), body: t('trustBody') },
-                                { icon: Building2, title: t('branchTitle'), body: t('branchBody') },
-                                { icon: CheckCircle2, title: t('roleTitle'), body: t('roleBody') },
-                            ].map((item) => (
+                        <form onSubmit={handleLogin} className="min-w-0 space-y-5" noValidate>
+                            <Input
+                                id="email"
+                                label={t('email')}
+                                type="email"
+                                placeholder={t('emailPlaceholder')}
+                                value={email}
+                                onChange={(event) => {
+                                    setEmail(event.target.value);
+                                    setFormError('');
+                                }}
+                                icon={<Mail className="h-4 w-4" />}
+                                required
+                                autoComplete="email"
+                                autoFocus
+                                disabled={isLoading}
+                                className="admin-glass-control focus-ring min-h-12 rounded-xl ps-11 text-[var(--admin-ink-strong)] shadow-none outline-none placeholder:text-[var(--admin-text-muted)]"
+                            />
+
+                            <Input
+                                id="password"
+                                label={t('password')}
+                                type="password"
+                                placeholder={t('passwordPlaceholder')}
+                                value={password}
+                                onChange={(event) => {
+                                    setPassword(event.target.value);
+                                    setFormError('');
+                                }}
+                                icon={<Lock className="h-4 w-4" />}
+                                required
+                                autoComplete="current-password"
+                                disabled={isLoading}
+                                className="admin-glass-control focus-ring min-h-12 rounded-xl ps-11 text-[var(--admin-ink-strong)] shadow-none outline-none placeholder:text-[var(--admin-text-muted)]"
+                            />
+
+                            {formError && (
                                 <div
-                                    key={item.title}
-                                    className="flex gap-3 rounded-md border border-[oklch(84%_0.022_88)] bg-[oklch(98.5%_0.012_88)] p-4"
+                                    className="admin-glass-alert-danger flex gap-3 p-3 text-sm leading-5"
+                                    role="alert"
+                                    aria-live="polite"
                                 >
-                                    <item.icon className="mt-0.5 h-4 w-4 shrink-0 text-[oklch(42%_0.075_165)]" />
-                                    <div>
-                                        <p className="font-semibold text-[oklch(24.5%_0.018_125)]">{item.title}</p>
-                                        <p className="mt-1 leading-5 text-[oklch(49%_0.018_125)]">{item.body}</p>
-                                    </div>
+                                    <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                                    <p>{formError}</p>
                                 </div>
-                            ))}
-                        </div>
-                    </section>
+                            )}
 
-                    <section className="flex flex-col justify-center px-5 py-7 sm:px-8 lg:px-12 xl:px-16">
-                        <div className="mb-10 flex items-start justify-between gap-4 lg:hidden">
-                            <div className="flex items-center gap-3">
-                                <div className="relative h-12 w-12 overflow-hidden rounded-md border border-[oklch(84%_0.022_88)] bg-[oklch(98.5%_0.012_88)]">
-                                    <Image
-                                        src="/logo.png"
-                                        alt="Amwag Transportation"
-                                        fill
-                                        className="object-contain p-2"
-                                        priority
-                                    />
-                                </div>
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[oklch(42%_0.075_165)]">
-                                        {t('eyebrow')}
-                                    </p>
-                                    <p className="mt-1 text-sm font-semibold">{t('brand')}</p>
-                                </div>
-                            </div>
-                        </div>
+                            <Button
+                                type="submit"
+                                className="admin-glass-button-primary min-h-12 w-full justify-between rounded-xl shadow-none"
+                                size="lg"
+                                isLoading={isLoading}
+                                disabled={!canSubmit}
+                            >
+                                <span>{isLoading ? t('signingIn') : t('submit')}</span>
+                                {isRtl ? <ArrowLeft className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
+                            </Button>
+                        </form>
 
-                        <div className="mx-auto w-full max-w-md">
-                            <div className="mb-8 flex items-center justify-between gap-4">
-                                <div>
-                                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-[oklch(42%_0.075_165)]">
-                                        {t('formEyebrow')}
-                                    </p>
-                                    <h2 className="mt-2 text-2xl font-bold leading-tight text-[oklch(24.5%_0.018_125)]">
-                                        {t('formTitle')}
-                                    </h2>
-                                </div>
-                                <div
-                                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[oklch(84%_0.022_88)] bg-[oklch(94.8%_0.018_88)] p-1"
-                                    aria-label={t('languageLabel')}
-                                >
-                                    <Globe2 className="mx-2 hidden h-4 w-4 text-[oklch(49%_0.018_125)] sm:block" />
-                                    {(['en', 'ar'] as const).map((item) => (
-                                        <button
-                                            key={item}
-                                            type="button"
-                                            onClick={() => switchLocale(item)}
-                                            className={`min-h-9 rounded px-3 text-xs font-semibold transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[oklch(48%_0.095_165)] ${
-                                                locale === item
-                                                    ? 'bg-[oklch(98.5%_0.012_88)] text-[oklch(42%_0.075_165)] shadow-[0_1px_2px_oklch(24.5%_0.018_125_/_0.08)]'
-                                                    : 'text-[oklch(49%_0.018_125)] hover:text-[oklch(24.5%_0.018_125)]'
-                                            }`}
-                                            aria-pressed={locale === item}
-                                        >
-                                            {item === 'en' ? 'EN' : 'AR'}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            <form onSubmit={handleLogin} className="space-y-5" noValidate>
-                                <Input
-                                    id="email"
-                                    label={t('email')}
-                                    type="email"
-                                    placeholder={t('emailPlaceholder')}
-                                    value={email}
-                                    onChange={(event) => {
-                                        setEmail(event.target.value);
-                                        setFormError('');
-                                    }}
-                                    icon={<Mail className="h-4 w-4" />}
-                                    required
-                                    autoComplete="email"
-                                    autoFocus
-                                    disabled={isLoading}
-                                    className="min-h-11 !rounded-md !bg-[oklch(98.5%_0.012_88)] !text-[oklch(24.5%_0.018_125)] !shadow-none focus-visible:!shadow-[0_0_0_3px_oklch(89%_0.045_165)]"
-                                />
-
-                                <Input
-                                    id="password"
-                                    label={t('password')}
-                                    type="password"
-                                    placeholder={t('passwordPlaceholder')}
-                                    value={password}
-                                    onChange={(event) => {
-                                        setPassword(event.target.value);
-                                        setFormError('');
-                                    }}
-                                    icon={<Lock className="h-4 w-4" />}
-                                    required
-                                    autoComplete="current-password"
-                                    disabled={isLoading}
-                                    className="min-h-11 !rounded-md !bg-[oklch(98.5%_0.012_88)] !text-[oklch(24.5%_0.018_125)] !shadow-none focus-visible:!shadow-[0_0_0_3px_oklch(89%_0.045_165)]"
-                                />
-
-                                {formError && (
-                                    <div
-                                        className="flex gap-3 rounded-md border border-[oklch(76%_0.07_28)] bg-[oklch(91%_0.05_28)] p-3 text-sm leading-5 text-[oklch(36%_0.11_28)]"
-                                        role="alert"
-                                        aria-live="polite"
+                        <div className="mt-5 flex justify-center">
+                            <div
+                                className="admin-glass-control inline-flex shrink-0 items-center gap-1 rounded-2xl p-1"
+                                aria-label={t('languageLabel')}
+                            >
+                                <Globe2 className="mx-2 hidden h-4 w-4 text-[var(--admin-text-soft)] sm:block" />
+                                {(['en', 'ar'] as const).map((item) => (
+                                    <button
+                                        key={item}
+                                        type="button"
+                                        onClick={() => switchLocale(item)}
+                                        className={`focus-ring min-h-9 rounded-xl px-3 text-xs font-bold transition-all duration-200 ${
+                                            locale === item
+                                                ? 'border border-[rgb(96_165_250_/_0.34)] bg-[rgb(30_64_175_/_0.34)] text-[var(--admin-ink-strong)] shadow-[0_10px_24px_rgba(0,0,0,0.24)]'
+                                                : 'border border-transparent text-[var(--admin-text-soft)] hover:bg-[rgb(255_255_255_/_0.085)] hover:text-[var(--admin-ink-strong)]'
+                                        }`}
+                                        aria-pressed={locale === item}
                                     >
-                                        <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
-                                        <p>{formError}</p>
-                                    </div>
-                                )}
-
-                                <Button
-                                    type="submit"
-                                    className="min-h-11 w-full justify-between !rounded-md !bg-[oklch(42%_0.075_165)] !text-[oklch(98.5%_0.012_88)] !shadow-none hover:!translate-y-0 hover:!bg-[oklch(35%_0.08_165)]"
-                                    size="lg"
-                                    isLoading={isLoading}
-                                    disabled={!canSubmit}
-                                >
-                                    <span>{isLoading ? t('signingIn') : t('submit')}</span>
-                                    {isRtl ? <ArrowLeft className="h-4 w-4" /> : <ArrowRight className="h-4 w-4" />}
-                                </Button>
-                            </form>
-
-                            <div className="mt-6 rounded-md border border-[oklch(84%_0.022_88)] bg-[oklch(94.8%_0.018_88)] p-4">
-                                <p className="text-sm font-semibold text-[oklch(24.5%_0.018_125)]">
-                                    {t('supportTitle')}
-                                </p>
-                                <p className="mt-1 text-sm leading-6 text-[oklch(49%_0.018_125)]">
-                                    {t('supportBody')}
-                                </p>
+                                        {item === 'en' ? 'EN' : 'AR'}
+                                    </button>
+                                ))}
                             </div>
-
-                            <p className="mt-8 text-xs leading-5 text-[oklch(49%_0.018_125)]">
-                                {t('securityNote')}
-                            </p>
                         </div>
-                    </section>
-                </div>
+
+                        <p className="mt-5 text-center text-xs leading-5 text-[var(--admin-text-muted)]">
+                            {tc('developedBy')}{' '}
+                            <a
+                                href="https://www.shorbagy.space/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-bold text-[var(--admin-text-soft)] transition-colors hover:text-[var(--admin-primary)]"
+                            >
+                                {tc('devName')}
+                            </a>
+                        </p>
+                    </div>
+                </section>
                 <ToastContainer />
             </main>
-            <Footer className="pb-4 pt-1" compact />
         </div>
     );
 }

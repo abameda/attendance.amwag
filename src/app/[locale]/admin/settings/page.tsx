@@ -164,7 +164,7 @@ export default function SettingsPage() {
                             </div>
                             <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('kicker')}</p>
-                                <h1 className="gradient-text text-3xl font-bold sm:text-4xl">{t('title')}</h1>
+                                <h1 className="text-3xl font-extrabold leading-tight text-slate-950 sm:text-4xl">{t('title')}</h1>
                             </div>
                         </div>
                         <p className="mt-3 max-w-xl text-sm leading-7 text-[var(--muted)]">{t('subtitle')}</p>

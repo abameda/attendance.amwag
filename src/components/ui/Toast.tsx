@@ -91,7 +91,7 @@ export function ToastContainer() {
                 <div
                     key={toast.id}
                     className={cn(
-                        'relative flex items-center gap-3 overflow-hidden rounded-[1.4rem] border border-[var(--toast-line)] bg-[var(--toast-surface)] px-4 py-3 text-[var(--toast-foreground)] shadow-[var(--toast-shadow)] backdrop-blur-2xl',
+                        'toast-glass-surface relative flex items-center gap-3 overflow-hidden px-4 py-3',
                         toast.exiting ? 'animate-slide-out-right' : 'animate-slide-in-right'
                     )}
                 >

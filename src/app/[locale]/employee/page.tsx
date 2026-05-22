@@ -113,7 +113,7 @@ function DetailRow({
                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                     {label}
                 </p>
-                <p className={cn('mt-1 truncate text-sm font-semibold', toneClass)}>{value}</p>
+                <p className={cn('mt-1 truncate text-sm font-semibold text-[var(--employee-ink-strong)]', toneClass)}>{value}</p>
             </div>
         </div>
     );
@@ -294,7 +294,7 @@ export default function EmployeePortal() {
 
     if (isLoading) {
         return (
-            <div className="employee-ledger-surface min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+            <div className="employee-glass-surface min-h-screen px-4 py-6 sm:px-6 lg:px-8">
                 <div className="mx-auto flex max-w-6xl flex-col gap-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
@@ -316,32 +316,32 @@ export default function EmployeePortal() {
     }
 
     return (
-        <div className="employee-ledger-surface min-h-screen bg-[var(--employee-canvas)] text-[var(--employee-ink)]">
+        <div className="employee-glass-surface min-h-screen text-[var(--employee-ink)]">
             <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
-                <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--employee-line)] pb-4">
+                <header className="employee-glass-panel flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-5">
                     <div className="flex min-w-0 items-center gap-3">
-                        <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-lg border border-[var(--employee-line)] bg-[var(--employee-surface)]">
+                        <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-[var(--employee-line)] bg-[var(--employee-glass-muted)]">
                             <Image src="/logo.png" alt="Amwag" fill className="object-contain p-2" priority />
                         </div>
                         <div className="min-w-0">
                             <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-accent)]">
                                 {t('title')}
                             </p>
-                            <h1 className="truncate text-xl font-semibold text-[var(--employee-ink)]">
+                            <h1 className="truncate text-xl font-semibold text-[var(--employee-ink-strong)]">
                                 {employeeName}
                             </h1>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <div className="inline-flex min-h-11 items-center gap-2 rounded-md border border-[var(--employee-line)] bg-[var(--employee-surface)] px-2">
+                        <div className="employee-glass-control inline-flex min-h-11 items-center gap-2 px-2">
                             <Languages className="h-4 w-4 text-[var(--employee-muted)]" aria-hidden="true" />
                             <LanguageSwitcher />
                         </div>
                         <button
                             type="button"
                             onClick={handleLogout}
-                            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-md border border-[var(--employee-line)] bg-[var(--employee-surface)] px-4 text-sm font-semibold text-[var(--employee-ink)] transition-colors hover:bg-[var(--employee-surface-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--employee-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--employee-canvas)]"
+                            className="employee-glass-button-secondary inline-flex min-h-11 items-center justify-center gap-2 px-4 text-sm font-semibold transition duration-200 ease-out focus-visible:outline-none focus-visible:shadow-[var(--employee-focus-ring)]"
                         >
                             <LogOut className="h-4 w-4" aria-hidden="true" />
                             <span>{t('logout')}</span>
@@ -351,12 +351,12 @@ export default function EmployeePortal() {
 
                 <div className="grid flex-1 gap-6 py-6 lg:grid-cols-[minmax(0,1.08fr)_minmax(340px,0.92fr)] lg:items-start">
                     <div className="flex flex-col gap-4">
-                        <div>
+                        <div className="employee-glass-panel-strong px-5 py-4">
                             <div>
                                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                                     {t('today')}
                                 </p>
-                                <p className="mt-1 text-lg font-semibold text-[var(--employee-ink)]">{formattedDate}</p>
+                                <p className="mt-1 text-lg font-semibold text-[var(--employee-ink-strong)]">{formattedDate}</p>
                             </div>
                         </div>
 
@@ -380,7 +380,7 @@ export default function EmployeePortal() {
                             <div
                                 role={actionError ? 'alert' : 'status'}
                                 className={cn(
-                                    'flex items-start gap-3 rounded-md border px-4 py-3 text-sm font-medium',
+                                    'employee-glass-alert flex items-start gap-3 border px-4 py-3 text-sm font-medium',
                                     actionError
                                         ? 'border-[var(--employee-danger)]/30 bg-[var(--employee-danger-soft)] text-[var(--employee-danger)]'
                                         : 'border-[var(--employee-success)]/25 bg-[var(--employee-success-soft)] text-[var(--employee-success)]'
@@ -396,18 +396,18 @@ export default function EmployeePortal() {
                         )}
                     </div>
 
-                    <aside className="rounded-[var(--employee-radius-lg)] border border-[var(--employee-line)] bg-[var(--employee-surface)] p-5 shadow-[var(--employee-shadow)] sm:p-6">
+                    <aside className="employee-glass-panel p-5 sm:p-6">
                         <div className="flex items-start justify-between gap-4">
                             <div className="min-w-0">
                                 <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                                     {t('employeeSummary')}
                                 </p>
-                                <h2 className="mt-1 truncate text-xl font-semibold text-[var(--employee-ink)]">
+                                <h2 className="mt-1 truncate text-xl font-semibold text-[var(--employee-ink-strong)]">
                                     {employeeName}
                                 </h2>
                                 <p className="mt-1 truncate text-sm text-[var(--employee-muted)]">{profile?.email || '-'}</p>
                             </div>
-                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[var(--employee-line)] bg-[var(--employee-surface-muted)] text-lg font-semibold text-[var(--employee-accent)]">
+                            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[var(--employee-line)] bg-[var(--employee-glass-muted)] text-lg font-semibold text-[var(--employee-accent)]">
                                 {employeeName.charAt(0).toUpperCase()}
                             </div>
                         </div>
@@ -428,45 +428,45 @@ export default function EmployeePortal() {
                                     <p className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                                         {t('todaysRecord')}
                                     </p>
-                                    <h3 id="today-record-heading" className="mt-1 text-base font-semibold text-[var(--employee-ink)]">
+                                    <h3 id="today-record-heading" className="mt-1 text-base font-semibold text-[var(--employee-ink-strong)]">
                                         {todayRecord ? t('recordAvailable') : t('recordEmpty')}
                                     </h3>
                                 </div>
-                                <span className="inline-flex items-center gap-2 rounded-md border border-[var(--employee-line)] bg-[var(--employee-surface-muted)] px-3 py-2 text-sm font-semibold text-[var(--employee-ink)]">
+                                <span className="employee-status-pill inline-flex items-center gap-2 px-3 py-2 text-sm font-semibold">
                                     <StatusMarker tone={statusTone} />
                                     {statusLabel}
                                 </span>
                             </div>
 
-                            <div className="mt-4 overflow-hidden rounded-md border border-[var(--employee-line)]">
+                            <div className="mt-4 overflow-hidden rounded-2xl border border-[var(--employee-line)] bg-[var(--employee-glass-muted)]">
                                 <dl className="divide-y divide-[var(--employee-line)]">
-                                    <div className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 bg-[var(--employee-surface-muted)] px-4 py-3">
+                                    <div className="employee-record-grid grid gap-3 bg-[var(--employee-glass-muted)] px-4 py-3">
                                         <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                                             {t('status')}
                                         </dt>
-                                        <dd className="flex items-center gap-2 text-sm font-semibold text-[var(--employee-ink)]">
+                                        <dd className="flex items-center gap-2 text-sm font-semibold text-[var(--employee-ink-strong)]">
                                             <StatusMarker tone={statusTone} />
                                             {todayRecord?.status ? statusCopy(todayRecord.status, t) : statusLabel}
                                         </dd>
                                     </div>
-                                    <div className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 px-4 py-3">
+                                    <div className="employee-record-grid grid gap-3 px-4 py-3">
                                         <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                                             {t('checkInTime')}
                                         </dt>
-                                        <dd className="text-sm font-semibold text-[var(--employee-ink)]">
+                                        <dd className="text-sm font-semibold text-[var(--employee-ink-strong)]">
                                             {formatCairoTimestamp(todayRecord?.check_in_time ?? null, locale)}
                                         </dd>
                                     </div>
-                                    <div className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 px-4 py-3">
+                                    <div className="employee-record-grid grid gap-3 px-4 py-3">
                                         <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                                             {t('checkOutTime')}
                                         </dt>
-                                        <dd className="text-sm font-semibold text-[var(--employee-ink)]">
+                                        <dd className="text-sm font-semibold text-[var(--employee-ink-strong)]">
                                             {formatCairoTimestamp(todayRecord?.check_out_time ?? null, locale)}
                                         </dd>
                                     </div>
                                     {issueRows.map((row) => (
-                                        <div key={row.label} className="grid grid-cols-[minmax(8rem,0.8fr)_minmax(0,1fr)] gap-3 px-4 py-3">
+                                        <div key={row.label} className="employee-record-grid grid gap-3 px-4 py-3">
                                             <dt className="text-xs font-semibold uppercase tracking-[0.08em] text-[var(--employee-muted)]">
                                                 {row.label}
                                             </dt>
@@ -475,7 +475,7 @@ export default function EmployeePortal() {
                                                     'text-sm font-semibold',
                                                     row.active && row.tone === 'warning' && 'text-[var(--employee-warning)]',
                                                     row.active && row.tone === 'success' && 'text-[var(--employee-success)]',
-                                                    !row.active && 'text-[var(--employee-ink)]'
+                                                    !row.active && 'text-[var(--employee-ink-strong)]'
                                                 )}
                                             >
                                                 {row.value}
@@ -486,7 +486,7 @@ export default function EmployeePortal() {
                             </div>
 
                             {!todayRecord && (
-                                <div className="mt-4 rounded-md border border-dashed border-[var(--employee-line-strong)] bg-[var(--employee-surface-muted)] px-4 py-5 text-sm leading-6 text-[var(--employee-muted)]">
+                                <div className="mt-4 rounded-2xl border border-dashed border-[var(--employee-line-strong)] bg-[var(--employee-glass-muted)] px-4 py-5 text-sm leading-6 text-[var(--employee-muted)]">
                                     {t('recordEmptyDetail')}
                                 </div>
                             )}

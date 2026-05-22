@@ -37,7 +37,7 @@ export function GlowingCard({
                     />
                 </>
             )}
-            <div className="relative rounded-2xl bg-[var(--bg-tertiary)]/80 backdrop-blur-xl border border-[var(--line)]">
+            <div className="glowing-card-surface relative">
                 {children}
             </div>
         </div>

@@ -13,7 +13,7 @@ export function Card({ children, className, interactive }: CardProps) {
     return (
         <div
             className={cn(
-                'bg-[var(--surface)] border border-[var(--line)] backdrop-blur-2xl rounded-2xl',
+                'glass-card-surface',
                 interactive &&
                     'cursor-pointer transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--line-strong)] hover:shadow-[var(--shadow-md)]',
                 className

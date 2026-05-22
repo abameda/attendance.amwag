@@ -26,19 +26,19 @@ interface TooltipEntry {
     color?: string;
 }
 
-interface DarkTooltipProps {
+interface GlassTooltipProps {
     active?: boolean;
     payload?: TooltipEntry[];
     label?: string;
 }
 
-export function DarkTooltip({ active, payload, label }: DarkTooltipProps) {
+export function GlassTooltip({ active, payload, label }: GlassTooltipProps) {
     if (!active || !payload || payload.length === 0) return null;
 
     return (
-        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface-elevated)] p-3 backdrop-blur-2xl shadow-[var(--shadow-md)]">
+        <div className="admin-glass-tooltip p-3">
             {label && (
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+                <p className="mb-2 text-xs font-bold uppercase tracking-normal text-[var(--muted)]">
                     {label}
                 </p>
             )}
@@ -56,14 +56,17 @@ export function DarkTooltip({ active, payload, label }: DarkTooltipProps) {
     );
 }
 
-export const darkChartDefaults = {
+export const liquidChartDefaults = {
     axis: {
         tick: { fill: 'var(--muted)', fontSize: 12 },
-        axisLine: { stroke: 'rgba(255,255,255,0.04)' },
+        axisLine: { stroke: 'rgba(148, 163, 184, 0.22)' },
         tickLine: false as const,
     },
     cartesianGrid: {
         strokeDasharray: '3 3' as const,
-        stroke: 'rgba(255,255,255,0.04)',
+        stroke: 'rgba(148, 163, 184, 0.22)',
     },
 };
+
+export const DarkTooltip = GlassTooltip;
+export const darkChartDefaults = liquidChartDefaults;

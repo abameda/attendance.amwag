@@ -2,14 +2,20 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import {
+    AlarmClock,
     Calendar,
     ChevronLeft,
     ChevronRight,
+    CheckCircle2,
     FileText,
     Globe,
+    Hourglass,
     RefreshCw,
     RotateCcw,
     Search,
+    TimerOff,
+    TriangleAlert,
+    UserX,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import { Badge, Button, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
@@ -210,14 +216,16 @@ export default function AttendanceLogsPage() {
             ? `${dateFrom} - ${dateTo}`
             : dateFrom || dateTo || todayIsoDate();
     const summaryCards = [
-        { label: t('records'), value: summary.totalRecords, tone: 'text-[var(--foreground)]' },
-        { label: t('present'), value: summary.present, tone: 'text-[var(--success)]' },
-        { label: t('absent'), value: summary.absent, tone: 'text-[var(--danger)]' },
-        { label: t('late'), value: summary.late, tone: 'text-[var(--warning)]' },
-        { label: t('earlyLeave'), value: summary.earlyLeave, tone: 'text-[var(--danger)]' },
-        { label: t('missingCheckout'), value: summary.missingCheckout, tone: 'text-[var(--warning)]' },
-        { label: t('overtime'), value: summary.overtime, tone: 'text-[var(--info)]' },
+        { label: t('records'), value: summary.totalRecords, tone: 'text-[var(--admin-ink-strong)]', icon: FileText, marker: 'bg-slate-300/70' },
+        { label: t('present'), value: summary.present, tone: 'text-[var(--success)]', icon: CheckCircle2, marker: 'bg-emerald-300/75' },
+        { label: t('absent'), value: summary.absent, tone: 'text-[var(--danger)]', icon: UserX, marker: 'bg-red-300/75' },
+        { label: t('late'), value: summary.late, tone: 'text-[var(--warning)]', icon: AlarmClock, marker: 'bg-amber-300/75' },
+        { label: t('earlyLeave'), value: summary.earlyLeave, tone: 'text-[var(--danger)]', icon: TimerOff, marker: 'bg-rose-300/75' },
+        { label: t('missingCheckout'), value: summary.missingCheckout, tone: 'text-[var(--warning)]', icon: TriangleAlert, marker: 'bg-orange-300/75' },
+        { label: t('overtime'), value: summary.overtime, tone: 'text-[var(--info)]', icon: Hourglass, marker: 'bg-sky-300/75' },
     ];
+    const controlClassName =
+        'focus-ring admin-glass-control min-h-10 w-full cursor-pointer px-3 py-2 text-sm text-[var(--foreground)] outline-none transition-all duration-200';
 
     function statusText(status: AttendanceRecord['status']) {
         if (status === 'missing_checkout') return t('missingCheckout');
@@ -299,46 +307,62 @@ export default function AttendanceLogsPage() {
     }
 
     return (
-        <div className="space-y-5">
-            <PageReveal className="rounded-lg border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
-                <div className="grid gap-5 p-4 sm:p-5 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-start">
-                    <div className="min-w-0 space-y-4">
+        <div className="attendance-page-shell space-y-5">
+            <PageReveal className="admin-glass-panel-strong overflow-hidden">
+                <div className="grid gap-5 p-4 sm:p-5 2xl:grid-cols-[minmax(0,1fr)_17rem] 2xl:items-stretch">
+                    <div className="min-w-0 space-y-5">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                             <div className="min-w-0">
                                 <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t('title')}</p>
-                                <h1 className="mt-1 text-2xl font-bold leading-tight text-[var(--foreground)] sm:text-3xl">
+                                <h1 className="mt-1 text-2xl font-bold leading-tight text-[var(--admin-ink-strong)] sm:text-3xl">
                                     {t('heroTitle')}
                                 </h1>
                                 <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
                                     {t('heroDescription')}
                                 </p>
                             </div>
-                            <div className="shrink-0 rounded-md border border-[var(--line)] bg-[var(--surface-muted)] px-3 py-2">
+                            <div className="admin-glass-highlight shrink-0 px-3 py-2 sm:max-w-72">
                                 <p className="text-xs font-semibold uppercase text-[var(--muted)]">{t('dateRange')}</p>
-                                <p className="mt-1 max-w-64 truncate text-sm font-semibold text-[var(--foreground)]">{activeDateLabel}</p>
+                                <p className="mt-1 truncate text-sm font-semibold text-[var(--admin-ink-strong)]">{activeDateLabel}</p>
                             </div>
                         </div>
 
-                        <div className="flex flex-wrap gap-2">
-                            {summaryCards.map((item) => (
-                                <div key={item.label} className="min-w-32 flex-1 rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-3">
-                                    <p className="truncate text-xs font-semibold uppercase text-[var(--muted)]">{item.label}</p>
-                                    <p className={`mt-2 text-xl font-semibold ${item.tone}`}>
-                                        {isLoading ? '-' : item.value}
-                                    </p>
-                                </div>
-                            ))}
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 2xl:grid-cols-7">
+                            {summaryCards.map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                    <div key={item.label} className="admin-kpi-tile border border-[var(--admin-glass-border-muted)]">
+                                        <div className="flex items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <p className="truncate text-xs font-semibold uppercase text-[var(--muted)]">{item.label}</p>
+                                                <p className={`mt-2 text-2xl font-bold leading-none ${item.tone}`}>
+                                                    {isLoading ? '-' : item.value}
+                                                </p>
+                                            </div>
+                                            <div className="admin-glass-control flex size-9 shrink-0 items-center justify-center rounded-xl">
+                                                <Icon className="h-4 w-4 text-[var(--foreground-soft)]" />
+                                            </div>
+                                        </div>
+                                        <div className="mt-4 h-1 rounded-full bg-white/[0.08]">
+                                            <div className={`h-full w-8 rounded-full ${item.marker}`} />
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
 
-                    <div className="rounded-md border border-[var(--line)] bg-[var(--surface-muted)] p-3 xl:w-56">
-                        <p className="text-xs font-semibold uppercase text-[var(--muted)]">{t('exports')}</p>
+                    <div className="admin-glass-panel-muted flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <p className="text-xs font-semibold uppercase text-[var(--muted)]">{t('exports')}</p>
+                            <p className="mt-2 text-sm leading-6 text-[var(--foreground-soft)]">{activeDateLabel}</p>
+                        </div>
                         <Button
                             size="sm"
                             onClick={() => void handleExportPDF()}
                             disabled={isLoading || isExporting}
                             isLoading={isExporting}
-                            className="attendance-export-action mt-3 w-full justify-between rounded-md shadow-none hover:translate-y-0 hover:shadow-none"
+                            className="attendance-export-action admin-glass-button-primary w-full justify-between shadow-none sm:w-64"
                         >
                             <span>{t('exportPDF')}</span>
                             <FileText className="h-4 w-4" />
@@ -348,8 +372,8 @@ export default function AttendanceLogsPage() {
             </PageReveal>
 
             <PageReveal delay={0.08}>
-                <div className="attendance-filter-band rounded-lg border border-[var(--line)] bg-[var(--surface)] p-3 shadow-[var(--shadow-sm)]">
-                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto_auto]">
+                <div className="attendance-filter-band admin-glass-panel p-3">
+                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_11rem_11rem] 2xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto_auto]">
                         <div className="relative min-w-0">
                             <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                             <Input
@@ -359,7 +383,7 @@ export default function AttendanceLogsPage() {
                                     setSearchQuery(event.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="rounded-md ps-11"
+                                className="admin-glass-control rounded-xl ps-11"
                             />
                         </div>
 
@@ -369,7 +393,7 @@ export default function AttendanceLogsPage() {
                                 setEmployeeFilter(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="focus-ring min-h-10 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
+                            className={controlClassName}
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allEmployees')}</option>
                             {employees.map((employee) => (
@@ -386,7 +410,7 @@ export default function AttendanceLogsPage() {
                                 setBranchFilter(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="focus-ring min-h-10 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)]"
+                            className={controlClassName}
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allBranches')}</option>
                             {branchOptions.map((branch) => (
@@ -407,7 +431,7 @@ export default function AttendanceLogsPage() {
                                     setCurrentPage(1);
                                 }}
                                 aria-label={t('dateFrom')}
-                                className="rounded-md ps-11"
+                                className="admin-glass-control rounded-xl ps-11"
                             />
                         </div>
 
@@ -422,18 +446,18 @@ export default function AttendanceLogsPage() {
                                     setCurrentPage(1);
                                 }}
                                 aria-label={t('dateTo')}
-                                className="rounded-md ps-11"
+                                className="admin-glass-control rounded-xl ps-11"
                             />
                         </div>
 
                         <Button
-                            variant={showAllHistory ? 'primary' : 'outline'}
+                            variant="outline"
                             size="sm"
                             onClick={() => {
                                 setShowAllHistory((currentValue) => !currentValue);
                                 setCurrentPage(1);
                             }}
-                            className="w-full rounded-md shadow-none hover:translate-y-0 hover:shadow-none xl:w-auto"
+                            className={`${showAllHistory ? 'admin-glass-button-primary' : 'admin-glass-button-secondary'} w-full shadow-none xl:w-auto`}
                         >
                             {t('allHistory')}
                         </Button>
@@ -441,7 +465,7 @@ export default function AttendanceLogsPage() {
                         <select
                             value={statusFilter}
                             onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }}
-                            className="focus-ring min-h-10 w-full cursor-pointer rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] px-3 py-2 text-sm text-[var(--foreground)] xl:w-44"
+                            className={`${controlClassName} xl:w-44`}
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allStatus')}</option>
                             <option value="present" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('present')}</option>
@@ -464,7 +488,7 @@ export default function AttendanceLogsPage() {
                                 setShowAllHistory(false);
                                 setCurrentPage(1);
                             }}
-                            className="w-full rounded-md shadow-none hover:translate-y-0 hover:shadow-none xl:w-auto"
+                            className="admin-glass-button-secondary w-full shadow-none xl:w-auto"
                         >
                             <RotateCcw className="h-4 w-4" />
                             <span className="xl:hidden 2xl:inline">{t('resetFilters')}</span>
@@ -477,7 +501,7 @@ export default function AttendanceLogsPage() {
                                 setRefreshKey((value) => value + 1);
                                 setCurrentPage(1);
                             }}
-                            className="w-full rounded-md shadow-none hover:translate-y-0 hover:shadow-none xl:w-auto"
+                            className="admin-glass-icon-button w-full shadow-none xl:w-auto"
                         >
                             <RefreshCw className="h-4 w-4" />
                         </Button>
@@ -485,12 +509,12 @@ export default function AttendanceLogsPage() {
                 </div>
             </PageReveal>
 
-            <section className="attendance-records-table overflow-hidden rounded-lg border border-[var(--line)] bg-[var(--surface)] shadow-[var(--shadow-sm)]">
+            <section className="attendance-records-table admin-glass-table">
                     <div className="md:hidden">
                         {isLoading ? (
                             <div className="space-y-3 p-3">
                                 {Array.from({ length: 4 }).map((_, index) => (
-                                    <div key={index} className="rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] p-4">
+                                    <div key={index} className="admin-glass-panel-muted p-4">
                                         <Skeleton className="h-5 w-40" />
                                         <Skeleton className="mt-2 h-4 w-24" />
                                         <div className="mt-4 grid grid-cols-2 gap-2">
@@ -502,16 +526,16 @@ export default function AttendanceLogsPage() {
                                 ))}
                             </div>
                         ) : records.length === 0 ? (
-                            <div className="px-3 py-12 text-center text-[var(--muted)]">
+                            <div className="px-3 py-14 text-center text-[var(--muted)]">
                                 {showAllHistory ? t('noRecords') : t('noRecordsForDate')}
                             </div>
                         ) : (
                             <div className="space-y-3 p-3">
                                 {records.map((record) => (
-                                    <article key={record.id} className="rounded-md border border-[var(--line)] bg-[var(--surface-elevated)] p-4">
+                                    <article key={record.id} className="admin-glass-panel-muted p-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex min-w-0 items-center gap-3">
-                                                <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[var(--surface-muted)] font-semibold text-[var(--foreground-soft)]">
+                                                <div className="admin-glass-control flex h-10 w-10 items-center justify-center rounded-xl font-semibold text-[var(--foreground-soft)]">
                                                     {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                 </div>
                                                 <div className="min-w-0">
@@ -528,7 +552,7 @@ export default function AttendanceLogsPage() {
                                             </Badge>
                                         </div>
 
-                                        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--line)] pt-4 text-sm">
+                                        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--admin-glass-border-muted)] pt-4 text-sm">
                                             {[
                                                 [t('branch'), record.profiles?.branch || '-', 'auto'],
                                                 [t('date'), formatDate(record.date)],
@@ -555,7 +579,7 @@ export default function AttendanceLogsPage() {
                     <div className="custom-scrollbar hidden overflow-x-auto md:block">
                         <table className="w-full min-w-[1200px]">
                             <thead>
-                                <tr className="border-b border-[var(--line)] bg-[var(--surface-muted)]">
+                                <tr className="border-b border-[var(--admin-glass-border-muted)] bg-white/[0.055]">
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('employee')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('branch')}</th>
                                     <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('date')}</th>
@@ -574,7 +598,7 @@ export default function AttendanceLogsPage() {
                             <tbody>
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, index) => (
-                                        <tr key={index} className="border-b border-[var(--line)]">
+                                        <tr key={index} className="admin-glass-table-row">
                                             {Array.from({ length: 13 }).map((__, cellIndex) => (
                                                 <td key={cellIndex} className="px-4 py-4">
                                                     <Skeleton className="h-10 w-full rounded-[1rem]" />
@@ -590,10 +614,10 @@ export default function AttendanceLogsPage() {
                                     </tr>
                                 ) : (
                                     records.map((record) => (
-                                        <tr key={record.id} className="border-b border-[var(--line)] hover:bg-[var(--surface-hover)]">
+                                        <tr key={record.id} className="admin-glass-table-row">
                                             <td className="px-4 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-md bg-[var(--surface-muted)] font-semibold text-[var(--foreground-soft)]">
+                                                    <div className="admin-glass-control flex h-10 w-10 items-center justify-center rounded-xl font-semibold text-[var(--foreground-soft)]">
                                                         {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                     </div>
                                                     <div>
@@ -636,7 +660,7 @@ export default function AttendanceLogsPage() {
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="flex flex-col gap-3 border-t border-[var(--line)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 border-t border-[var(--admin-glass-border-muted)] bg-white/[0.03] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-sm text-[var(--muted)]">
                                 {t('showing')} {totalRecords === 0 ? 0 : (currentPage - 1) * RECORDS_PER_PAGE + 1} {t('to')}{' '}
                                 {Math.min((currentPage - 1) * RECORDS_PER_PAGE + records.length, totalRecords)} {t('of')}{' '}
@@ -648,7 +672,7 @@ export default function AttendanceLogsPage() {
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
-                                    className="rounded-md shadow-none hover:translate-y-0 hover:shadow-none"
+                                    className="admin-glass-icon-button shadow-none"
                                 >
                                     <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
                                 </Button>
@@ -657,7 +681,7 @@ export default function AttendanceLogsPage() {
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                     disabled={currentPage === totalPages}
-                                    className="rounded-md shadow-none hover:translate-y-0 hover:shadow-none"
+                                    className="admin-glass-icon-button shadow-none"
                                 >
                                     <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                                 </Button>

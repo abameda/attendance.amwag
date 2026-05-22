@@ -66,7 +66,7 @@ export function ClockHero({
     return (
         <section
             aria-labelledby="employee-clock-title"
-            className="rounded-[var(--employee-radius-lg)] border border-[var(--employee-line)] bg-[var(--employee-surface)] p-5 shadow-[var(--employee-shadow)] sm:p-6"
+            className="employee-glass-clock-panel p-5 sm:p-6"
         >
             <div>
                 <div>
@@ -75,7 +75,7 @@ export function ClockHero({
                     </p>
                     <h2
                         id="employee-clock-title"
-                        className="mt-2 font-mono text-5xl font-semibold leading-none text-[var(--employee-ink)] sm:text-6xl"
+                        className="mt-2 font-mono text-5xl font-semibold leading-none text-[var(--employee-ink-strong)] sm:text-6xl"
                     >
                         {formatCairoTime(currentTime, locale)}
                     </h2>
@@ -88,10 +88,10 @@ export function ClockHero({
                     onClick={handleAction}
                     disabled={isDisabled || isLoading || isComplete}
                     className={cn(
-                        'flex min-h-16 w-full items-center justify-center gap-3 rounded-md border px-5 py-4 text-base font-semibold transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--employee-focus)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--employee-surface)] disabled:cursor-not-allowed',
+                        'flex min-h-[4.5rem] w-full items-center justify-center gap-3 px-5 py-4 text-base font-semibold transition duration-200 ease-out focus-visible:outline-none focus-visible:shadow-[var(--employee-focus-ring)] disabled:cursor-not-allowed',
                         isComplete
-                            ? 'border-[var(--employee-success)]/25 bg-[var(--employee-success-soft)] text-[var(--employee-success)]'
-                            : 'border-transparent bg-[var(--employee-accent)] text-[var(--employee-surface)] hover:bg-[var(--employee-accent-hover)] active:bg-[var(--employee-accent-hover)] disabled:bg-[var(--employee-disabled)] disabled:text-[var(--employee-muted)]'
+                            ? 'rounded-[0.875rem] border border-[var(--employee-success)]/35 bg-[var(--employee-success-soft)] text-[var(--employee-success)]'
+                            : 'employee-glass-button-primary disabled:border-[var(--employee-glass-border-muted)] disabled:bg-[var(--employee-disabled)] disabled:text-[var(--employee-muted)] disabled:shadow-none'
                     )}
                 >
                     {isLoading ? (
