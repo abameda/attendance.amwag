@@ -113,19 +113,6 @@ export default function LoginPage() {
         <div className="admin-glass-surface login-graphite-shell relative z-10 flex min-h-screen w-full max-w-full overflow-hidden text-[var(--admin-ink)]">
             <ShaderBackground />
 
-            <div
-                aria-hidden="true"
-                className="login-background-mark pointer-events-none absolute left-1/2 top-1/2 -z-10 h-[82vmin] w-[82vmin] min-w-[54rem] -translate-x-1/2 -translate-y-1/2 opacity-[0.055]"
-            >
-                <Image
-                    src="/logo.png"
-                    alt=""
-                    fill
-                    className="object-contain"
-                    priority
-                />
-            </div>
-
             <main className="relative z-10 flex min-h-screen w-full min-w-0 items-center justify-center px-4 py-6 sm:px-6 lg:px-8">
                 <section className="login-card-shell admin-glass-panel-strong relative w-full max-w-[27rem] overflow-hidden p-5 sm:p-7">
                     <div
