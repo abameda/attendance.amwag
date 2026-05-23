@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
 const loginSource = readFileSync('src/app/[locale]/login/page.tsx', 'utf8');
+const footerSource = readFileSync('src/components/Footer.tsx', 'utf8');
 
 test('login page uses a single-card Dark Graphite Glass access surface', () => {
   assert.ok(
@@ -66,5 +67,14 @@ test('login redesign preserves auth behavior, localization, and error states', (
       loginSource.includes("tc('developedBy')") &&
       loginSource.includes("tc('devName')"),
     'copyright should move into the sign-in card using existing Common translations'
+  );
+  assert.ok(
+    loginSource.includes('absolute right-5 top-5') &&
+      loginSource.includes('pt-24 sm:pt-24') &&
+      loginSource.includes('<SocialLinks') &&
+      footerSource.includes('https://github.com/abameda') &&
+      footerSource.includes('https://www.instagram.com/abamedax/') &&
+      footerSource.includes('https://www.linkedin.com/in/elshorbagy/'),
+    'language switcher should sit at the top-right of the card and social links should appear below copyright'
   );
 });

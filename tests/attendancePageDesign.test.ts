@@ -14,7 +14,7 @@ test('attendance page centers searchable logs and export instead of decorative h
     'attendance page title should use solid operational typography'
   );
   assert.ok(
-    pageSource.includes('attendance-export-action') && pageSource.includes('exportAttendancePremiumPDF'),
+    pageSource.includes('attendance-export-action') && pageSource.includes('handleExportPDF'),
     'export should remain a visible action tied to the current filtered data'
   );
   assert.ok(

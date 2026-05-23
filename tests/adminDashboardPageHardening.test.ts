@@ -35,7 +35,7 @@ test('admin dashboard hardens network and large-data states', () => {
     'dashboard shortcut tiles should use content-aware columns so desktop nested panels do not squeeze labels vertically'
   );
   assert.ok(
-    pageSource.includes('grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))]'),
+    pageSource.includes('grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))]'),
     'dashboard KPI tiles should use content-aware columns so tablet and narrow desktop layouts reflow without awkward tracks'
   );
   assert.ok(
@@ -69,7 +69,7 @@ test('admin dashboard uses shared Dark Graphite Glass utilities', () => {
       pageSource.includes('admin-kpi-tile'),
     'dashboard panels, table, controls, primary action, and KPIs should use shared glass utilities'
   );
-  assert.ok(pageSource.includes('2xl:grid-cols-8'), 'desktop KPI layout should fill wide admin screens without awkward empty tracks');
+  assert.ok(pageSource.includes('grid-cols-[repeat(auto-fit'), 'desktop KPI layout should use responsive auto-fit columns to fill wide admin screens without awkward empty tracks');
   assert.ok(pageSource.includes('function StatusIcon'), 'status pills should include an icon, not color alone');
   assert.ok(pageSource.includes('border-blue-300/[0.25] bg-blue-400/[0.12]'), 'dashboard accents should use restrained dark blue glass');
   assert.ok(

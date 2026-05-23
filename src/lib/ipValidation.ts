@@ -9,6 +9,29 @@ export type BranchIpRule = {
   isActive?: number | boolean | null;
 };
 
+/** IPv6 representations that should be treated as 127.0.0.1 */
+const IPV6_LOOPBACK_VARIANTS = ['::1', '::ffff:127.0.0.1'];
+
+/**
+ * Normalize an IP address so that IPv6 loopback variants are
+ * collapsed to their IPv4 equivalents.
+ *
+ * - `::1`              → `127.0.0.1`
+ * - `::ffff:127.0.0.1` → `127.0.0.1`
+ */
+export function normalizeClientIp(ip: string): string {
+  const trimmed = ip.trim();
+  if (IPV6_LOOPBACK_VARIANTS.includes(trimmed.toLowerCase())) {
+    return '127.0.0.1';
+  }
+  // Handle ::ffff:<ipv4> mapped addresses in general
+  const ffmpMatch = trimmed.match(/^::ffff:(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/i);
+  if (ffmpMatch) {
+    return ffmpMatch[1];
+  }
+  return trimmed;
+}
+
 type ParsedIp = {
   version: 4 | 6;
   bits: 32 | 128;
@@ -232,7 +255,9 @@ export function normalizeIpRule(ruleType: IpRuleType, value: string): NormalizeR
 }
 
 export function isIpAllowedForBranch(clientIp: string, branchRules: BranchIpRule[]) {
-  const parsedClientIp = parseIp(clientIp);
+  // Normalize IPv6 loopback variants before matching
+  const normalizedClientIp = normalizeClientIp(clientIp);
+  const parsedClientIp = parseIp(normalizedClientIp);
   if (!parsedClientIp) {
     return { allowed: false as const };
   }
@@ -244,7 +269,9 @@ export function isIpAllowedForBranch(clientIp: string, branchRules: BranchIpRule
 
     const ruleType = rule.ruleType ?? (rule.ipNetwork.includes('/') ? 'cidr' : 'exact_ip');
     if (ruleType === 'exact_ip') {
-      const parsedRuleIp = parseIp(rule.ipNetwork);
+      // Normalize the rule IP too (DB may store ::1 or ::ffff:127.0.0.1)
+      const normalizedRuleIp = normalizeClientIp(rule.ipNetwork);
+      const parsedRuleIp = parseIp(normalizedRuleIp);
       if (
         parsedRuleIp &&
         parsedRuleIp.version === parsedClientIp.version &&
@@ -267,20 +294,35 @@ export function isIpAllowedForBranch(clientIp: string, branchRules: BranchIpRule
 export function resolveClientIp(
   headers: Pick<Headers, 'get'>,
   options: { trustForwardedFor?: boolean } = {}
-) {
+): string {
+  // 1. x-forwarded-for — use the FIRST IP (closest client)
   if (options.trustForwardedFor) {
-    const forwardedIp = headers.get('x-forwarded-for')?.split(',')[0]?.trim();
-    if (forwardedIp && isValidIp(forwardedIp)) {
-      return forwardedIp;
+    const forwardedRaw = headers.get('x-forwarded-for');
+    if (forwardedRaw) {
+      const forwardedIp = forwardedRaw.split(',')[0]?.trim();
+      if (forwardedIp && isValidIp(forwardedIp)) {
+        return normalizeClientIp(forwardedIp);
+      }
     }
   }
 
+  // 2. x-real-ip
   const realIp = headers.get('x-real-ip')?.trim();
   if (realIp && isValidIp(realIp)) {
-    return realIp;
+    return normalizeClientIp(realIp);
   }
 
-  return 'Unknown';
+  // 3. Even without trusting x-forwarded-for for proxy chains, Next.js
+  //    still sets it on localhost. Try it as a last resort.
+  const fallbackForwarded = headers.get('x-forwarded-for');
+  if (fallbackForwarded) {
+    const fallbackIp = fallbackForwarded.split(',')[0]?.trim();
+    if (fallbackIp && isValidIp(fallbackIp)) {
+      return normalizeClientIp(fallbackIp);
+    }
+  }
+
+  return '127.0.0.1';
 }
 
 export const ipValidationMessages = {

@@ -25,7 +25,7 @@ const employee = {
   fullName: 'Test Employee',
   role: 'employee' as const,
   branch: 'HQ',
-  branchId: null,
+  branchId: 'branch-hq-1',
   jobTitle: null,
   offDay: null,
   shiftStart: '09:00',
@@ -331,11 +331,11 @@ test('POST /api/attendance/check-in accepts client IP inside branch CIDR', async
   });
 });
 
-test('POST /api/attendance/check-in rejects matching IP rule from another branch', async () => {
+test('POST /api/attendance/check-in rejects when no IP rules are configured for the employee branch', async () => {
   await withClock('2026-07-01T06:25:00.000Z', async () => {
-    const fake = createQueuedDb([
-      [{ branchName: 'Other Branch', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
-    ]);
+    // With branchId-filtered DB queries, another branch's rules are never returned.
+    // An empty result means the employee's branch has no IP rules configured.
+    const fake = createQueuedDb([[]]);
     const post = createCheckInHandler({
       db: fake.db as never,
       getCurrentUser: async () => employee,

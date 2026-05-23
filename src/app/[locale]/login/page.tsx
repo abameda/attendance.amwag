@@ -12,12 +12,14 @@ import {
     Mail,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
+import { SocialLinks } from '@/components/Footer';
 import {
     Button,
     Input,
     ToastContainer,
     addToast,
 } from '@/components/ui';
+import ShaderBackground from '@/components/ui/shader-background';
 
 export default function LoginPage() {
     const router = useRouter();
@@ -109,14 +111,7 @@ export default function LoginPage() {
 
     return (
         <div className="admin-glass-surface login-graphite-shell relative z-10 flex min-h-screen w-full max-w-full overflow-hidden text-[var(--admin-ink)]">
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_18%_8%,rgb(37_99_235_/_0.16),transparent_34rem),radial-gradient(circle_at_82%_18%,rgb(14_116_144_/_0.12),transparent_30rem),linear-gradient(135deg,var(--admin-canvas-deep),var(--admin-canvas)_52%,oklch(11%_0.012_250))]"
-            />
-            <div
-                aria-hidden="true"
-                className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 bg-[linear-gradient(180deg,rgb(255_255_255_/_0.055),transparent)]"
-            />
+            <ShaderBackground />
 
             <div
                 aria-hidden="true"
@@ -143,7 +138,31 @@ export default function LoginPage() {
                     />
 
                     <div className="relative">
-                        <div className="mb-6 flex justify-center">
+                        <div className="absolute right-5 top-5 z-10">
+                            <div
+                                className="admin-glass-control inline-flex shrink-0 items-center gap-1 rounded-2xl p-1"
+                                aria-label={t('languageLabel')}
+                            >
+                                <Globe2 className="mx-2 hidden h-4 w-4 text-[var(--admin-text-soft)] sm:block" />
+                                {(['en', 'ar'] as const).map((item) => (
+                                    <button
+                                        key={item}
+                                        type="button"
+                                        onClick={() => switchLocale(item)}
+                                        className={`focus-ring min-h-9 rounded-xl px-3 text-xs font-bold transition-all duration-200 ${
+                                            locale === item
+                                                ? 'border border-[rgb(96_165_250_/_0.34)] bg-[rgb(30_64_175_/_0.34)] text-[var(--admin-ink-strong)] shadow-[0_10px_24px_rgba(0,0,0,0.24)]'
+                                                : 'border border-transparent text-[var(--admin-text-soft)] hover:bg-[rgb(255_255_255_/_0.085)] hover:text-[var(--admin-ink-strong)]'
+                                        }`}
+                                        aria-pressed={locale === item}
+                                    >
+                                        {item === 'en' ? 'EN' : 'AR'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div className="mb-6 flex justify-center pt-24 sm:pt-24">
                             <div className="admin-glass-control relative h-24 w-24 overflow-hidden rounded-[1.75rem] p-4 shadow-[0_18px_48px_rgba(0,0,0,0.32)] sm:h-28 sm:w-28">
                                 <Image
                                     src="/logo.png"
@@ -226,30 +245,6 @@ export default function LoginPage() {
                             </Button>
                         </form>
 
-                        <div className="mt-5 flex justify-center">
-                            <div
-                                className="admin-glass-control inline-flex shrink-0 items-center gap-1 rounded-2xl p-1"
-                                aria-label={t('languageLabel')}
-                            >
-                                <Globe2 className="mx-2 hidden h-4 w-4 text-[var(--admin-text-soft)] sm:block" />
-                                {(['en', 'ar'] as const).map((item) => (
-                                    <button
-                                        key={item}
-                                        type="button"
-                                        onClick={() => switchLocale(item)}
-                                        className={`focus-ring min-h-9 rounded-xl px-3 text-xs font-bold transition-all duration-200 ${
-                                            locale === item
-                                                ? 'border border-[rgb(96_165_250_/_0.34)] bg-[rgb(30_64_175_/_0.34)] text-[var(--admin-ink-strong)] shadow-[0_10px_24px_rgba(0,0,0,0.24)]'
-                                                : 'border border-transparent text-[var(--admin-text-soft)] hover:bg-[rgb(255_255_255_/_0.085)] hover:text-[var(--admin-ink-strong)]'
-                                        }`}
-                                        aria-pressed={locale === item}
-                                    >
-                                        {item === 'en' ? 'EN' : 'AR'}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
                         <p className="mt-5 text-center text-xs leading-5 text-[var(--admin-text-muted)]">
                             {tc('developedBy')}{' '}
                             <a
@@ -261,6 +256,14 @@ export default function LoginPage() {
                                 {tc('devName')}
                             </a>
                         </p>
+
+                        <SocialLinks
+                            className="mt-2"
+                            iconClassName="h-4 w-4"
+                            linkClassName="text-[var(--admin-text-muted)] transition-colors"
+                            githubHoverClassName="hover:text-[var(--admin-text-soft)]"
+                            accentHoverClassName="hover:text-[var(--admin-primary)]"
+                        />
                     </div>
                 </section>
                 <ToastContainer />

@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import { DM_Sans, Space_Grotesk } from "next/font/google";
+import { DM_Sans } from "next/font/google";
 import localFont from "next/font/local";
-import Script from "next/script";
 import { NextIntlClientProvider } from 'next-intl';
 import { getMessages } from 'next-intl/server';
 import { notFound } from 'next/navigation';
@@ -11,12 +10,6 @@ const dmSans = DM_Sans({
   subsets: ["latin"],
   display: "swap",
   variable: "--font-body",
-});
-
-const spaceGrotesk = Space_Grotesk({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-display",
 });
 
 const arabicFont = localFont({
@@ -66,13 +59,10 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} dir={locale === 'ar' ? 'rtl' : 'ltr'} suppressHydrationWarning>
-      <body className={`${dmSans.variable} ${spaceGrotesk.variable} ${arabicFont.variable} bg-background text-foreground antialiased`}>
+      <body className={`${dmSans.variable} ${arabicFont.variable} bg-background text-foreground antialiased`}>
         <NextIntlClientProvider messages={messages}>
           {children}
         </NextIntlClientProvider>
-{/* impeccable-live-script-start */}
-<Script src="http://localhost:8401/live.js" strategy="afterInteractive" />
-{/* impeccable-live-script-end */}
       </body>
     </html>
   );

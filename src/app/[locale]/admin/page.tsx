@@ -39,7 +39,7 @@ import {
     type BranchHealthStatus,
     type DashboardExceptionKey,
 } from '@/lib/adminDashboardOperations';
-import { exportAttendancePremiumPDF } from '@/lib/pdfExport';
+import { downloadAttendanceReportPdf } from '@/lib/downloadAttendancePdf';
 import { getEgyptDate, getEgyptMonth } from '@/lib/timezone';
 import { cn } from '@/lib/utils';
 import type { AttendanceRecord, DashboardSummary } from '@/types';
@@ -420,8 +420,7 @@ export default function AdminDashboard() {
                 throw new Error(result?.error || 'Failed to fetch export data');
             }
 
-            await exportAttendancePremiumPDF(result.data ?? [], {
-                locale,
+            await downloadAttendanceReportPdf(result.data ?? [], {
                 dateFilter: exportDate,
             });
             addToast(t('exportSuccess'), 'success');
@@ -436,7 +435,7 @@ export default function AdminDashboard() {
     return (
         <div className="space-y-5 text-[var(--foreground)]">
             <section className="admin-glass-panel overflow-hidden p-5 md:p-6">
-                <div className="flex flex-col gap-5 2xl:flex-row 2xl:items-end 2xl:justify-between">
+                <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
                     <div className="min-w-0 space-y-3">
                         <div className="flex flex-wrap items-center gap-2">
                             <StatusPill tone="info">{t('operationsLabel')}</StatusPill>
@@ -452,7 +451,7 @@ export default function AdminDashboard() {
                         </div>
                     </div>
 
-                    <div className="grid gap-3 sm:grid-cols-2 2xl:min-w-[44rem] 2xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_auto_auto]">
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-[minmax(10rem,1fr)_minmax(10rem,1fr)_minmax(max-content,1fr)_minmax(max-content,1fr)]">
                         <DateControl
                             id="dashboard-selected-date"
                             label={t('selectedDate')}
@@ -523,7 +522,7 @@ export default function AdminDashboard() {
             ) : null}
 
             <StaggerGroup
-                className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,14rem),1fr))] gap-3 2xl:grid-cols-8"
+                className="grid grid-cols-[repeat(auto-fit,minmax(min(100%,11rem),1fr))] gap-3"
                 stagger={0.045}
             >
                 {kpis.map((card) => (

@@ -27,6 +27,9 @@
 __pycache__/
 *.pyc
 
+# qa / screenshot artefacts
+/qa-screenshots/
+
 # local agent/spec workflow files
 /.agent/
 /.specify/

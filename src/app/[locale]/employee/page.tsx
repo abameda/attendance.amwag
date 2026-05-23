@@ -22,6 +22,7 @@ import { cn, formatEarlyDeparture, formatLateness, formatOvertime } from '@/lib/
 import type { AttendanceRecord, AttendanceStatus, Profile } from '@/types';
 import { Skeleton, ToastContainer, addToast } from '@/components/ui';
 import { ClockHero } from '@/components/employee/ClockHero';
+import { GLSLHills } from '@/components/ui/glsl-hills';
 
 type StatusTone = 'ready' | 'active' | 'complete' | 'warning';
 
@@ -295,7 +296,10 @@ export default function EmployeePortal() {
     if (isLoading) {
         return (
             <div className="employee-glass-surface min-h-screen px-4 py-6 sm:px-6 lg:px-8">
-                <div className="mx-auto flex max-w-6xl flex-col gap-6">
+                <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+                    <GLSLHills width="100%" height="100%" speed={0.45} />
+                </div>
+                <div className="relative z-10 mx-auto flex max-w-6xl flex-col gap-6">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                             <Skeleton className="h-12 w-12 rounded-lg" />
@@ -317,7 +321,10 @@ export default function EmployeePortal() {
 
     return (
         <div className="employee-glass-surface min-h-screen text-[var(--employee-ink)]">
-            <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
+            <div aria-hidden="true" className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+                <GLSLHills width="100%" height="100%" speed={0.45} />
+            </div>
+            <main className="relative z-10 mx-auto flex min-h-screen w-full max-w-7xl flex-col px-4 py-5 sm:px-6 lg:px-8">
                 <header className="employee-glass-panel flex flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-5">
                     <div className="flex min-w-0 items-center gap-3">
                         <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl border border-[var(--employee-line)] bg-[var(--employee-glass-muted)]">

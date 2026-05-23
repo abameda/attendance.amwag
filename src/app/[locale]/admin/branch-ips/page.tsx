@@ -261,7 +261,7 @@ export default function BranchIpsPage() {
                     </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                     {[
                         { label: 'Rules', value: rules.length, icon: ListChecks },
                         { label: 'Active', value: activeRuleCount, icon: ShieldCheck },
@@ -293,7 +293,7 @@ export default function BranchIpsPage() {
                 </div>
             </PageReveal>
 
-            <div className="grid items-start gap-6 2xl:grid-cols-[minmax(21rem,23rem)_minmax(0,1fr)]">
+            <div className="grid items-start gap-6 xl:grid-cols-[minmax(21rem,23rem)_minmax(0,1fr)]">
                 <PageReveal delay={0.06}>
                     <section className="admin-glass-panel p-5 sm:p-6">
                         <form className="space-y-5" onSubmit={submitForm}>

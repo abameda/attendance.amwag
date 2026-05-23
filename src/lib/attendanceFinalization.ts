@@ -50,9 +50,11 @@ function formatEgyptDateTime(date: Date = new Date()): string {
 }
 
 function getAffectedRows(result: unknown): number {
+  // mysql2 + drizzle returns [ResultSetHeader, FieldPacket[]]
+  const header = Array.isArray(result) ? result[0] : result;
   return (
-    (result as { rowsAffected?: number }).rowsAffected ??
-    (result as { affectedRows?: number }).affectedRows ??
+    (header as { rowsAffected?: number }).rowsAffected ??
+    (header as { affectedRows?: number }).affectedRows ??
     0
   );
 }

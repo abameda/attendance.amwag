@@ -7,7 +7,7 @@ import { useTranslations } from 'next-intl';
 import Footer from '@/components/Footer';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
 import AppSidebar from '@/components/layout/AppSidebar';
-import LiquidBackground from '@/components/ui/LiquidBackground';
+import { GLSLHills } from '@/components/ui/glsl-hills';
 import { AnimatePresence, PageReveal, motion } from '@/components/ui';
 import { cn } from '@/lib/utils';
 
@@ -131,7 +131,9 @@ export default function AdminShell({
             dir={locale === 'ar' ? 'rtl' : 'ltr'}
             className="admin-glass-surface relative min-h-dvh overflow-x-hidden text-[var(--foreground)]"
         >
-            <LiquidBackground />
+            <div aria-hidden="true" className="pointer-events-none absolute inset-0 z-0 overflow-hidden">
+                <GLSLHills width="100%" height="100%" speed={0.4} />
+            </div>
 
             <header
                 className="sticky top-0 z-40 px-4 pt-4 lg:hidden"

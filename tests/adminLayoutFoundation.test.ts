@@ -47,7 +47,7 @@ test('admin layout keeps admin behavior and delegates visual shell only', () => 
   const shellSource = readRequiredSource(adminShellPath);
   const layoutSource = readRequiredSource(adminLayoutPath);
 
-  assert.ok(shellSource.includes('<LiquidBackground />'), 'admin shell should own the background layer');
+  assert.ok(shellSource.includes('<GLSLHills'), 'admin shell should own the background layer');
   assert.ok(shellSource.includes('admin-glass-surface'), 'admin shell should use the Dark Graphite Glass admin surface');
   assert.ok(shellSource.includes('<AppSidebar'), 'admin shell should render the sidebar');
   assert.ok(shellSource.includes('relative z-10'), 'admin main content should sit above the background');
