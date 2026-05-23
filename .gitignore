@@ -36,7 +36,7 @@ __pycache__/
 /.superpowers/
 /.impeccable/live/
 /.codex/skills/ui-ux-pro-max/
-/docs/
+## /docs/ — tracked (deployment guide lives here)
 /ATTENDANCE-SCENARIOS 2.md
 /components 2.json
 
@@ -48,6 +48,7 @@ yarn-error.log*
 
 # env files (can opt-in for committing if needed)
 .env*
+!.env.example
 
 # vercel
 .vercel
