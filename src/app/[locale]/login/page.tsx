@@ -202,7 +202,7 @@ export default function LoginPage() {
                                 autoComplete="email"
                                 autoFocus
                                 disabled={isLoading}
-                                className="admin-glass-control focus-ring min-h-12 rounded-xl ps-11 text-[var(--admin-ink-strong)] shadow-none outline-none placeholder:text-[var(--admin-text-muted)]"
+                                className="admin-glass-control focus-ring min-h-12 rounded-xl ps-11 text-[var(--admin-ink-strong)] outline-none placeholder:text-[var(--admin-text-muted)]"
                             />
 
                             <Input
@@ -219,7 +219,7 @@ export default function LoginPage() {
                                 required
                                 autoComplete="current-password"
                                 disabled={isLoading}
-                                className="admin-glass-control focus-ring min-h-12 rounded-xl ps-11 text-[var(--admin-ink-strong)] shadow-none outline-none placeholder:text-[var(--admin-text-muted)]"
+                                className="admin-glass-control focus-ring min-h-12 rounded-xl ps-11 text-[var(--admin-ink-strong)] outline-none placeholder:text-[var(--admin-text-muted)]"
                             />
 
                             {formError && (

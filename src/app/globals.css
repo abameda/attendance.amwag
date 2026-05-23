@@ -239,9 +239,10 @@
 }
 
 .admin-glass-surface .focus-ring:focus-visible {
+  outline: none;
   box-shadow:
-    0 0 0 2px rgb(147 197 253 / 0.95),
-    0 0 0 5px rgb(15 23 42 / 0.92);
+    0 0 0 2px rgb(96 165 250 / 0.75),
+    0 0 0 5px rgba(59, 130, 246, 0.15);
 }
 
 .admin-glass-surface .custom-scrollbar {
@@ -574,6 +575,15 @@ html[dir="rtl"] .switch-thumb-on {
 .admin-glass-control:hover,
 .admin-glass-control:focus-visible {
   background: rgb(255 255 255 / 0.105);
+}
+
+input.admin-glass-control:focus,
+input.admin-glass-control:focus-visible {
+  outline: none;
+  border-color: rgba(96, 165, 250, 0.8);
+  box-shadow:
+    0 0 0 4px rgba(59, 130, 246, 0.18),
+    inset 0 1px 0 rgb(255 255 255 / 0.1);
 }
 
 .admin-glass-button-primary {
