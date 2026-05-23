@@ -23,8 +23,6 @@ import {
     Bar,
     BarChart,
     CartesianGrid,
-    Line,
-    LineChart,
     XAxis,
     YAxis,
 } from 'recharts';
@@ -32,15 +30,12 @@ import {
     AnimatedCounter,
     Badge,
     Button,
-    Card,
-    CardContent,
-    GlowingCard,
     Input,
     PageReveal,
     Skeleton,
     addToast,
 } from '@/components/ui';
-import { ChartWrapper, DarkTooltip, darkChartDefaults } from '@/components/ui/ChartWrapper';
+import { ChartWrapper, GlassTooltip, liquidChartDefaults } from '@/components/ui/ChartWrapper';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
 
 type RangePreset = 'this_month' | 'last_month' | 'last_7_days' | 'last_30_days' | 'custom' | 'all';
@@ -310,22 +305,22 @@ export default function EmployeeAnalyticsPage() {
     };
 
     return (
-        <div className="space-y-6">
+        <div className="employee-analytics-command space-y-6">
             <PageReveal>
                 <Link
                     href={`/${locale}/admin/employees`}
-                    className="focus-ring inline-flex items-center gap-2 rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-2 text-sm text-[var(--foreground-soft)] transition-colors hover:bg-[var(--surface-hover)]"
+                    className="focus-ring inline-flex min-h-10 items-center gap-2 rounded-xl border border-[var(--admin-glass-border)] bg-[var(--admin-glass)] px-4 py-2 text-sm font-semibold text-[var(--admin-text-soft)] backdrop-blur-md transition-colors hover:bg-[var(--surface-hover)] hover:text-[var(--admin-ink-strong)]"
                 >
                     <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
                     {t('backToEmployees')}
                 </Link>
             </PageReveal>
 
-            <PageReveal className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-                <GlowingCard>
-                    <div className="space-y-6 p-6 sm:p-8">
-                        <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('kicker')}</p>
+            <PageReveal className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+                <section className="admin-glass-panel-strong overflow-hidden p-5 sm:p-6">
+                    <div className="grid gap-5 lg:grid-cols-[1fr_auto] lg:items-end">
+                        <div className="min-w-0 space-y-4">
+                            <p className="section-kicker">{t('kicker')}</p>
                             {isLoading || !analytics ? (
                                 <div className="space-y-3">
                                     <Skeleton className="h-10 w-64 rounded-xl" />
@@ -333,46 +328,42 @@ export default function EmployeeAnalyticsPage() {
                                 </div>
                             ) : (
                                 <>
-                                    <h1 className="text-4xl font-bold text-[var(--foreground)] sm:text-5xl" dir="auto">
+                                    <h1 className="text-3xl font-bold leading-tight text-[var(--admin-ink-strong)] sm:text-4xl" dir="auto">
                                         {analytics.employee.full_name}
                                     </h1>
-                                    <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
-                                        {analytics.employee.job_title || t('fallbackJobTitle')}{analytics.employee.branch ? `, ${analytics.employee.branch}` : ''}. {activeRangeLabel}
-                                    </p>
+                                    <div className="flex flex-wrap gap-2 text-xs font-semibold text-[var(--admin-text-soft)]">
+                                        <span className="admin-glass-panel-muted px-3 py-2">{analytics.employee.job_title || t('fallbackJobTitle')}</span>
+                                        {analytics.employee.branch && <span className="admin-glass-panel-muted px-3 py-2">{analytics.employee.branch}</span>}
+                                        <span className="admin-glass-panel-muted px-3 py-2">{activeRangeLabel}</span>
+                                    </div>
                                 </>
                             )}
                         </div>
 
-                        <div className="grid gap-3 sm:grid-cols-3">
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">{t('attendanceRate')}</p>
-                                <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                    {analytics ? formatPercent(analytics.summary.attendanceRate) : '-'}
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">{t('punctuality')}</p>
-                                <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                    {analytics ? formatPercent(analytics.summary.punctualityRate) : '-'}
-                                </p>
-                            </div>
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--muted)]">{t('score')}</p>
-                                <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                    {analytics ? <AnimatedCounter value={analytics.score.value} /> : '-'}
-                                </p>
-                            </div>
+                        <div className="grid gap-3 sm:grid-cols-3 lg:min-w-[25rem]">
+                            {[
+                                { label: t('attendanceRate'), value: analytics ? formatPercent(analytics.summary.attendanceRate) : '-' },
+                                { label: t('punctuality'), value: analytics ? formatPercent(analytics.summary.punctualityRate) : '-' },
+                                { label: t('score'), value: analytics ? analytics.score.value : '-' },
+                            ].map((item) => (
+                                <div key={item.label} className="admin-kpi-tile border border-[var(--admin-glass-border-muted)]">
+                                    <p className="text-[0.68rem] font-semibold uppercase text-[var(--admin-text-muted)]">{item.label}</p>
+                                    <p className="mt-2 text-2xl font-semibold text-[var(--admin-ink-strong)]">
+                                        {typeof item.value === 'number' ? <AnimatedCounter value={item.value} /> : item.value}
+                                    </p>
+                                </div>
+                            ))}
                         </div>
                     </div>
-                </GlowingCard>
+                </section>
 
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('dateRange')}</p>
+                <section className="admin-glass-panel p-5">
+                    <div className="space-y-4">
+                        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('dateRange')}</p>
                         <select
                             value={preset}
                             onChange={(event) => setPreset(event.target.value as RangePreset)}
-                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]"
+                            className="admin-glass-control focus-ring w-full cursor-pointer rounded-xl px-4 py-3 text-sm"
                         >
                             {presetValues.map((option) => (
                                 <option key={option} value={option} className="bg-[var(--bg-secondary)] text-[var(--foreground)]">
@@ -382,211 +373,216 @@ export default function EmployeeAnalyticsPage() {
                         </select>
 
                         {preset === 'custom' && (
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label={t('fromDate')} />
-                                <Input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label={t('toDate')} />
+                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-1">
+                                <Input type="date" value={from} onChange={(event) => setFrom(event.target.value)} aria-label={t('fromDate')} className="admin-glass-control rounded-xl" />
+                                <Input type="date" value={to} onChange={(event) => setTo(event.target.value)} aria-label={t('toDate')} className="admin-glass-control rounded-xl" />
                             </div>
                         )}
 
-                        <Button variant="outline" size="sm" onClick={() => setRefreshKey((value) => value + 1)} className="w-full justify-between">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setRefreshKey((value) => value + 1)}
+                            className="admin-glass-button-secondary w-full justify-between"
+                        >
                             {t('refresh')}
                             <RefreshCw className="h-4 w-4" />
                         </Button>
-                    </CardContent>
-                </Card>
+                    </div>
+                </section>
             </PageReveal>
 
             <PageReveal delay={0.05}>
-                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                     {isLoading
-                        ? Array.from({ length: 8 }).map((_, index) => <Skeleton key={index} className="h-28 rounded-2xl" />)
+                        ? Array.from({ length: 8 }).map((_, index) => <Skeleton key={index} className="h-24 rounded-2xl" />)
                         : kpiCards.map((card) => {
                             const Icon = card.icon;
                             return (
-                                <Card key={card.label} className="rounded-2xl">
-                                    <CardContent className="p-4">
-                                        <div className="flex items-start justify-between gap-3">
-                                            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--muted)]">{card.label}</p>
-                                            <Icon className="h-4 w-4 shrink-0 text-[var(--accent)]" />
-                                        </div>
-                                        <p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
-                                            {typeof card.value === 'number' ? <AnimatedCounter value={card.value} /> : card.value}
-                                        </p>
-                                    </CardContent>
-                                </Card>
+                                <div key={card.label} className="admin-kpi-tile border border-[var(--admin-glass-border-muted)]">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <p className="text-[0.68rem] font-semibold uppercase text-[var(--admin-text-muted)]">{card.label}</p>
+                                        <Icon className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                                    </div>
+                                    <p className="mt-3 text-2xl font-semibold text-[var(--admin-ink-strong)]">
+                                        {typeof card.value === 'number' ? <AnimatedCounter value={card.value} /> : card.value}
+                                    </p>
+                                </div>
                             );
                         })}
                 </div>
             </PageReveal>
 
-            <PageReveal delay={0.08} className="grid gap-6 xl:grid-cols-[0.85fr_1.15fr]">
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <div className="flex items-center justify-between gap-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('attendanceScore')}</p>
-                            <Gauge className="h-5 w-5 text-[var(--accent)]" />
-                        </div>
-                        {analytics ? (
-                            <>
-                                <div className="flex items-end gap-3">
-                                    <p className="text-6xl font-semibold text-[var(--foreground)]">{analytics.score.value}</p>
-                                    <p className="pb-2 text-sm text-[var(--muted)]">{t('outOf100')}</p>
-                                </div>
-                                <div className="space-y-2">
-                                    {analytics.score.deductions.length === 0 ? (
-                                        <p className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-sm text-[var(--muted)]">
-                                            {t('noDeductions')}
-                                        </p>
-                                    ) : (
-                                        analytics.score.deductions.map((deduction) => (
-                                            <div key={deduction.reason} className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3 text-sm">
-                                                <span className="text-[var(--foreground-soft)]">{deduction.reason}</span>
-                                                <span className="font-semibold text-[var(--warning)]">-{deduction.points}</span>
-                                            </div>
-                                        ))
-                                    )}
-                                </div>
-                            </>
-                        ) : (
-                            <Skeleton className="h-40 rounded-2xl" />
-                        )}
-                    </CardContent>
-                </Card>
-
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('ruleInsights')}</p>
-                        {isLoading ? (
-                            <div className="grid gap-3">
-                                <Skeleton className="h-20 rounded-xl" />
-                                <Skeleton className="h-20 rounded-xl" />
+            <PageReveal delay={0.08} className="grid gap-6 xl:grid-cols-[0.82fr_1.18fr]">
+                <section className="analytics-score-instrument admin-glass-panel-strong p-5 sm:p-6">
+                    <div className="flex items-center justify-between gap-3">
+                        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('attendanceScore')}</p>
+                        <Gauge className="h-5 w-5 text-[var(--accent)]" />
+                    </div>
+                    {analytics ? (
+                        <div className="mt-5 space-y-5">
+                            <div className="flex items-end gap-3">
+                                <p className="text-6xl font-semibold leading-none text-[var(--admin-ink-strong)]">{analytics.score.value}</p>
+                                <p className="pb-2 text-sm text-[var(--admin-text-muted)]">{t('outOf100')}</p>
                             </div>
-                        ) : analytics && analytics.insights.length > 0 ? (
-                            <div className="grid gap-3 md:grid-cols-2">
-                                {analytics.insights.map((insight) => (
-                                    <div key={insight.code} className={`rounded-xl border p-4 ${insightClass(insight.severity)}`}>
-                                        <div className="flex items-start gap-3">
-                                            <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" />
-                                            <div>
-                                                <p className="font-semibold text-[var(--foreground)]">{localizedInsight(insight).title}</p>
-                                                <p className="mt-1 text-sm leading-6 text-[var(--muted)]">{localizedInsight(insight).detail}</p>
-                                            </div>
+                            <div className="h-2 overflow-hidden rounded-full bg-[rgb(255_255_255_/_0.08)]">
+                                <div
+                                    className="h-full rounded-full bg-[var(--accent)]"
+                                    style={{ width: `${Math.max(0, Math.min(100, analytics.score.value))}%` }}
+                                />
+                            </div>
+                            <div className="space-y-2">
+                                {analytics.score.deductions.length === 0 ? (
+                                    <p className="admin-glass-highlight p-3 text-sm text-[var(--admin-text-soft)]">
+                                        {t('noDeductions')}
+                                    </p>
+                                ) : (
+                                    analytics.score.deductions.map((deduction) => (
+                                        <div key={deduction.reason} className="admin-glass-panel-muted flex items-center justify-between gap-4 p-3 text-sm">
+                                            <span className="text-[var(--admin-text-soft)]">{deduction.reason}</span>
+                                            <span className="font-semibold text-[var(--warning)]">-{deduction.points}</span>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                        </div>
+                    ) : (
+                        <Skeleton className="mt-5 h-40 rounded-2xl" />
+                    )}
+                </section>
+
+                <section className="admin-glass-panel p-5 sm:p-6">
+                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('ruleInsights')}</p>
+                    {isLoading ? (
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            <Skeleton className="h-24 rounded-xl" />
+                            <Skeleton className="h-24 rounded-xl" />
+                        </div>
+                    ) : analytics && analytics.insights.length > 0 ? (
+                        <div className="mt-4 grid gap-3 md:grid-cols-2">
+                            {analytics.insights.map((insight) => (
+                                <div key={insight.code} className={`rounded-xl border p-4 backdrop-blur-md ${insightClass(insight.severity)}`}>
+                                    <div className="flex items-start gap-3">
+                                        <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--accent)]" />
+                                        <div>
+                                            <p className="font-semibold text-[var(--admin-ink-strong)]">{localizedInsight(insight).title}</p>
+                                            <p className="mt-1 text-sm leading-6 text-[var(--admin-text-muted)]">{localizedInsight(insight).detail}</p>
                                         </div>
                                     </div>
-                                ))}
-                            </div>
-                        ) : (
-                            <p className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-6 text-center text-sm text-[var(--muted)]">
-                                {t('noInsights')}
-                            </p>
-                        )}
-                    </CardContent>
-                </Card>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="admin-glass-panel-muted mt-4 p-6 text-center text-sm text-[var(--admin-text-muted)]">
+                            {t('noInsights')}
+                        </p>
+                    )}
+                </section>
             </PageReveal>
 
             <PageReveal delay={0.1} className="grid gap-6 xl:grid-cols-2">
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('attendanceTrend')}</p>
-                        {analytics && analytics.trends.daily.length > 0 ? (
-                            <ChartWrapper height={260}>
-                                <AreaChart data={analytics.trends.daily}>
-                                    <defs>
-                                        <linearGradient id="presentFill" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.35} />
-                                            <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid {...darkChartDefaults.cartesianGrid} />
-                                    <XAxis dataKey="date" {...darkChartDefaults.axis} />
-                                    <YAxis {...darkChartDefaults.axis} />
-                                    <DarkTooltip />
-                                    <Area type="monotone" dataKey="present" stroke="var(--accent)" fill="url(#presentFill)" strokeWidth={2} />
-                                    <Area type="monotone" dataKey="absent" stroke="var(--danger)" fill="transparent" strokeWidth={2} />
-                                </AreaChart>
-                            </ChartWrapper>
-                        ) : (
-                            <p className="py-16 text-center text-sm text-[var(--muted)]">{t('noTrend')}</p>
-                        )}
-                    </CardContent>
-                </Card>
+                <section className="admin-glass-panel p-5 sm:p-6">
+                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('attendanceTrend')}</p>
+                    {analytics && analytics.trends.daily.length > 0 ? (
+                        <ChartWrapper height={280}>
+                            <AreaChart data={analytics.trends.daily}>
+                                <defs>
+                                    <linearGradient id="presentFill" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.42} />
+                                        <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.02} />
+                                    </linearGradient>
+                                    <linearGradient id="absentFill" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="var(--danger)" stopOpacity={0.28} />
+                                        <stop offset="95%" stopColor="var(--danger)" stopOpacity={0} />
+                                    </linearGradient>
+                                </defs>
+                                <CartesianGrid {...liquidChartDefaults.cartesianGrid} />
+                                <XAxis dataKey="date" {...liquidChartDefaults.axis} />
+                                <YAxis {...liquidChartDefaults.axis} />
+                                <GlassTooltip />
+                                <Area type="monotone" dataKey="present" stroke="var(--accent)" fill="url(#presentFill)" strokeWidth={2} />
+                                <Area type="monotone" dataKey="absent" stroke="var(--danger)" fill="url(#absentFill)" strokeWidth={2} />
+                            </AreaChart>
+                        </ChartWrapper>
+                    ) : (
+                        <p className="py-16 text-center text-sm text-[var(--admin-text-muted)]">{t('noTrend')}</p>
+                    )}
+                </section>
 
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('minutesTrend')}</p>
-                        {analytics && analytics.trends.daily.length > 0 ? (
-                            <ChartWrapper height={260}>
-                                <LineChart data={analytics.trends.daily}>
-                                    <CartesianGrid {...darkChartDefaults.cartesianGrid} />
-                                    <XAxis dataKey="date" {...darkChartDefaults.axis} />
-                                    <YAxis {...darkChartDefaults.axis} />
-                                    <DarkTooltip />
-                                    <Line type="monotone" dataKey="lateMinutes" name={t('lateMinutes')} stroke="var(--warning)" strokeWidth={2} dot={false} />
-                                    <Line type="monotone" dataKey="overtimeMinutes" name={t('overtimeMinutes')} stroke="var(--success)" strokeWidth={2} dot={false} />
-                                </LineChart>
-                            </ChartWrapper>
-                        ) : (
-                            <p className="py-16 text-center text-sm text-[var(--muted)]">{t('noMinutesTrend')}</p>
-                        )}
-                    </CardContent>
-                </Card>
+                <section className="admin-glass-panel p-5 sm:p-6">
+                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('minutesTrend')}</p>
+                    {analytics && analytics.trends.daily.length > 0 ? (
+                        <ChartWrapper height={280}>
+                            <BarChart data={analytics.trends.daily}>
+                                <CartesianGrid {...liquidChartDefaults.cartesianGrid} />
+                                <XAxis dataKey="date" {...liquidChartDefaults.axis} />
+                                <YAxis {...liquidChartDefaults.axis} />
+                                <GlassTooltip />
+                                <Bar dataKey="lateMinutes" name={t('lateMinutes')} fill="var(--warning)" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="overtimeMinutes" name={t('overtimeMinutes')} fill="var(--success)" radius={[6, 6, 0, 0]} />
+                            </BarChart>
+                        </ChartWrapper>
+                    ) : (
+                        <p className="py-16 text-center text-sm text-[var(--admin-text-muted)]">{t('noMinutesTrend')}</p>
+                    )}
+                </section>
             </PageReveal>
 
-            <PageReveal delay={0.12} className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('comparison')}</p>
-                        {analytics ? (
-                            <div className="space-y-3">
-                                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                    <p className="text-sm text-[var(--muted)]">{t('employeeAttendanceRate')}</p>
-                                    <p className="mt-2 text-3xl font-semibold text-[var(--foreground)]">{formatPercent(analytics.summary.attendanceRate)}</p>
-                                </div>
-                                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                    <p className="text-sm text-[var(--muted)]">{t('branchAverage')}</p>
-                                    <p className="mt-2 text-3xl font-semibold text-[var(--foreground)]">{formatPercent(analytics.comparison.branchAverage.attendanceRate)}</p>
-                                </div>
-                                <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                    <p className="text-sm text-[var(--muted)]">{t('companyAverage')}</p>
-                                    <p className="mt-2 text-3xl font-semibold text-[var(--foreground)]">{formatPercent(analytics.comparison.companyAverage.attendanceRate)}</p>
-                                </div>
-                            </div>
-                        ) : (
-                            <Skeleton className="h-64 rounded-2xl" />
-                        )}
-                    </CardContent>
-                </Card>
+            <PageReveal delay={0.12} className="grid gap-6 xl:grid-cols-[0.74fr_1.26fr]">
+                <section className="admin-glass-panel p-5 sm:p-6">
+                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('comparison')}</p>
+                    {analytics ? (
+                        <div className="mt-4 space-y-3">
+                            {[
+                                { label: t('employeeAttendanceRate'), value: formatPercent(analytics.summary.attendanceRate), icon: CheckCircle2 },
+                                { label: t('branchAverage'), value: formatPercent(analytics.comparison.branchAverage.attendanceRate), icon: Calendar },
+                                { label: t('companyAverage'), value: formatPercent(analytics.comparison.companyAverage.attendanceRate), icon: Gauge },
+                            ].map((item) => {
+                                const Icon = item.icon;
+                                return (
+                                    <div key={item.label} className="admin-glass-panel-muted flex items-center justify-between gap-4 p-4">
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <Icon className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                                            <p className="truncate text-sm text-[var(--admin-text-muted)]">{item.label}</p>
+                                        </div>
+                                        <p className="text-2xl font-semibold text-[var(--admin-ink-strong)]">{item.value}</p>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    ) : (
+                        <Skeleton className="mt-4 h-64 rounded-2xl" />
+                    )}
+                </section>
 
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('absenceOvertimeSummary')}</p>
-                        {analytics && analytics.trends.daily.length > 0 ? (
-                            <ChartWrapper height={300}>
-                                <BarChart data={analytics.trends.daily}>
-                                    <CartesianGrid {...darkChartDefaults.cartesianGrid} />
-                                    <XAxis dataKey="date" {...darkChartDefaults.axis} />
-                                    <YAxis {...darkChartDefaults.axis} />
-                                    <DarkTooltip />
-                                    <Bar dataKey="absent" name={t('absence')} fill="var(--danger)" radius={[6, 6, 0, 0]} />
-                                    <Bar dataKey="overtimeMinutes" name={t('overtimeMinutes')} fill="var(--success)" radius={[6, 6, 0, 0]} />
-                                </BarChart>
-                            </ChartWrapper>
-                        ) : (
-                            <p className="py-16 text-center text-sm text-[var(--muted)]">{t('noAbsenceOvertime')}</p>
-                        )}
-                    </CardContent>
-                </Card>
+                <section className="admin-glass-panel p-5 sm:p-6">
+                    <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('absenceOvertimeSummary')}</p>
+                    {analytics && analytics.trends.daily.length > 0 ? (
+                        <ChartWrapper height={300}>
+                            <BarChart data={analytics.trends.daily}>
+                                <CartesianGrid {...liquidChartDefaults.cartesianGrid} />
+                                <XAxis dataKey="date" {...liquidChartDefaults.axis} />
+                                <YAxis {...liquidChartDefaults.axis} />
+                                <GlassTooltip />
+                                <Bar dataKey="absent" name={t('absence')} fill="var(--danger)" radius={[6, 6, 0, 0]} />
+                                <Bar dataKey="overtimeMinutes" name={t('overtimeMinutes')} fill="var(--success)" radius={[6, 6, 0, 0]} />
+                            </BarChart>
+                        </ChartWrapper>
+                    ) : (
+                        <p className="py-16 text-center text-sm text-[var(--admin-text-muted)]">{t('noAbsenceOvertime')}</p>
+                    )}
+                </section>
             </PageReveal>
 
             <PageReveal delay={0.14}>
-                <Card className="rounded-2xl">
+                <section className="analytics-history-table admin-glass-table">
                     <div className="border-b border-[var(--line)] px-5 py-4">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('attendanceHistory')}</p>
+                        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">{t('attendanceHistory')}</p>
                     </div>
                     <div className="custom-scrollbar overflow-x-auto">
                         <table className="w-full min-w-[1100px]">
                             <thead>
-                                <tr className="border-b border-[var(--line)] bg-[var(--surface)]">
+                                <tr className="border-b border-[var(--line)] bg-[rgb(255_255_255_/_0.055)]">
                                     {[
                                         t('table.date'),
                                         t('table.shift'),
@@ -599,7 +595,7 @@ export default function EmployeeAnalyticsPage() {
                                         t('table.location'),
                                         t('table.ip'),
                                     ].map((heading) => (
-                                        <th key={heading} className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">
+                                        <th key={heading} className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[var(--admin-text-muted)]">
                                             {heading}
                                         </th>
                                     ))}
@@ -608,7 +604,7 @@ export default function EmployeeAnalyticsPage() {
                             <tbody>
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, rowIndex) => (
-                                        <tr key={rowIndex} className="border-b border-[var(--line)]">
+                                        <tr key={rowIndex} className="admin-glass-table-row">
                                             {Array.from({ length: 10 }).map((__, cellIndex) => (
                                                 <td key={cellIndex} className="px-4 py-4">
                                                     <Skeleton className="h-9 w-full rounded-xl" />
@@ -618,26 +614,26 @@ export default function EmployeeAnalyticsPage() {
                                     ))
                                 ) : analytics && analytics.history.length > 0 ? (
                                     analytics.history.map((record) => (
-                                        <tr key={record.id} className="border-b border-[var(--line)] hover:bg-[var(--surface-hover)]">
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatDate(record.date)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatShift(record.shift)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.checkIn)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.checkOut)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatLateness(record.lateMinutes)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatEarlyDeparture(record.earlyDepartureMinutes)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatOvertime(record.overtimeMinutes)}</td>
+                                        <tr key={record.id} className="admin-glass-table-row">
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]">{formatDate(record.date)}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]">{formatShift(record.shift)}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]">{formatTimestamp(record.checkIn)}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]">{formatTimestamp(record.checkOut)}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]">{formatLateness(record.lateMinutes)}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]">{formatEarlyDeparture(record.earlyDepartureMinutes)}</td>
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]">{formatOvertime(record.overtimeMinutes)}</td>
                                             <td className="px-4 py-4">
                                                 <Badge variant={record.status}>{t(`status.${record.status}`)}</Badge>
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]" dir="auto">{record.location || '-'}</td>
-                                            <td className="px-4 py-4 font-mono text-xs text-[var(--muted)]">
+                                            <td className="px-4 py-4 text-sm text-[var(--admin-text-soft)]" dir="auto">{record.location || '-'}</td>
+                                            <td className="px-4 py-4 font-mono text-xs text-[var(--admin-text-muted)]">
                                                 {record.ipAddress || '-'}{record.checkOutIp && record.checkOutIp !== record.ipAddress ? ` / ${record.checkOutIp}` : ''}
                                             </td>
                                         </tr>
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan={10} className="px-4 py-12 text-center text-sm text-[var(--muted)]">
+                                        <td colSpan={10} className="px-4 py-12 text-center text-sm text-[var(--admin-text-muted)]">
                                             {t('noRecords')}
                                         </td>
                                     </tr>
@@ -645,7 +641,7 @@ export default function EmployeeAnalyticsPage() {
                             </tbody>
                         </table>
                     </div>
-                </Card>
+                </section>
             </PageReveal>
         </div>
     );

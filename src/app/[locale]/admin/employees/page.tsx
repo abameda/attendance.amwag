@@ -1,11 +1,14 @@
 'use client';
 
-import { useCallback, useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import {
     BarChart3,
     Briefcase,
+    Building2,
     CalendarOff,
+    ChevronLeft,
+    ChevronRight,
     Clock,
     Copy,
     Edit2,
@@ -17,19 +20,22 @@ import {
     Upload,
     UserPlus,
     Users,
+    X,
 } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
 import BulkImportModal from '@/components/BulkImportModal';
-import { BRANCHES } from '@/lib/branches';
+import {
+    DEFAULT_EMPLOYEE_LIMIT,
+    EMPLOYEE_PAGE_SIZE,
+    filterEmployeeOptions,
+    type EmployeeOption,
+} from '@/lib/employeeDirectory';
 import { formatTime } from '@/lib/utils';
 import type { Profile } from '@/types';
 import {
     AnimatePresence,
     motion,
     Button,
-    Card,
-    CardContent,
-    GlowingCard,
     Input,
     Modal,
     AnimatedCounter,
@@ -39,12 +45,73 @@ import {
     addToast,
 } from '@/components/ui';
 
+type EmployeeStats = {
+    employees: number;
+    branches: number;
+    overtimeEnabled: number;
+};
+
+type BranchOption = {
+    id: string;
+    name: string;
+    code: string;
+    is_active: boolean;
+};
+
+type EmployeesListResponse = {
+    success: boolean;
+    data?: Profile[];
+    total?: number;
+    page?: number;
+    pageSize?: number;
+    totalPages?: number;
+    stats?: EmployeeStats;
+    error?: string;
+};
+
+type EmployeeOptionsResponse = {
+    success: boolean;
+    data?: EmployeeOption[];
+    error?: string;
+};
+
+type BranchOptionsResponse = {
+    success: boolean;
+    data?: BranchOption[];
+    error?: string;
+};
+
+type EmployeeResponse = {
+    success: boolean;
+    data?: Profile;
+    error?: string;
+};
+
+type EmployeeViewMode = 'default' | 'selected' | 'all';
+
+const EMPTY_STATS: EmployeeStats = {
+    employees: 0,
+    branches: 0,
+    overtimeEnabled: 0,
+};
+
+const SELECTOR_RESULT_LIMIT = 8;
+
 export default function EmployeesPage() {
     const locale = useLocale();
     const t = useTranslations('Employees');
     const [employees, setEmployees] = useState<Profile[]>([]);
+    const [employeeOptions, setEmployeeOptions] = useState<EmployeeOption[]>([]);
+    const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
+    const [employeeStats, setEmployeeStats] = useState<EmployeeStats>(EMPTY_STATS);
+    const [totalEmployees, setTotalEmployees] = useState(0);
+    const [viewMode, setViewMode] = useState<EmployeeViewMode>('default');
     const [isLoading, setIsLoading] = useState(true);
+    const [isSelectorLoading, setIsSelectorLoading] = useState(true);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedEmployeeId, setSelectedEmployeeId] = useState('');
+    const [isSelectorOpen, setIsSelectorOpen] = useState(false);
+    const [currentPage, setCurrentPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingEmployee, setEditingEmployee] = useState<Profile | null>(null);
     const [formData, setFormData] = useState({
@@ -61,6 +128,7 @@ export default function EmployeesPage() {
     });
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+    const latestCardsRequestId = useRef(0);
     const [resetModal, setResetModal] = useState<{ open: boolean; tempPassword: string; employeeName: string }>({
         open: false,
         tempPassword: '',
@@ -90,27 +158,134 @@ export default function EmployeesPage() {
         return '8';
     };
 
-    const fetchEmployees = useCallback(async () => {
+    const fetchEmployeeOptions = useCallback(async () => {
+        setIsSelectorLoading(true);
         try {
-            const response = await fetch('/api/employees', { credentials: 'include' });
-            const result = await response.json();
+            const response = await fetch('/api/employees?view=options', { credentials: 'include' });
+            const result: EmployeeOptionsResponse = await response.json();
 
             if (!response.ok || !result.success) {
                 throw new Error(result.error || t('loadError'));
             }
 
-            setEmployees(result.data || []);
+            setEmployeeOptions(result.data ?? []);
         } catch (error) {
-            console.error('Error fetching employees:', error);
+            console.error('Error fetching employee options:', error);
             addToast(t('loadError'), 'error');
         } finally {
-            setIsLoading(false);
+            setIsSelectorLoading(false);
         }
     }, [t]);
 
+    const fetchBranchOptions = useCallback(async () => {
+        try {
+            const response = await fetch('/api/admin/branches?active=true', { credentials: 'include' });
+            const result: BranchOptionsResponse = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || t('loadError'));
+            }
+
+            setBranchOptions(result.data ?? []);
+        } catch (error) {
+            console.error('Error fetching branch options:', error);
+            addToast(t('loadError'), 'error');
+        }
+    }, [t]);
+
+    const fetchEmployeePage = useCallback(async (mode: 'default' | 'all', page = 1) => {
+        const requestId = latestCardsRequestId.current + 1;
+        latestCardsRequestId.current = requestId;
+        setIsLoading(true);
+        try {
+            const params = new URLSearchParams({ includeStats: 'true' });
+            if (mode === 'all') {
+                params.set('page', String(page));
+                params.set('pageSize', String(EMPLOYEE_PAGE_SIZE));
+            } else {
+                params.set('limit', String(DEFAULT_EMPLOYEE_LIMIT));
+            }
+
+            const response = await fetch(`/api/employees?${params.toString()}`, { credentials: 'include' });
+            const result: EmployeesListResponse = await response.json();
+
+            if (!response.ok || !result.success) {
+                throw new Error(result.error || t('loadError'));
+            }
+
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            setEmployees(result.data ?? []);
+            setTotalEmployees(result.total ?? result.data?.length ?? 0);
+            setEmployeeStats(result.stats ?? EMPTY_STATS);
+            setCurrentPage(result.page ?? page);
+            setViewMode(mode);
+        } catch (error) {
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            console.error('Error fetching employees:', error);
+            setEmployees([]);
+            addToast(t('loadError'), 'error');
+        } finally {
+            if (latestCardsRequestId.current === requestId) {
+                setIsLoading(false);
+            }
+        }
+    }, [t]);
+
+    const fetchSelectedEmployee = useCallback(async (id: string) => {
+        const requestId = latestCardsRequestId.current + 1;
+        latestCardsRequestId.current = requestId;
+        setIsLoading(true);
+        try {
+            const response = await fetch(`/api/employees/${id}`, { credentials: 'include' });
+            const result: EmployeeResponse = await response.json();
+
+            if (!response.ok || !result.success || !result.data) {
+                throw new Error(result.error || t('loadError'));
+            }
+
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            setEmployees([result.data]);
+            setSelectedEmployeeId(id);
+            setViewMode('selected');
+        } catch (error) {
+            if (latestCardsRequestId.current !== requestId) {
+                return;
+            }
+
+            console.error('Error fetching selected employee:', error);
+            setEmployees([]);
+            addToast(t('loadError'), 'error');
+        } finally {
+            if (latestCardsRequestId.current === requestId) {
+                setIsLoading(false);
+            }
+        }
+    }, [t]);
+
+    const fetchEmployees = useCallback(async () => {
+        await Promise.all([
+            viewMode === 'selected' && selectedEmployeeId
+                ? fetchSelectedEmployee(selectedEmployeeId)
+                : fetchEmployeePage(viewMode === 'all' ? 'all' : 'default', viewMode === 'all' ? currentPage : 1),
+            fetchEmployeeOptions(),
+            fetchBranchOptions(),
+        ]);
+    }, [currentPage, fetchBranchOptions, fetchEmployeeOptions, fetchEmployeePage, fetchSelectedEmployee, selectedEmployeeId, viewMode]);
+
     useEffect(() => {
-        fetchEmployees();
-    }, [fetchEmployees]);
+        fetchEmployeePage('default', 1);
+        fetchEmployeeOptions();
+        fetchBranchOptions();
+    }, [fetchBranchOptions, fetchEmployeeOptions, fetchEmployeePage]);
 
     const resetForm = () => {
         setFormData({
@@ -134,12 +309,13 @@ export default function EmployeesPage() {
     };
 
     const openEditModal = (employee: Profile) => {
+        const branchId = employee.branch_id ?? branchOptions.find((branch) => branch.name === employee.branch)?.id ?? '';
         setEditingEmployee(employee);
         setFormData({
             email: employee.email,
             password: '',
             full_name: employee.full_name,
-            branch: employee.branch || '',
+            branch: branchId,
             job_title: employee.job_title || '',
             shift_start: employee.shift_start || '',
             shift_duration: calculateDurationFromTimes(employee.shift_start, employee.shift_end),
@@ -150,9 +326,30 @@ export default function EmployeesPage() {
         setIsModalOpen(true);
     };
 
+    const handleSelectEmployee = async (employee: EmployeeOption) => {
+        setSearchQuery(employee.full_name);
+        setIsSelectorOpen(false);
+        await fetchSelectedEmployee(employee.id);
+    };
+
+    const handleResetEmployeeView = async () => {
+        setSearchQuery('');
+        setSelectedEmployeeId('');
+        setIsSelectorOpen(false);
+        await fetchEmployeePage('default', 1);
+    };
+
+    const handleShowAllEmployees = async (page = 1) => {
+        setSearchQuery('');
+        setSelectedEmployeeId('');
+        setIsSelectorOpen(false);
+        await fetchEmployeePage('all', page);
+    };
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
         setIsSubmitting(true);
+        const selectedBranch = branchOptions.find((branch) => branch.id === formData.branch);
 
         try {
             if (editingEmployee) {
@@ -163,7 +360,8 @@ export default function EmployeesPage() {
                     credentials: 'include',
                     body: JSON.stringify({
                         full_name: formData.full_name,
-                        branch: formData.branch,
+                        branch_id: formData.branch,
+                        branch: selectedBranch?.name ?? '',
                         job_title: formData.job_title,
                         shift_start: formData.shift_start || null,
                         shift_end: calculatedShiftEnd || null,
@@ -182,6 +380,8 @@ export default function EmployeesPage() {
                 const calculatedShiftEnd = calculateShiftEnd(formData.shift_start, formData.shift_duration);
                 const submitData = {
                     ...formData,
+                    branch_id: formData.branch,
+                    branch: selectedBranch?.name ?? '',
                     shift_end: calculatedShiftEnd,
                 };
                 const response = await fetch('/api/employees', {
@@ -198,7 +398,7 @@ export default function EmployeesPage() {
 
             setIsModalOpen(false);
             resetForm();
-            fetchEmployees();
+            await fetchEmployees();
         } catch (error) {
             console.error('Error saving employee:', error);
             addToast(
@@ -218,7 +418,12 @@ export default function EmployeesPage() {
             const result = await response.json();
             if (!result.success) throw new Error(result.error || t('deleteError'));
             addToast(t('employeeDeleted'), 'success');
-            fetchEmployees();
+            if (selectedEmployeeId === id) {
+                await handleResetEmployeeView();
+                await fetchEmployeeOptions();
+            } else {
+                await fetchEmployees();
+            }
         } catch (error) {
             console.error('Error deleting employee:', error);
             addToast(t('deleteError'), 'error');
@@ -244,237 +449,375 @@ export default function EmployeesPage() {
         }
     };
 
-    const filteredEmployees = useMemo(() => {
-        const normalizedQuery = deferredSearchQuery.trim().toLowerCase();
-        if (!normalizedQuery) return employees;
+    const selectorResults = useMemo(
+        () => filterEmployeeOptions(employeeOptions, deferredSearchQuery).slice(0, SELECTOR_RESULT_LIMIT),
+        [employeeOptions, deferredSearchQuery]
+    );
 
-        return employees.filter(
-            (employee) =>
-                employee.full_name.toLowerCase().includes(normalizedQuery) ||
-                employee.email.toLowerCase().includes(normalizedQuery) ||
-                employee.branch?.toLowerCase().includes(normalizedQuery)
-        );
-    }, [employees, deferredSearchQuery]);
+    const selectedEmployeeOption = useMemo(
+        () => employeeOptions.find((employee) => employee.id === selectedEmployeeId),
+        [employeeOptions, selectedEmployeeId]
+    );
 
     const stats = useMemo(() => {
-        const branchCount = new Set(employees.map((employee) => employee.branch).filter(Boolean)).size;
-        const overtimeEnabledCount = employees.filter((employee) => employee.overtime_enabled).length;
-
         return [
-            { label: t('employees'), value: employees.length },
-            { label: t('branches'), value: branchCount },
-            { label: t('overtimeEnabled'), value: overtimeEnabledCount },
+            { label: t('employees'), value: employeeStats.employees, icon: Users },
+            { label: t('branches'), value: employeeStats.branches, icon: Building2 },
+            { label: t('overtimeEnabled'), value: employeeStats.overtimeEnabled, icon: Timer },
         ];
-    }, [employees, t]);
+    }, [employeeStats, t]);
+
+    const totalPages = Math.max(1, Math.ceil(totalEmployees / EMPLOYEE_PAGE_SIZE));
+    const visibleStart = viewMode === 'all' && totalEmployees > 0 ? (currentPage - 1) * EMPLOYEE_PAGE_SIZE + 1 : 1;
+    const visibleEnd = viewMode === 'all'
+        ? Math.min(currentPage * EMPLOYEE_PAGE_SIZE, totalEmployees)
+        : Math.min(employees.length, totalEmployees || employees.length);
+    const skeletonCount = viewMode === 'all' ? 6 : DEFAULT_EMPLOYEE_LIMIT;
+    const emptyTitle = searchQuery ? t('noSearchResults') : t('noEmployees');
 
     const dayLabel = (day: string) => t(`days.${day}`);
 
     return (
-        <div className="space-y-6">
-            <PageReveal className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <GlowingCard>
-                    <div className="space-y-6 p-6 sm:p-8">
-                        <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('kicker')}</p>
-                            <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
+        <div className="space-y-7">
+            <PageReveal className="space-y-5">
+                <div className="admin-glass-panel-strong overflow-hidden p-5 sm:p-6">
+                    <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+                        <div className="max-w-3xl space-y-3">
+                            <p className="section-kicker">{t('kicker')}</p>
+                            <h1 className="text-3xl font-bold leading-tight text-[var(--admin-ink-strong)] sm:text-4xl">
                                 {t('title')}
                             </h1>
-                            <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
+                            <p className="max-w-2xl text-sm leading-7 text-[var(--admin-text-soft)]">
                                 {t('subtitle')}
                             </p>
                         </div>
-
-                        <div className="grid gap-4 sm:grid-cols-3">
-                            {stats.map((stat) => (
-                                <div
-                                    key={stat.label}
-                                    className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4"
-                                >
-                                    <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{stat.label}</p>
-                                    <p className="mt-3 text-3xl font-semibold text-[var(--foreground)]">
-                                        {isLoading ? '...' : <AnimatedCounter value={stat.value} />}
-                                    </p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </GlowingCard>
-
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-4 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('actions')}</p>
-                        <div className="grid gap-3">
-                            <Button variant="outline" onClick={() => setIsBulkImportOpen(true)} className="justify-between">
+                        <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsBulkImportOpen(true)}
+                                className="admin-glass-button-secondary w-full justify-between rounded-xl sm:w-auto"
+                            >
                                 <span>{t('bulkImport')}</span>
                                 <Upload className="h-4 w-4" />
                             </Button>
-                            <Button onClick={openAddModal} className="justify-between">
+                            <Button
+                                onClick={openAddModal}
+                                className="admin-glass-button-primary w-full justify-between rounded-xl sm:w-auto"
+                            >
                                 <span>{t('addEmployee')}</span>
                                 <UserPlus className="h-4 w-4" />
                             </Button>
                         </div>
-                        <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 text-sm leading-6 text-[var(--muted)]">
-                            {t('actionsHint')}
-                        </div>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                    {stats.map((stat) => {
+                        const StatIcon = stat.icon;
+                        return (
+                            <div
+                                key={stat.label}
+                                className="admin-kpi-tile border border-[var(--admin-glass-border-muted)]"
+                            >
+                                <div className="flex items-start justify-between gap-3">
+                                    <div className="min-w-0">
+                                        <p className="truncate text-xs font-semibold uppercase text-[var(--admin-text-muted)]">{stat.label}</p>
+                                        <p className="mt-2 text-2xl font-semibold text-[var(--admin-ink-strong)]">
+                                            {isLoading ? '...' : <AnimatedCounter value={stat.value} />}
+                                        </p>
+                                    </div>
+                                    <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[var(--admin-glass-border-muted)] bg-[var(--admin-primary-soft)] text-[var(--admin-info)]">
+                                        <StatIcon className="h-5 w-5" aria-hidden="true" />
+                                    </div>
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
             </PageReveal>
 
             <PageReveal delay={0.08}>
-                <Card className="rounded-2xl">
-                    <CardContent className="p-4 sm:p-5">
+                <section className="admin-glass-panel p-4 sm:p-5">
+                    <div className="grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
                         <div className="relative">
-                            <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
-                            <Input
-                                placeholder={t('searchPlaceholder')}
-                                value={searchQuery}
-                                onChange={(event) => setSearchQuery(event.target.value)}
-                                className="ps-11"
-                            />
+                            <label
+                                htmlFor="employee-selector"
+                                className="mb-2 block text-[0.72rem] font-semibold uppercase text-[var(--admin-text-soft)]"
+                            >
+                                {t('selectorLabel')}
+                            </label>
+                            <div className="relative">
+                                <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--admin-text-muted)]" />
+                                <Input
+                                    id="employee-selector"
+                                    placeholder={t('searchPlaceholder')}
+                                    value={searchQuery}
+                                    onFocus={() => setIsSelectorOpen(true)}
+                                    onBlur={() => window.setTimeout(() => setIsSelectorOpen(false), 120)}
+                                    onChange={(event) => {
+                                        setSearchQuery(event.target.value);
+                                        setIsSelectorOpen(true);
+                                    }}
+                                    className="admin-glass-control rounded-xl ps-11 pe-12"
+                                    autoComplete="off"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        type="button"
+                                        onClick={handleResetEmployeeView}
+                                        className="focus-ring absolute end-3 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-[var(--muted)] transition-colors hover:bg-[var(--surface-strong)] hover:text-[var(--foreground)]"
+                                        title={t('clearSelection')}
+                                    >
+                                        <X className="h-4 w-4" />
+                                    </button>
+                                )}
+                            </div>
+                            {isSelectorOpen && (
+                                <div
+                                    className="admin-glass-panel-muted relative z-30 mt-2 max-h-80 w-full overflow-y-auto p-2 lg:absolute"
+                                    onMouseDown={(event) => event.preventDefault()}
+                                >
+                                    {isSelectorLoading ? (
+                                        <div className="px-3 py-3 text-sm text-[var(--admin-text-muted)]">{t('selectorLoading')}</div>
+                                    ) : selectorResults.length === 0 ? (
+                                        <div className="px-3 py-3 text-sm text-[var(--admin-text-muted)]">{t('noSelectorResults')}</div>
+                                    ) : (
+                                        selectorResults.map((employee) => (
+                                            <button
+                                                key={employee.id}
+                                                type="button"
+                                                onClick={() => handleSelectEmployee(employee)}
+                                                className="focus-ring flex w-full items-start justify-between gap-4 rounded-xl px-3 py-3 text-start transition-colors hover:bg-[var(--surface-muted)]"
+                                            >
+                                                <span className="min-w-0">
+                                                    <span className="block truncate text-sm font-semibold text-[var(--admin-ink-strong)]">
+                                                        {employee.full_name}
+                                                    </span>
+                                                    <span className="mt-1 block truncate text-xs text-[var(--admin-text-muted)]">
+                                                        {[employee.email, employee.branch, employee.job_title].filter(Boolean).join(' / ')}
+                                                    </span>
+                                                </span>
+                                            </button>
+                                        ))
+                                    )}
+                                </div>
+                            )}
                         </div>
-                    </CardContent>
-                </Card>
+
+                        <div className="flex flex-col gap-3 sm:flex-row lg:justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={handleResetEmployeeView}
+                                className="admin-glass-button-secondary w-full rounded-xl sm:w-auto"
+                            >
+                                <X className="h-4 w-4" />
+                                {t('clearSelection')}
+                            </Button>
+                            {viewMode === 'all' ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={handleResetEmployeeView}
+                                    className="admin-glass-button-secondary w-full rounded-xl sm:w-auto"
+                                >
+                                    {t('showLess')}
+                                </Button>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={() => handleShowAllEmployees(1)}
+                                    className="admin-glass-button-secondary w-full rounded-xl sm:w-auto"
+                                >
+                                    <Users className="h-4 w-4" />
+                                    {t('showAllEmployees')}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="admin-glass-highlight mt-4 px-4 py-3 text-sm text-[var(--admin-text-soft)]">
+                        {viewMode === 'selected'
+                            ? t('showingSelected', { name: selectedEmployeeOption?.full_name ?? employees[0]?.full_name ?? '' })
+                            : viewMode === 'all'
+                                ? t('showingAll', { start: visibleStart, end: visibleEnd, total: totalEmployees })
+                                : t('showingDefault', { count: employees.length, total: totalEmployees })}
+                    </div>
+                </section>
             </PageReveal>
 
             {isLoading ? (
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {Array.from({ length: 6 }).map((_, index) => (
-                        <Card key={index} className="rounded-2xl">
-                            <CardContent className="space-y-4 p-6">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                    {Array.from({ length: skeletonCount }).map((_, index) => (
+                        <div key={index} className="admin-glass-panel-interactive">
+                            <div className="space-y-4 p-5">
                                 <div className="flex items-center gap-3">
-                                    <Skeleton className="h-14 w-14 rounded-[1.2rem]" />
+                                    <Skeleton className="h-12 w-12 rounded-xl" />
                                     <div className="space-y-2">
                                         <Skeleton className="h-4 w-32" />
                                         <Skeleton className="h-3 w-44" />
                                     </div>
                                 </div>
                                 {Array.from({ length: 4 }).map((__, metricIndex) => (
-                                    <Skeleton key={metricIndex} className="h-12 rounded-[1.2rem]" />
+                                    <Skeleton key={metricIndex} className="h-10 rounded-xl" />
                                 ))}
-                            </CardContent>
-                        </Card>
+                            </div>
+                        </div>
                     ))}
                 </div>
-            ) : filteredEmployees.length === 0 ? (
-                <Card className="rounded-2xl">
-                    <CardContent className="p-12 text-center">
-                        <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-[var(--surface-strong)] text-[var(--muted)]">
+            ) : employees.length === 0 ? (
+                <section className="admin-glass-panel">
+                    <div className="p-10 text-center">
+                        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-xl border border-[var(--admin-glass-border-muted)] bg-[var(--admin-glass-muted)] text-[var(--admin-text-muted)]">
                             <Users className="h-6 w-6" />
                         </div>
-                        <h2 className="mt-4 text-xl font-semibold text-[var(--foreground)]">
-                            {searchQuery ? t('noSearchResults') : t('noEmployees')}
+                        <h2 className="mt-4 text-xl font-semibold text-[var(--admin-ink-strong)]">
+                            {emptyTitle}
                         </h2>
-                    </CardContent>
-                </Card>
+                    </div>
+                </section>
             ) : (
                 <AnimatePresence>
-                <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-                    {filteredEmployees.map((employee) => (
-                        <motion.div
-                            key={employee.id}
-                            initial={{ opacity: 0, y: 22 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95 }}
-                            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                        >
-                            <Card interactive className="group rounded-2xl">
-                                <CardContent className="space-y-5 p-6">
-                                    <div className="flex items-start justify-between gap-4">
-                                        <div className="flex min-w-0 items-center gap-3">
-                                            {/* Avatar with gradient border ring */}
-                                            <div className="relative flex-shrink-0">
-                                                <div className="absolute -inset-[2px] rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--secondary)] opacity-70" />
-                                                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-[var(--bg-elevated)] text-lg font-semibold text-[var(--foreground)]">
-                                                    {employee.full_name.charAt(0).toUpperCase()}
+                    <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                        {employees.map((employee) => (
+                            <motion.div
+                                key={employee.id}
+                                initial={{ opacity: 0, y: 12 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.98 }}
+                                transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+                            >
+                                <article className="admin-glass-panel-interactive">
+                                    <div className="space-y-4 p-5">
+                                        <div className="flex items-start justify-between gap-4">
+                                            <div className="flex min-w-0 items-center gap-3">
+                                                <div className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl border border-[var(--admin-glass-border-muted)] bg-[var(--admin-primary-soft)] text-base font-semibold text-[var(--admin-ink-strong)]">
+                                                    {employee.full_name.charAt(0).toLocaleUpperCase(locale === 'ar' ? 'ar-EG' : 'en-US')}
+                                                </div>
+                                                <div className="min-w-0">
+                                                    <h3 className="truncate text-base font-semibold text-[var(--admin-ink-strong)]">
+                                                        {employee.full_name}
+                                                    </h3>
+                                                    <p className="truncate text-sm text-[var(--admin-text-muted)]">
+                                                        {employee.email}
+                                                    </p>
                                                 </div>
                                             </div>
-                                            <div className="min-w-0">
-                                                <h3 className="truncate text-lg font-semibold text-[var(--foreground)]">
-                                                    {employee.full_name}
-                                                </h3>
-                                                <p className="truncate text-sm text-[var(--muted)]">
-                                                    {employee.email}
-                                                </p>
+                                            <div className="flex gap-1">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditModal(employee)}
+                                                    className="focus-ring rounded-lg p-2 text-[var(--admin-text-muted)] transition-colors hover:bg-[var(--surface-muted)] hover:text-[var(--admin-ink-strong)]"
+                                                    title={t('editEmployee')}
+                                                >
+                                                    <Edit2 className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleResetPassword(employee.id, employee.full_name)}
+                                                    className="focus-ring rounded-lg p-2 text-[var(--admin-text-muted)] transition-colors hover:bg-[var(--warning-soft)] hover:text-[var(--warning)]"
+                                                    title={t('resetPassword')}
+                                                >
+                                                    <KeyRound className="h-4 w-4" />
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleDelete(employee.id)}
+                                                    className="focus-ring rounded-lg p-2 text-[var(--admin-text-muted)] transition-colors hover:bg-[var(--danger-soft)] hover:text-[var(--danger)]"
+                                                    title={t('deleteEmployee')}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </button>
                                             </div>
                                         </div>
-                                        <div className="flex gap-1">
-                                            <button
-                                                onClick={() => openEditModal(employee)}
-                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--foreground)] transition-colors"
-                                                title={t('editEmployee')}
-                                            >
-                                                <Edit2 className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleResetPassword(employee.id, employee.full_name)}
-                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--surface)] hover:text-[var(--warning)] transition-colors"
-                                                title={t('resetPassword')}
-                                            >
-                                                <KeyRound className="h-4 w-4" />
-                                            </button>
-                                            <button
-                                                onClick={() => handleDelete(employee.id)}
-                                                className="focus-ring rounded-full p-2 text-[var(--muted)] hover:bg-[var(--danger-soft)] hover:text-[var(--danger)] transition-colors"
-                                                title={t('deleteEmployee')}
-                                            >
-                                                <Trash2 className="h-4 w-4" />
-                                            </button>
+
+                                        <dl className="grid gap-2 text-sm">
+                                            {employee.job_title && (
+                                                <div className="admin-glass-panel-muted flex items-center gap-3 px-3 py-2.5 text-[var(--admin-text-soft)]">
+                                                    <Briefcase className="h-4 w-4 text-[var(--accent)]" />
+                                                    <dt className="sr-only">{t('jobTitle')}</dt>
+                                                    <dd className="truncate">{employee.job_title}</dd>
+                                                </div>
+                                            )}
+                                            {employee.branch && (
+                                                <div className="admin-glass-panel-muted flex items-center gap-3 px-3 py-2.5 text-[var(--admin-text-soft)]">
+                                                    <MapPin className="h-4 w-4 text-[var(--accent)]" />
+                                                    <dt className="sr-only">{t('branch')}</dt>
+                                                    <dd className="truncate">{employee.branch}</dd>
+                                                </div>
+                                            )}
+                                            {(employee.shift_start || employee.shift_end) && (
+                                                <div className="admin-glass-panel-muted flex items-center gap-3 px-3 py-2.5 text-[var(--admin-text-soft)]">
+                                                    <Clock className="h-4 w-4 text-[var(--accent)]" />
+                                                    <dt className="sr-only">{t('shiftStartTime')}</dt>
+                                                    <dd>
+                                                        {formatTime(employee.shift_start)} - {formatTime(employee.shift_end)}
+                                                    </dd>
+                                                </div>
+                                            )}
+                                            {employee.off_day && (
+                                                <div className="admin-glass-panel-muted flex items-center gap-3 px-3 py-2.5 text-[var(--admin-text-soft)]">
+                                                    <CalendarOff className="h-4 w-4 text-[var(--warning)]" />
+                                                    <dt className="sr-only">{t('offDayLabel')}</dt>
+                                                    <dd>{t('offDay', { day: dayLabel(employee.off_day) })}</dd>
+                                                </div>
+                                            )}
+                                        </dl>
+
+                                        <div className="admin-glass-panel-muted flex items-center justify-between px-3 py-2.5">
+                                            <div className="flex items-center gap-3 text-sm text-[var(--admin-text-soft)]">
+                                                <Timer className="h-4 w-4 text-[var(--accent)]" />
+                                                <span>{t('overtimeTracking')}</span>
+                                            </div>
+                                            <span className={`rounded-lg border px-2 py-1 text-xs font-semibold ${employee.overtime_enabled ? 'border-emerald-400/25 bg-[var(--success-soft)] text-[var(--success)]' : 'border-white/10 bg-[var(--surface)] text-[var(--admin-text-muted)]'}`}>
+                                                {employee.overtime_enabled ? t('enabled') : t('disabled')}
+                                            </span>
                                         </div>
-                                    </div>
 
-                                    <div className="grid gap-2">
-                                        {employee.job_title && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <Briefcase className="h-4 w-4 text-[var(--accent)]" />
-                                                <span>{employee.job_title}</span>
-                                            </div>
-                                        )}
-                                        {employee.branch && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <MapPin className="h-4 w-4 text-[var(--accent)]" />
-                                                <span>{employee.branch}</span>
-                                            </div>
-                                        )}
-                                        {(employee.shift_start || employee.shift_end) && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <Clock className="h-4 w-4 text-[var(--accent)]" />
-                                                <span>
-                                                    {formatTime(employee.shift_start)} - {formatTime(employee.shift_end)}
-                                                </span>
-                                            </div>
-                                        )}
-                                        {employee.off_day && (
-                                            <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground-soft)]">
-                                                <CalendarOff className="h-4 w-4 text-[var(--warning)]" />
-                                                <span>{t('offDay', { day: dayLabel(employee.off_day) })}</span>
-                                            </div>
-                                        )}
+                                        <Link
+                                            href={`/${locale}/admin/employees/${employee.id}/analytics`}
+                                            className="employee-analytics-action focus-ring flex min-h-11 items-center justify-between rounded-xl border border-[var(--line-active)] bg-[var(--admin-primary-soft)] px-4 py-3 text-sm font-semibold text-[var(--admin-ink-strong)] transition-colors hover:border-[var(--admin-primary-strong)] hover:bg-[var(--surface-muted)]"
+                                        >
+                                            <span>{t('attendanceAnalytics')}</span>
+                                            <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
+                                        </Link>
                                     </div>
-
-                                    {/* Overtime toggle */}
-                                    <div className="flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                                        <div className="flex items-center gap-3 text-sm text-[var(--foreground-soft)]">
-                                            <Timer className="h-4 w-4 text-[var(--accent)]" />
-                                            <span>{t('overtimeTracking')}</span>
-                                        </div>
-                                        <span className={`text-sm font-semibold ${employee.overtime_enabled ? 'text-[var(--success)]' : 'text-[var(--muted)]'}`}>
-                                            {employee.overtime_enabled ? t('enabled') : t('disabled')}
-                                        </span>
-                                    </div>
-
-                                    <Link
-                                        href={`/${locale}/admin/employees/${employee.id}/analytics`}
-                                        className="focus-ring flex items-center justify-between rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm font-semibold text-[var(--foreground)] transition-colors hover:bg-[var(--surface-hover)]"
-                                    >
-                                        <span>{t('attendanceAnalytics')}</span>
-                                        <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
-                                    </Link>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    ))}
-                </div>
+                                </article>
+                            </motion.div>
+                        ))}
+                    </div>
                 </AnimatePresence>
+            )}
+
+            {viewMode === 'all' && totalPages > 1 && (
+                <div className="admin-glass-panel-muted flex flex-col items-center justify-between gap-3 p-4 sm:flex-row">
+                    <p className="text-sm text-[var(--admin-text-muted)]">
+                        {t('pageOf', { page: currentPage, totalPages })}
+                    </p>
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleShowAllEmployees(currentPage - 1)}
+                            disabled={currentPage <= 1 || isLoading}
+                            className="admin-glass-button-secondary rounded-xl"
+                        >
+                            <ChevronLeft className="h-4 w-4" />
+                            {t('previousPage')}
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => handleShowAllEmployees(currentPage + 1)}
+                            disabled={currentPage >= totalPages || isLoading}
+                            className="admin-glass-button-secondary rounded-xl"
+                        >
+                            {t('nextPage')}
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                    </div>
+                </div>
             )}
 
             <Modal
@@ -486,12 +829,13 @@ export default function EmployeesPage() {
                 title={editingEmployee ? t('editEmployeeTitle') : t('addEmployeeTitle')}
                 size="lg"
             >
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="employee-form-instrument space-y-4">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                         <Input
                             id="full_name"
                             label={t('fullName')}
                             placeholder={t('fullNamePlaceholder')}
+                            className="admin-glass-control rounded-xl"
                             value={formData.full_name}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, full_name: event.target.value }))
@@ -503,6 +847,7 @@ export default function EmployeesPage() {
                             label={t('email')}
                             type="email"
                             placeholder={t('emailPlaceholder')}
+                            className="admin-glass-control rounded-xl"
                             value={formData.email}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, email: event.target.value }))
@@ -516,6 +861,7 @@ export default function EmployeesPage() {
                                 label={t('password')}
                                 type="password"
                                 placeholder="••••••••"
+                                className="admin-glass-control rounded-xl"
                                 value={formData.password}
                                 onChange={(event) =>
                                     setFormData((prev) => ({ ...prev, password: event.target.value }))
@@ -527,18 +873,20 @@ export default function EmployeesPage() {
                             id="branch"
                             label={t('branch')}
                             value={formData.branch}
+                            className="admin-glass-control rounded-xl"
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, branch: event.target.value }))
                             }
                             options={[
                                 { value: '', label: t('selectBranch') },
-                                ...BRANCHES.map((branch) => ({ value: branch, label: branch })),
+                                ...branchOptions.map((branch) => ({ value: branch.id, label: branch.name })),
                             ]}
                         />
                         <Input
                             id="job_title"
                             label={t('jobTitle')}
                             placeholder={t('jobTitlePlaceholder')}
+                            className="admin-glass-control rounded-xl"
                             value={formData.job_title}
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, job_title: event.target.value }))
@@ -549,6 +897,7 @@ export default function EmployeesPage() {
                                 id="shift_start"
                                 label={t('shiftStartTime')}
                                 type="time"
+                                className="admin-glass-control rounded-xl"
                                 value={formData.shift_start}
                                 onChange={(event) =>
                                     setFormData((prev) => ({ ...prev, shift_start: event.target.value }))
@@ -569,6 +918,7 @@ export default function EmployeesPage() {
                             id="shift_duration"
                             label={t('shiftDuration')}
                             value={formData.shift_duration}
+                            className="admin-glass-control rounded-xl"
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, shift_duration: event.target.value }))
                             }
@@ -586,6 +936,7 @@ export default function EmployeesPage() {
                             id="off_day"
                             label={t('offDayLabel')}
                             value={formData.off_day}
+                            className="admin-glass-control rounded-xl"
                             onChange={(event) =>
                                 setFormData((prev) => ({ ...prev, off_day: event.target.value }))
                             }
@@ -602,12 +953,12 @@ export default function EmployeesPage() {
                         />
                     </div>
 
-                    <div className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-start sm:justify-between">
+                    <div className="admin-glass-panel-muted flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
                         <div className="flex min-w-0 flex-1 items-start gap-3">
                             <Timer className="mt-1 h-5 w-5 text-[var(--accent)]" />
                             <div className="min-w-0">
-                                <p className="text-sm font-medium text-[var(--foreground)]">{t('overtimeTrackingTitle')}</p>
-                                <p className="text-xs leading-6 text-[var(--muted)]">
+                                <p className="text-sm font-medium text-[var(--admin-ink-strong)]">{t('overtimeTrackingTitle')}</p>
+                                <p className="text-xs leading-6 text-[var(--admin-text-muted)]">
                                     {t('overtimeTrackingDescription')}
                                 </p>
                             </div>
@@ -624,12 +975,12 @@ export default function EmployeesPage() {
                     </div>
 
                     {editingEmployee && (
-                        <div className="flex flex-col gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="admin-glass-panel-muted flex flex-col gap-3 p-4 sm:flex-row sm:items-start sm:justify-between">
                             <div className="flex min-w-0 flex-1 items-start gap-3">
                                 <KeyRound className="mt-1 h-5 w-5 text-[var(--warning)]" />
                                 <div className="min-w-0">
-                                    <p className="text-sm font-medium text-[var(--foreground)]">{t('forcePasswordReset')}</p>
-                                    <p className="text-xs leading-6 text-[var(--muted)]">
+                                    <p className="text-sm font-medium text-[var(--admin-ink-strong)]">{t('forcePasswordReset')}</p>
+                                    <p className="text-xs leading-6 text-[var(--admin-text-muted)]">
                                         {t('forcePasswordResetDescription')}
                                     </p>
                                 </div>
@@ -654,10 +1005,11 @@ export default function EmployeesPage() {
                                 setIsModalOpen(false);
                                 resetForm();
                             }}
+                            className="admin-glass-button-secondary"
                         >
                             {t('cancel')}
                         </Button>
-                        <Button type="submit" isLoading={isSubmitting} className="w-full sm:w-auto">
+                        <Button type="submit" isLoading={isSubmitting} className="admin-glass-button-primary w-full sm:w-auto">
                             {editingEmployee ? t('updateEmployee') : t('createEmployee')}
                         </Button>
                     </div>
@@ -671,11 +1023,11 @@ export default function EmployeesPage() {
                 size="sm"
             >
                 <div className="space-y-4">
-                    <p className="text-sm text-[var(--muted)]">
+                    <p className="text-sm text-[var(--admin-text-muted)]">
                         {t('temporaryPasswordIntro', { name: resetModal.employeeName })}
                     </p>
-                    <div className="flex items-center gap-3 rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3">
-                        <code className="flex-1 font-mono text-base tracking-widest text-[var(--foreground)]">
+                    <div className="admin-glass-panel-muted flex items-center gap-3 px-4 py-3">
+                        <code className="flex-1 font-mono text-base tracking-widest text-[var(--admin-ink-strong)]">
                             {resetModal.tempPassword}
                         </code>
                         <button
@@ -683,14 +1035,14 @@ export default function EmployeesPage() {
                                 navigator.clipboard.writeText(resetModal.tempPassword);
                                 addToast(t('copied'), 'success');
                             }}
-                            className="focus-ring rounded-lg p-1.5 text-[var(--muted)] hover:text-[var(--foreground)] transition-colors"
+                            className="focus-ring rounded-lg p-1.5 text-[var(--admin-text-muted)] transition-colors hover:text-[var(--admin-ink-strong)]"
                             title={t('copyToClipboard')}
                         >
                             <Copy className="h-4 w-4" />
                         </button>
                     </div>
                     <Button
-                        className="w-full"
+                        className="admin-glass-button-primary w-full"
                         onClick={() => setResetModal((prev) => ({ ...prev, open: false }))}
                     >
                         {t('done')}

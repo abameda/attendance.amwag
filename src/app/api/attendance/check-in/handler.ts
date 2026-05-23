@@ -34,7 +34,7 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
         trustForwardedFor: process.env.TRUST_X_FORWARDED_FOR === 'true',
       });
 
-      if (!user.branch) {
+      if (!user.branch || !user.branchId) {
         return NextResponse.json(
           {
             success: false,
@@ -44,6 +44,7 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
         );
       }
 
+      // Query IP rules by branchId (the reliable FK), not branchName
       const branchIpRows = await dependencies.db
         .select({
           branchName: branchAllowedIps.branchName,
@@ -52,24 +53,46 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
           isActive: branchAllowedIps.isActive,
         })
         .from(branchAllowedIps)
-        .where(and(eq(branchAllowedIps.branchName, user.branch), eq(branchAllowedIps.isActive, 1)));
+        .where(and(eq(branchAllowedIps.branchId, user.branchId), eq(branchAllowedIps.isActive, 1)));
 
-      const matchingBranch = isIpAllowedForBranch(
-        currentIp,
-        branchIpRows.filter((rule) => rule.branchName === user.branch)
-      );
+      const matchingBranch = isIpAllowedForBranch(currentIp, branchIpRows);
 
       if (!matchingBranch.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'You must be connected to the company network (WiFi) to check in.',
-          },
-          { status: 403 }
-        );
+        // Development-only: allow localhost IPs so local testing works
+        const LOCALHOST_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+        const isDev = process.env.NODE_ENV === 'development';
+        const isLocalhost = LOCALHOST_IPS.includes(currentIp);
+
+        console.warn('[check-in] Branch IP denied', {
+          clientIp: currentIp,
+          xForwardedFor: request.headers.get('x-forwarded-for'),
+          xRealIp: request.headers.get('x-real-ip'),
+          employeeBranchId: user.branchId,
+          employeeBranch: user.branch,
+          rulesCount: branchIpRows.length,
+          rules: branchIpRows.map((r) => ({
+            ipNetwork: r.ipNetwork,
+            ruleType: r.ruleType,
+            isActive: r.isActive,
+          })),
+          isDev,
+          isLocalhost,
+        });
+
+        if (isDev && isLocalhost) {
+          // Allow in development for localhost
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'You must be connected to the company network (WiFi) to check in.',
+            },
+            { status: 403 }
+          );
+        }
       }
 
-      const checkInLocation = matchingBranch.branchName;
+      const checkInLocation = matchingBranch.branchName ?? user.branch;
       const now = new Date();
       const { date: egyptToday, totalMinutes: currentTotalMinutes } = getEgyptNow();
 

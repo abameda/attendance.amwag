@@ -40,7 +40,7 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
         trustForwardedFor: process.env.TRUST_X_FORWARDED_FOR === 'true',
       });
 
-      if (!user.branch) {
+      if (!user.branch || !user.branchId) {
         return NextResponse.json(
           {
             success: false,
@@ -50,6 +50,7 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
         );
       }
 
+      // Query IP rules by branchId (the reliable FK), not branchName
       const branchIpRows = await dependencies.db
         .select({
           branchName: branchAllowedIps.branchName,
@@ -58,24 +59,46 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
           isActive: branchAllowedIps.isActive,
         })
         .from(branchAllowedIps)
-        .where(and(eq(branchAllowedIps.branchName, user.branch), eq(branchAllowedIps.isActive, 1)));
+        .where(and(eq(branchAllowedIps.branchId, user.branchId), eq(branchAllowedIps.isActive, 1)));
 
-      const matchingBranch = isIpAllowedForBranch(
-        currentIp,
-        branchIpRows.filter((rule) => rule.branchName === user.branch)
-      );
+      const matchingBranch = isIpAllowedForBranch(currentIp, branchIpRows);
 
       if (!matchingBranch.allowed) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'You must be connected to the company network (WiFi) to check out.',
-          },
-          { status: 403 }
-        );
+        // Development-only: allow localhost IPs so local testing works
+        const LOCALHOST_IPS = ['127.0.0.1', '::1', '::ffff:127.0.0.1'];
+        const isDev = process.env.NODE_ENV === 'development';
+        const isLocalhost = LOCALHOST_IPS.includes(currentIp);
+
+        console.warn('[check-out] Branch IP denied', {
+          clientIp: currentIp,
+          xForwardedFor: request.headers.get('x-forwarded-for'),
+          xRealIp: request.headers.get('x-real-ip'),
+          employeeBranchId: user.branchId,
+          employeeBranch: user.branch,
+          rulesCount: branchIpRows.length,
+          rules: branchIpRows.map((r) => ({
+            ipNetwork: r.ipNetwork,
+            ruleType: r.ruleType,
+            isActive: r.isActive,
+          })),
+          isDev,
+          isLocalhost,
+        });
+
+        if (isDev && isLocalhost) {
+          // Allow in development for localhost
+        } else {
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'You must be connected to the company network (WiFi) to check out.',
+            },
+            { status: 403 }
+          );
+        }
       }
 
-      const checkOutLocation = matchingBranch.branchName;
+      const checkOutLocation = matchingBranch.branchName ?? user.branch;
       const now = new Date();
       const { date: egyptDate } = getEgyptNow();
       const today = egyptDate;
@@ -216,10 +239,12 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
         })
         .where(and(eq(attendance.id, existingRecord.id), isNull(attendance.checkOutTime)));
 
+      // mysql2 + drizzle returns [ResultSetHeader, FieldPacket[]]
+      const header = Array.isArray(updateResult) ? updateResult[0] : updateResult;
       const affectedRows =
-        (updateResult as unknown as { rowsAffected?: number; affectedRows?: number })
+        (header as unknown as { rowsAffected?: number; affectedRows?: number })
           .rowsAffected ??
-        (updateResult as unknown as { affectedRows?: number }).affectedRows ??
+        (header as unknown as { affectedRows?: number }).affectedRows ??
         0;
 
       if (affectedRows === 0) {

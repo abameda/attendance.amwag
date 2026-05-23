@@ -77,9 +77,11 @@ export async function destroyAllUserSessions(userId: string, exceptToken?: strin
 export async function cleanupExpiredSessions(): Promise<number> {
   const result = await db.delete(sessions).where(lt(sessions.expiresAt, new Date()));
 
+  // mysql2 + drizzle returns [ResultSetHeader, FieldPacket[]]
+  const header = Array.isArray(result) ? result[0] : result;
   return (
-    (result as unknown as { rowsAffected?: number; affectedRows?: number }).rowsAffected ??
-    (result as unknown as { affectedRows?: number }).affectedRows ??
+    (header as unknown as { rowsAffected?: number; affectedRows?: number }).rowsAffected ??
+    (header as unknown as { affectedRows?: number }).affectedRows ??
     0
   );
 }

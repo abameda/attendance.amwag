@@ -71,65 +71,62 @@ export default function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImpo
 
     return (
         <Modal isOpen={isOpen} onClose={handleClose} title={t('title')} size="lg">
-            <div className="space-y-4">
-                {/* Format Hint */}
-                <div className="rounded-xl border border-[var(--accent)]/20 bg-[var(--accent-soft)] p-4">
-                    <div className="flex items-start gap-3">
-                        <FileText className="mt-0.5 h-5 w-5 text-[var(--accent)]" />
-                        <div>
-                            <h4 className="mb-1 font-medium text-[var(--foreground)]">{t('formatTitle')}</h4>
-                            <p className="font-mono text-sm text-[var(--foreground-soft)]">
+            <div className="bulk-import-instrument space-y-4">
+                <div className="admin-glass-panel-muted p-4">
+                    <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
+                        <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--admin-glass-border-muted)] bg-[var(--admin-primary-soft)] text-[var(--accent)]">
+                            <FileText className="h-5 w-5" />
+                        </div>
+                        <div className="min-w-0 flex-1">
+                            <h4 className="text-sm font-semibold text-[var(--admin-ink-strong)]">{t('formatTitle')}</h4>
+                            <p className="mt-2 overflow-x-auto rounded-xl border border-[var(--admin-glass-border-muted)] bg-[rgb(255_255_255_/_0.045)] px-3 py-2 font-mono text-xs leading-6 text-[var(--admin-text-soft)]">
                                 {t('formatColumns')}
                             </p>
-                            <p className="mt-2 text-xs text-[var(--muted)]">
-                                {t('example')}
-                            </p>
-                            <p className="mt-1 text-xs text-[var(--muted)]">
-                                {t('offDayHint')}
-                            </p>
-                            <p className="mt-1 text-xs text-[var(--muted)]">
-                                {t('optionalHint')}
-                            </p>
+                            <div className="mt-3 grid gap-2 text-xs leading-5 text-[var(--admin-text-muted)]">
+                                <p>{t('example')}</p>
+                                <p>{t('offDayHint')}</p>
+                                <p>{t('optionalHint')}</p>
+                            </div>
                         </div>
                     </div>
                 </div>
 
-                {/* CSV Input */}
-                <div>
-                    <label className="mb-2 block text-sm font-medium text-[var(--foreground-soft)]">{t('pasteCsv')}</label>
+                <div className="space-y-2">
+                    <label className="block text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--admin-text-soft)]">
+                        {t('pasteCsv')}
+                    </label>
                     <textarea
                         value={csvData}
                         onChange={(e) => setCsvData(e.target.value)}
                         placeholder={`ahmed@amwag.com, 123456, Ahmed Ali, ملوي, 09:00, 8, Driver, friday\nsara@amwag.com, 123456, Sara Mahmoud, الجيزه, 08:00, 8, Accountant, saturday`}
-                        className="focus-ring h-48 w-full resize-none rounded-xl border border-[var(--line)] bg-[var(--surface)] px-4 py-3 font-mono text-sm text-[var(--foreground)] placeholder:text-[var(--muted)] focus:border-[var(--accent)] focus:shadow-[var(--shadow-glow-blue)]"
+                        className="admin-glass-control focus-ring min-h-52 w-full resize-y rounded-xl px-4 py-3 font-mono text-sm leading-6 text-[var(--admin-ink)] placeholder:text-[var(--admin-text-muted)] disabled:cursor-not-allowed disabled:opacity-60"
                         disabled={isSubmitting}
                     />
                 </div>
 
-                {/* Results */}
                 {result && (
-                    <div className="space-y-3">
-                        <div className="flex items-center gap-4">
-                            <div className="flex items-center gap-2 text-[var(--success)]">
+                    <div className="admin-glass-panel-muted space-y-3 p-4">
+                        <div className="flex flex-wrap items-center gap-3">
+                            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-400/25 bg-[var(--success-soft)] px-3 py-2 text-[var(--success)]">
                                 <CheckCircle className="h-5 w-5" />
-                                <span className="font-medium">{t('success', { count: result.successCount })}</span>
+                                <span className="text-sm font-semibold">{t('success', { count: result.successCount })}</span>
                             </div>
                             {result.failedCount > 0 && (
-                                <div className="flex items-center gap-2 text-[var(--danger)]">
+                                <div className="inline-flex items-center gap-2 rounded-xl border border-red-400/25 bg-[var(--danger-soft)] px-3 py-2 text-[var(--danger)]">
                                     <XCircle className="h-5 w-5" />
-                                    <span className="font-medium">{t('failed', { count: result.failedCount })}</span>
+                                    <span className="text-sm font-semibold">{t('failed', { count: result.failedCount })}</span>
                                 </div>
                             )}
                         </div>
 
                         {result.failedEmails.length > 0 && (
-                            <div className="max-h-32 overflow-y-auto rounded-xl border border-[var(--danger)]/20 bg-[var(--danger-soft)] p-3">
+                            <div className="custom-scrollbar max-h-36 overflow-y-auto rounded-xl border border-red-400/25 bg-[var(--danger-soft)] p-3">
                                 <p className="mb-2 text-sm font-medium text-[var(--danger)]">{t('failedEmails')}</p>
                                 <ul className="space-y-1 text-xs text-[var(--foreground-soft)]">
                                     {result.failedEmails.map((item, index) => (
                                         <li key={index}>
                                             <span className="font-mono">{item.email}</span>
-                                            {item.error && <span className="ms-2 text-[var(--muted)]">— {item.error}</span>}
+                                            {item.error && <span className="ms-2 text-[var(--muted)]">: {item.error}</span>}
                                         </li>
                                     ))}
                                 </ul>
@@ -138,13 +135,12 @@ export default function BulkImportModal({ isOpen, onClose, onSuccess }: BulkImpo
                     </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex justify-end gap-3 border-t border-[var(--line)] pt-4">
-                    <Button variant="outline" onClick={handleClose}>
+                <div className="flex flex-col-reverse gap-3 border-t border-[var(--line)] pt-4 sm:flex-row sm:justify-end">
+                    <Button variant="outline" onClick={handleClose} className="admin-glass-button-secondary">
                         {result ? t('close') : t('cancel')}
                     </Button>
                     {!result && (
-                        <Button onClick={handleSubmit} isLoading={isSubmitting}>
+                        <Button onClick={handleSubmit} isLoading={isSubmitting} className="admin-glass-button-primary">
                             <Upload className="me-2 h-4 w-4" />
                             {t('importEmployees')}
                         </Button>

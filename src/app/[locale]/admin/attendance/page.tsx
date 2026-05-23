@@ -1,21 +1,26 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import {
+    AlarmClock,
     Calendar,
     ChevronLeft,
     ChevronRight,
+    CheckCircle2,
     FileText,
     Globe,
+    Hourglass,
     RefreshCw,
     RotateCcw,
     Search,
+    TimerOff,
+    TriangleAlert,
+    UserX,
 } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
-import { Badge, Button, Card, CardContent, GlowingCard, AnimatedCounter, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
-import { BRANCHES } from '@/lib/branches';
+import { useTranslations } from 'next-intl';
+import { Badge, Button, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
-import { exportAttendancePremiumPDF } from '@/lib/pdfExport';
+import { downloadAttendanceReportPdf } from '@/lib/downloadAttendancePdf';
 import type { AttendanceRecord } from '@/types';
 
 const RECORDS_PER_PAGE = 10;
@@ -25,6 +30,13 @@ type EmployeeOption = {
     full_name: string;
     email: string;
     branch: string | null;
+};
+
+type BranchOption = {
+    id: string;
+    name: string;
+    code: string;
+    is_active: boolean;
 };
 
 type AttendanceSummary = {
@@ -65,12 +77,11 @@ function formatLocation(record: AttendanceRecord) {
 
 export default function AttendanceLogsPage() {
     const t = useTranslations('AttendanceLogs');
-    const locale = useLocale();
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [totalRecords, setTotalRecords] = useState(0);
     const [summary, setSummary] = useState<AttendanceSummary>(emptySummary);
     const [employees, setEmployees] = useState<EmployeeOption[]>([]);
-    const [branchOptions, setBranchOptions] = useState<string[]>([...BRANCHES]);
+    const [branchOptions, setBranchOptions] = useState<BranchOption[]>([]);
     const [isLoading, setIsLoading] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const deferredSearch = useDeferredValue(searchQuery);
@@ -82,6 +93,9 @@ export default function AttendanceLogsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [showAllHistory, setShowAllHistory] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isExporting, setIsExporting] = useState(false);
+    const dateFromRef = useRef<HTMLInputElement>(null);
+    const dateToRef = useRef<HTMLInputElement>(null);
 
     const selectedEmployee = useMemo(
         () => employees.find((employee) => employee.id === employeeFilter),
@@ -161,7 +175,7 @@ export default function AttendanceLogsPage() {
             try {
                 const [employeeResponse, branchResponse] = await Promise.all([
                     fetch('/api/employees', { signal: controller.signal }),
-                    fetch('/api/admin/branch-ips', { signal: controller.signal }),
+                    fetch('/api/admin/branches?active=true', { signal: controller.signal }),
                 ]);
 
                 if (employeeResponse.ok) {
@@ -169,23 +183,13 @@ export default function AttendanceLogsPage() {
                     if (employeeResult.success) {
                         const nextEmployees = employeeResult.data ?? [];
                         setEmployees(nextEmployees);
-                        setBranchOptions((currentBranches) =>
-                            Array.from(
-                                new Set([
-                                    ...currentBranches,
-                                    ...nextEmployees.map((employee) => employee.branch).filter((branch): branch is string => Boolean(branch)),
-                                ])
-                            )
-                        );
                     }
                 }
 
                 if (branchResponse.ok) {
-                    const branchResult: { success: boolean; branches?: string[] } = await branchResponse.json();
+                    const branchResult: { success: boolean; data?: BranchOption[] } = await branchResponse.json();
                     if (branchResult.success) {
-                        setBranchOptions((currentBranches) =>
-                            Array.from(new Set([...currentBranches, ...(branchResult.branches ?? [])]))
-                        );
+                        setBranchOptions(branchResult.data ?? []);
                     }
                 }
             } catch (error) {
@@ -198,6 +202,14 @@ export default function AttendanceLogsPage() {
         return () => controller.abort();
     }, []);
 
+    useEffect(() => {
+        const initialBranch = new URLSearchParams(window.location.search).get('branch');
+        if (initialBranch) {
+            setBranchFilter(initialBranch);
+            setCurrentPage(1);
+        }
+    }, []);
+
     const totalPages = Math.ceil(totalRecords / RECORDS_PER_PAGE);
     const activeDateLabel = showAllHistory
         ? t('allHistory')
@@ -205,14 +217,22 @@ export default function AttendanceLogsPage() {
             ? `${dateFrom} - ${dateTo}`
             : dateFrom || dateTo || todayIsoDate();
     const summaryCards = [
-        { label: t('records'), value: summary.totalRecords },
-        { label: t('present'), value: summary.present },
-        { label: t('absent'), value: summary.absent },
-        { label: t('late'), value: summary.late },
-        { label: t('earlyLeave'), value: summary.earlyLeave },
-        { label: t('missingCheckout'), value: summary.missingCheckout },
-        { label: t('overtime'), value: summary.overtime },
+        { label: t('records'), value: summary.totalRecords, tone: 'text-[var(--admin-ink-strong)]', icon: FileText, marker: 'bg-slate-300/70' },
+        { label: t('present'), value: summary.present, tone: 'text-[var(--success)]', icon: CheckCircle2, marker: 'bg-emerald-300/75' },
+        { label: t('absent'), value: summary.absent, tone: 'text-[var(--danger)]', icon: UserX, marker: 'bg-red-300/75' },
+        { label: t('late'), value: summary.late, tone: 'text-[var(--warning)]', icon: AlarmClock, marker: 'bg-amber-300/75' },
+        { label: t('earlyLeave'), value: summary.earlyLeave, tone: 'text-[var(--danger)]', icon: TimerOff, marker: 'bg-rose-300/75' },
+        { label: t('missingCheckout'), value: summary.missingCheckout, tone: 'text-[var(--warning)]', icon: TriangleAlert, marker: 'bg-orange-300/75' },
+        { label: t('overtime'), value: summary.overtime, tone: 'text-[var(--info)]', icon: Hourglass, marker: 'bg-sky-300/75' },
     ];
+    const controlClassName =
+        'focus-ring admin-glass-control min-h-10 w-full cursor-pointer px-3 py-2 text-sm text-[var(--foreground)] outline-none transition-all duration-200';
+
+    function statusText(status: AttendanceRecord['status']) {
+        if (status === 'missing_checkout') return t('missingCheckout');
+        if (status === 'pending') return t('pending');
+        return t(status);
+    }
 
     async function fetchAllFilteredRecords() {
         const params = new URLSearchParams({
@@ -249,30 +269,20 @@ export default function AttendanceLogsPage() {
     }
 
     async function handleExportPDF() {
+        setIsExporting(true);
         try {
             const allFilteredRecords = await fetchAllFilteredRecords();
-            let generatedBy: string | undefined;
 
-            try {
-                const userResponse = await fetch('/api/auth/me', { credentials: 'include' });
-                const userResult: { success: boolean; data?: { full_name?: string } } = await userResponse.json();
-                generatedBy = userResult.success ? userResult.data?.full_name : undefined;
-            } catch {
-                generatedBy = undefined;
-            }
+            const dateRangeLabel = showAllHistory
+                ? t('allHistory')
+                : `${dateFrom || todayIsoDate()} to ${dateTo || todayIsoDate()}`;
 
-            await exportAttendancePremiumPDF(allFilteredRecords, {
-                locale,
-                dateRangeLabel: showAllHistory
-                    ? t('allHistory')
-                    : (dateFrom || (!dateFrom && !dateTo ? todayIsoDate() : '')) && (dateTo || (!dateFrom && !dateTo ? todayIsoDate() : ''))
-                        ? `${dateFrom || todayIsoDate()} to ${dateTo || todayIsoDate()}`
-                        : dateFrom || dateTo || todayIsoDate(),
-                statusFilter: statusFilter || undefined,
-                searchQuery: deferredSearch.trim() || undefined,
+            await downloadAttendanceReportPdf(allFilteredRecords, {
                 employeeName: selectedEmployee?.full_name,
                 branchName: branchFilter || undefined,
-                generatedBy,
+                dateRangeLabel,
+                status: statusFilter || undefined,
+                search: deferredSearch.trim() || undefined,
             });
             addToast(t('exportSuccess'), 'success');
         } catch (error) {
@@ -281,60 +291,72 @@ export default function AttendanceLogsPage() {
                 error instanceof Error ? error.message : t('exportError'),
                 'error'
             );
+        } finally {
+            setIsExporting(false);
         }
     }
 
     return (
-        <div className="space-y-6">
-            <PageReveal className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-                <GlowingCard>
-                    <div className="space-y-6 p-6 sm:p-8">
-                        <div className="space-y-3">
-                            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--accent)]">{t('title')}</p>
-                            <h1 className="gradient-text text-4xl font-bold sm:text-5xl">
+        <div className="attendance-page-shell space-y-5">
+            <PageReveal className="admin-glass-panel-strong overflow-hidden">
+                <div className="space-y-5 p-4 sm:p-5">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0">
+                            <p className="text-xs font-semibold uppercase text-[var(--accent)]">{t('title')}</p>
+                            <h1 className="mt-1 text-2xl font-bold leading-tight text-[var(--admin-ink-strong)] sm:text-3xl">
                                 {t('heroTitle')}
                             </h1>
-                            <p className="max-w-2xl text-sm leading-7 text-[var(--muted)]">
+                            <p className="mt-2 max-w-3xl text-sm leading-6 text-[var(--muted)]">
                                 {t('heroDescription')}
                             </p>
                         </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                            {summaryCards.map((item) => (
-                                <div key={item.label} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                    <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.18em]">{item.label}</p>
-                                    <p className="mt-3 text-2xl font-semibold text-[var(--foreground)]">
-                                        <AnimatedCounter value={isLoading ? 0 : item.value} />
-                                    </p>
-                                </div>
-                            ))}
-                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
-                                <p className="text-[var(--muted)] text-xs font-semibold uppercase tracking-[0.18em]">{t('dateRange')}</p>
-                                <p className="mt-3 truncate text-base font-semibold text-[var(--foreground)]">{activeDateLabel}</p>
+                        <div className="flex shrink-0 flex-col gap-2 sm:flex-row sm:items-center">
+                            <div className="admin-glass-highlight px-3 py-2">
+                                <p className="text-xs font-semibold uppercase text-[var(--muted)]">{t('dateRange')}</p>
+                                <p className="mt-1 truncate text-sm font-semibold text-[var(--admin-ink-strong)]">{activeDateLabel}</p>
                             </div>
+                            <Button
+                                size="sm"
+                                onClick={() => void handleExportPDF()}
+                                disabled={isLoading || isExporting}
+                                isLoading={isExporting}
+                                className="attendance-export-action admin-glass-button-primary shrink-0 justify-between shadow-none"
+                            >
+                                <span>{t('exportPDF')}</span>
+                                <FileText className="h-4 w-4" />
+                            </Button>
                         </div>
                     </div>
-                </GlowingCard>
 
-                <Card className="rounded-2xl">
-                    <CardContent className="space-y-3 p-6">
-                        <p className="text-xs font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('exports')}</p>
-                        <Button
-                            size="sm"
-                            onClick={() => handleExportPDF()}
-                            disabled={isLoading}
-                            className="justify-between"
-                        >
-                            <span>{t('exportPDF')}</span>
-                            <FileText className="h-4 w-4" />
-                        </Button>
-                    </CardContent>
-                </Card>
+                    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                        {summaryCards.map((item) => {
+                            const Icon = item.icon;
+                            return (
+                                <div key={item.label} className="admin-kpi-tile border border-[var(--admin-glass-border-muted)]">
+                                    <div className="flex items-start justify-between gap-3">
+                                        <div className="min-w-0">
+                                            <p className="truncate text-xs font-semibold uppercase text-[var(--muted)]">{item.label}</p>
+                                            <p className={`mt-2 text-2xl font-bold leading-none ${item.tone}`}>
+                                                {isLoading ? '-' : item.value}
+                                            </p>
+                                        </div>
+                                        <div className="admin-glass-control flex size-9 shrink-0 items-center justify-center rounded-xl">
+                                            <Icon className="h-4 w-4 text-[var(--foreground-soft)]" />
+                                        </div>
+                                    </div>
+                                    <div className="mt-4 h-1 rounded-full bg-white/[0.08]">
+                                        <div className={`h-full w-8 rounded-full ${item.marker}`} />
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
             </PageReveal>
 
             <PageReveal delay={0.08}>
-                <Card className="rounded-2xl">
-                    <CardContent className="grid gap-3 p-4 md:grid-cols-2 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto_auto] xl:p-5">
+                <div className="attendance-filter-band admin-glass-panel p-3">
+                    <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.95fr)_minmax(0,0.95fr)_11rem_11rem] xl:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)_minmax(0,1fr)_minmax(0,0.75fr)_minmax(0,0.75fr)_auto_auto_auto_auto]">
                         <div className="relative min-w-0">
                             <Search className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
                             <Input
@@ -344,7 +366,7 @@ export default function AttendanceLogsPage() {
                                     setSearchQuery(event.target.value);
                                     setCurrentPage(1);
                                 }}
-                                className="ps-11"
+                                className="admin-glass-control rounded-xl ps-11"
                             />
                         </div>
 
@@ -354,7 +376,7 @@ export default function AttendanceLogsPage() {
                                 setEmployeeFilter(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]"
+                            className={controlClassName}
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allEmployees')}</option>
                             {employees.map((employee) => (
@@ -371,19 +393,24 @@ export default function AttendanceLogsPage() {
                                 setBranchFilter(event.target.value);
                                 setCurrentPage(1);
                             }}
-                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)]"
+                            className={controlClassName}
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allBranches')}</option>
                             {branchOptions.map((branch) => (
-                                <option key={branch} value={branch} className="bg-[var(--bg-secondary)] text-[var(--foreground)]">
-                                    {branch}
+                                <option key={branch.id} value={branch.name} className="bg-[var(--bg-secondary)] text-[var(--foreground)]">
+                                    {branch.name}
                                 </option>
                             ))}
                         </select>
 
-                        <div className="relative min-w-0">
-                            <Calendar className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
-                            <Input
+                        <label
+                            className="admin-glass-control focus-ring flex min-h-10 min-w-0 cursor-pointer items-center gap-2 rounded-xl px-3 py-2 has-[:focus]:ring-2 has-[:focus]:ring-[var(--accent)]/50"
+                            onClick={() => { try { dateFromRef.current?.showPicker(); } catch { /* unsupported */ } }}
+                        >
+                            <Calendar className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                            <span className="shrink-0 select-none text-xs font-semibold uppercase text-[var(--muted)]">{t('dateFrom')}</span>
+                            <input
+                                ref={dateFromRef}
                                 type="date"
                                 value={dateFrom}
                                 onChange={(event) => {
@@ -392,13 +419,18 @@ export default function AttendanceLogsPage() {
                                     setCurrentPage(1);
                                 }}
                                 aria-label={t('dateFrom')}
-                                className="ps-11"
+                                className="min-w-0 flex-1 cursor-pointer bg-transparent text-sm text-[var(--foreground)] outline-none [color-scheme:dark]"
                             />
-                        </div>
+                        </label>
 
-                        <div className="relative min-w-0">
-                            <Calendar className="pointer-events-none absolute start-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted)]" />
-                            <Input
+                        <label
+                            className="admin-glass-control focus-ring flex min-h-10 min-w-0 cursor-pointer items-center gap-2 rounded-xl px-3 py-2 has-[:focus]:ring-2 has-[:focus]:ring-[var(--accent)]/50"
+                            onClick={() => { try { dateToRef.current?.showPicker(); } catch { /* unsupported */ } }}
+                        >
+                            <Calendar className="h-4 w-4 shrink-0 text-[var(--accent)]" />
+                            <span className="shrink-0 select-none text-xs font-semibold uppercase text-[var(--muted)]">{t('dateTo')}</span>
+                            <input
+                                ref={dateToRef}
                                 type="date"
                                 value={dateTo}
                                 onChange={(event) => {
@@ -407,18 +439,18 @@ export default function AttendanceLogsPage() {
                                     setCurrentPage(1);
                                 }}
                                 aria-label={t('dateTo')}
-                                className="ps-11"
+                                className="min-w-0 flex-1 cursor-pointer bg-transparent text-sm text-[var(--foreground)] outline-none [color-scheme:dark]"
                             />
-                        </div>
+                        </label>
 
                         <Button
-                            variant={showAllHistory ? 'primary' : 'outline'}
+                            variant="outline"
                             size="sm"
                             onClick={() => {
                                 setShowAllHistory((currentValue) => !currentValue);
                                 setCurrentPage(1);
                             }}
-                            className="w-full xl:w-auto"
+                            className={`${showAllHistory ? 'admin-glass-button-primary' : 'admin-glass-button-secondary'} w-full shadow-none xl:w-auto`}
                         >
                             {t('allHistory')}
                         </Button>
@@ -426,7 +458,7 @@ export default function AttendanceLogsPage() {
                         <select
                             value={statusFilter}
                             onChange={(event) => { setStatusFilter(event.target.value); setCurrentPage(1); }}
-                            className="focus-ring w-full cursor-pointer rounded-full border border-[var(--line)] bg-[var(--surface)] px-4 py-3 text-sm text-[var(--foreground)] xl:w-44"
+                            className={`${controlClassName} xl:w-44`}
                         >
                             <option value="" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('allStatus')}</option>
                             <option value="present" className="bg-[var(--bg-secondary)] text-[var(--foreground)]">{t('present')}</option>
@@ -449,10 +481,10 @@ export default function AttendanceLogsPage() {
                                 setShowAllHistory(false);
                                 setCurrentPage(1);
                             }}
-                            className="w-full xl:w-auto"
+                            className="admin-glass-button-secondary w-full shadow-none xl:w-auto"
                         >
                             <RotateCcw className="h-4 w-4" />
-                            <span className="xl:hidden 2xl:inline">{t('resetFilters')}</span>
+                            <span className="lg:hidden xl:inline">{t('resetFilters')}</span>
                         </Button>
 
                         <Button
@@ -462,20 +494,20 @@ export default function AttendanceLogsPage() {
                                 setRefreshKey((value) => value + 1);
                                 setCurrentPage(1);
                             }}
-                            className="w-full xl:w-auto"
+                            className="admin-glass-icon-button w-full shadow-none xl:w-auto"
                         >
                             <RefreshCw className="h-4 w-4" />
                         </Button>
-                    </CardContent>
-                </Card>
+                    </div>
+                </div>
             </PageReveal>
 
-            <Card className="rounded-2xl">
+            <section className="attendance-records-table admin-glass-table">
                     <div className="md:hidden">
                         {isLoading ? (
                             <div className="space-y-3 p-3">
                                 {Array.from({ length: 4 }).map((_, index) => (
-                                    <div key={index} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                    <div key={index} className="admin-glass-panel-muted p-4">
                                         <Skeleton className="h-5 w-40" />
                                         <Skeleton className="mt-2 h-4 w-24" />
                                         <div className="mt-4 grid grid-cols-2 gap-2">
@@ -487,16 +519,16 @@ export default function AttendanceLogsPage() {
                                 ))}
                             </div>
                         ) : records.length === 0 ? (
-                            <div className="px-3 py-12 text-center text-[var(--muted)]">
+                            <div className="px-3 py-14 text-center text-[var(--muted)]">
                                 {showAllHistory ? t('noRecords') : t('noRecordsForDate')}
                             </div>
                         ) : (
                             <div className="space-y-3 p-3">
                                 {records.map((record) => (
-                                    <div key={record.id} className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-4">
+                                    <article key={record.id} className="admin-glass-panel-muted p-4">
                                         <div className="flex items-start justify-between gap-3">
                                             <div className="flex min-w-0 items-center gap-3">
-                                                <div className="flex h-11 w-11 items-center justify-center rounded-[1rem] bg-[var(--surface-strong)] font-semibold text-[var(--foreground-soft)]">
+                                                <div className="admin-glass-control flex h-10 w-10 items-center justify-center rounded-xl font-semibold text-[var(--foreground-soft)]">
                                                     {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                 </div>
                                                 <div className="min-w-0">
@@ -509,136 +541,125 @@ export default function AttendanceLogsPage() {
                                                 </div>
                                             </div>
                                             <Badge variant={record.status}>
-                                                {record.status === 'missing_checkout'
-                                                    ? t('missingCheckout')
-                                                    : record.status === 'pending'
-                                                        ? t('pending')
-                                                        : t(record.status)}
+                                                {statusText(record.status)}
                                             </Badge>
                                         </div>
 
-                                        <div className="mt-4 grid grid-cols-2 gap-2">
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('branch')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]" dir="auto">{record.profiles?.branch || '-'}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('date')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatDate(record.date)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('shift')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatShift(record)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('checkIn')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_in_time)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('checkOut')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_out_time)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('lateness')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatLateness(record.late_minutes)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('earlyLeave')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatEarlyDeparture(record.early_departure_minutes || 0)}</p>
-                                            </div>
-                                            <div className="rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('overtime')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]">{formatOvertime(record.overtime_minutes || 0)}</p>
-                                            </div>
-                                            <div className="col-span-2 rounded-xl border border-[var(--line)] bg-[var(--surface)] p-3">
-                                                <p className="text-[11px] uppercase tracking-[0.2em] text-[var(--muted)]">{t('location')}</p>
-                                                <p className="mt-1 text-sm text-[var(--foreground-soft)]" dir="auto">{formatLocation(record)}</p>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        <dl className="mt-4 grid grid-cols-2 gap-x-4 gap-y-3 border-t border-[var(--admin-glass-border-muted)] pt-4 text-sm">
+                                            {[
+                                                [t('branch'), record.profiles?.branch || '-', 'auto'],
+                                                [t('date'), formatDate(record.date)],
+                                                [t('shift'), formatShift(record)],
+                                                [t('checkIn'), formatTimestamp(record.check_in_time)],
+                                                [t('checkOut'), formatTimestamp(record.check_out_time)],
+                                                [t('lateness'), formatLateness(record.late_minutes)],
+                                                [t('earlyLeave'), formatEarlyDeparture(record.early_departure_minutes || 0)],
+                                                [t('overtime'), formatOvertime(record.overtime_minutes || 0)],
+                                                [t('location'), formatLocation(record), 'auto'],
+                                            ].map(([label, value, dir]) => (
+                                                <div key={String(label)} className={label === t('location') ? 'col-span-2' : ''}>
+                                                    <dt className="text-xs font-semibold uppercase text-[var(--muted)]">{label}</dt>
+                                                    <dd className="mt-1 text-[var(--foreground-soft)]" dir={dir || undefined}>{value}</dd>
+                                                </div>
+                                            ))}
+                                        </dl>
+                                    </article>
                                 ))}
                             </div>
                         )}
                     </div>
 
                     <div className="custom-scrollbar hidden overflow-x-auto md:block">
-                        <table className="w-full min-w-[1200px]">
+                        <table className="w-full table-fixed">
+                            <colgroup>
+                                <col className="w-[16%]" />
+                                <col className="w-[7%]" />
+                                <col className="w-[8%]" />
+                                <col className="w-[9%]" />
+                                <col className="w-[7%]" />
+                                <col className="w-[7%]" />
+                                <col className="w-[6%]" />
+                                <col className="w-[7%]" />
+                                <col className="w-[6%]" />
+                                <col className="w-[8%]" />
+                                <col className="w-[8%]" />
+                                <col className="w-[11%]" />
+                            </colgroup>
                             <thead>
-                                <tr className="border-b border-[var(--line)] bg-[var(--surface)]">
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('employee')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('branch')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('date')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('shift')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkIn')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkOut')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('lateness')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('earlyLeave')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('overtime')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('status')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('location')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkInIP')}</th>
-                                    <th className="px-4 py-4 text-start text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-[var(--muted)]">{t('checkOutIP')}</th>
+                                <tr className="border-b border-[var(--admin-glass-border-muted)] bg-white/[0.055]">
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('employee')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('branch')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('date')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('shift')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('checkIn')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('checkOut')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('lateness')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('earlyLeave')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('overtime')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('status')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('location')}</th>
+                                    <th className="px-3 py-3 text-start text-[0.68rem] font-semibold uppercase tracking-wider text-[var(--muted)]">{t('checkInIP')} / {t('checkOutIP')}</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {isLoading ? (
                                     Array.from({ length: 5 }).map((_, index) => (
-                                        <tr key={index} className="border-b border-[var(--line)]">
-                                            {Array.from({ length: 13 }).map((__, cellIndex) => (
-                                                <td key={cellIndex} className="px-4 py-4">
-                                                    <Skeleton className="h-10 w-full rounded-[1rem]" />
+                                        <tr key={index} className="admin-glass-table-row">
+                                            {Array.from({ length: 12 }).map((__, cellIndex) => (
+                                                <td key={cellIndex} className="px-3 py-2.5">
+                                                    <Skeleton className="h-8 w-full rounded-[0.75rem]" />
                                                 </td>
                                             ))}
                                         </tr>
                                     ))
                                 ) : records.length === 0 ? (
                                     <tr>
-                                        <td colSpan={13} className="px-4 py-12 text-center text-[var(--muted)]">
+                                        <td colSpan={12} className="px-4 py-12 text-center text-[var(--muted)]">
                                             {showAllHistory ? t('noRecords') : t('noRecordsForDate')}
                                         </td>
                                     </tr>
                                 ) : (
                                     records.map((record) => (
-                                        <tr key={record.id} className="border-b border-[var(--line)] hover:bg-[var(--surface-hover)]">
-                                            <td className="px-4 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="flex h-10 w-10 items-center justify-center rounded-[1rem] bg-[var(--surface-strong)] font-semibold text-[var(--foreground-soft)]">
+                                        <tr key={record.id} className="admin-glass-table-row">
+                                            <td className="px-3 py-2.5">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="admin-glass-control flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-sm font-semibold text-[var(--foreground-soft)]">
                                                         {record.profiles?.full_name?.charAt(0).toUpperCase() || '?'}
                                                     </div>
-                                                    <div>
-                                                        <p className="font-medium text-[var(--foreground)]" dir="auto">{record.profiles?.full_name || '-'}</p>
-                                                        <p className="text-sm text-[var(--muted)]">{record.profiles?.email || '-'}</p>
+                                                    <div className="min-w-0">
+                                                        <p className="truncate text-xs font-medium text-[var(--foreground)]" dir="auto">{record.profiles?.full_name || '-'}</p>
+                                                        <p className="truncate text-[0.7rem] text-[var(--muted)]">{record.profiles?.email || '-'}</p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]" dir="auto">{record.profiles?.branch || '-'}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatDate(record.date)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatShift(record)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_in_time)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatTimestamp(record.check_out_time)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatLateness(record.late_minutes)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatEarlyDeparture(record.early_departure_minutes || 0)}</td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]">{formatOvertime(record.overtime_minutes || 0)}</td>
-                                            <td className="px-4 py-4">
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]" dir="auto">
+                                                <span className="block truncate">{record.profiles?.branch || '-'}</span>
+                                            </td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatDate(record.date)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatShift(record)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatTimestamp(record.check_in_time)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatTimestamp(record.check_out_time)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatLateness(record.late_minutes)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatEarlyDeparture(record.early_departure_minutes || 0)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatOvertime(record.overtime_minutes || 0)}</td>
+                                            <td className="px-3 py-2.5">
                                                 <Badge variant={record.status}>
-                                                    {record.status === 'missing_checkout'
-                                                        ? t('missingCheckout')
-                                                        : record.status === 'pending'
-                                                            ? t('pending')
-                                                    : t(record.status)}
+                                                    {statusText(record.status)}
                                                 </Badge>
                                             </td>
-                                            <td className="px-4 py-4 text-sm text-[var(--foreground-soft)]" dir="auto">{formatLocation(record)}</td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex items-center gap-1.5 text-sm text-[var(--foreground-soft)]">
-                                                    <Globe className="h-3.5 w-3.5 text-[var(--accent)]" />
-                                                    <span className="font-mono text-xs text-[var(--muted)]">{record.ip_address || '-'}</span>
-                                                </div>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]" dir="auto">
+                                                <span className="block truncate">{formatLocation(record)}</span>
                                             </td>
-                                            <td className="px-4 py-4">
-                                                <div className="flex items-center gap-1.5 text-sm text-[var(--foreground-soft)]">
-                                                    <Globe className="h-3.5 w-3.5 text-[var(--accent)]" />
-                                                    <span className="font-mono text-xs text-[var(--muted)]">{record.check_out_ip || '-'}</span>
+                                            <td className="px-3 py-2.5">
+                                                <div className="space-y-0.5">
+                                                    <div className="flex items-center gap-1">
+                                                        <Globe className="h-3 w-3 shrink-0 text-[var(--accent)]" />
+                                                        <span className="truncate font-mono text-[0.65rem] text-[var(--muted)]">{record.ip_address || '-'}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1">
+                                                        <Globe className="h-3 w-3 shrink-0 text-[var(--muted)]" />
+                                                        <span className="truncate font-mono text-[0.65rem] text-[var(--muted)]">{record.check_out_ip || '-'}</span>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -649,7 +670,7 @@ export default function AttendanceLogsPage() {
                     </div>
 
                     {totalPages > 1 && (
-                        <div className="flex flex-col gap-3 border-t border-[var(--line)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex flex-col gap-3 border-t border-[var(--admin-glass-border-muted)] bg-white/[0.03] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                             <p className="text-sm text-[var(--muted)]">
                                 {t('showing')} {totalRecords === 0 ? 0 : (currentPage - 1) * RECORDS_PER_PAGE + 1} {t('to')}{' '}
                                 {Math.min((currentPage - 1) * RECORDS_PER_PAGE + records.length, totalRecords)} {t('of')}{' '}
@@ -661,6 +682,7 @@ export default function AttendanceLogsPage() {
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
                                     disabled={currentPage === 1}
+                                    className="admin-glass-icon-button shadow-none"
                                 >
                                     <ChevronLeft className="h-4 w-4 rtl:rotate-180" />
                                 </Button>
@@ -669,13 +691,14 @@ export default function AttendanceLogsPage() {
                                     size="sm"
                                     onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
                                     disabled={currentPage === totalPages}
+                                    className="admin-glass-icon-button shadow-none"
                                 >
                                     <ChevronRight className="h-4 w-4 rtl:rotate-180" />
                                 </Button>
                             </div>
                         </div>
                     )}
-            </Card>
+            </section>
         </div>
     );
 }
