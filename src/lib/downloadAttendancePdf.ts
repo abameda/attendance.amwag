@@ -1,15 +1,16 @@
 import type { AttendanceRecord } from '@/types';
-import type { AttendanceReportFilters } from '@/lib/attendance-report';
+import type { AttendanceReportFilters, AttendanceReportLocale } from '@/lib/attendance-report';
 
 export async function downloadAttendanceReportPdf(
   records: AttendanceRecord[],
   filters: AttendanceReportFilters,
+  locale: AttendanceReportLocale = 'en',
 ): Promise<void> {
   const response = await fetch('/api/admin/attendance/export-pdf', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ records, filters }),
+    body: JSON.stringify({ records, filters, locale }),
   });
 
   if (!response.ok) {

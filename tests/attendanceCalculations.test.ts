@@ -15,6 +15,23 @@ import {
   type SummaryEmployee,
 } from '../src/lib/attendanceSummary';
 import { getEgyptTime } from '../src/lib/timezone';
+import { formatShiftTimeRange } from '../src/lib/utils';
+
+test('shift display renders 12-hour ranges in English and Arabic locales', () => {
+  assert.equal(
+    formatShiftTimeRange('09:00:00', '17:00:00', 'en'),
+    '09:00 AM - 05:00 PM'
+  );
+  assert.equal(
+    formatShiftTimeRange('09:00:00', '17:00:00', 'ar'),
+    '٠٩:٠٠ ص - ٠٥:٠٠ م'
+  );
+  assert.equal(
+    formatShiftTimeRange('22:00:00', '06:00:00', 'en'),
+    '10:00 PM - 06:00 AM'
+  );
+  assert.equal(formatShiftTimeRange('09:00:00', null, 'en'), '-');
+});
 
 test('normal check-in and check-out at shift end has no late, early leave, or overtime', () => {
   assert.equal(

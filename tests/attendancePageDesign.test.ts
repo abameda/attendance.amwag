@@ -45,3 +45,15 @@ test('attendance page uses the admin graphite glass foundation for its work surf
     'attendance export should remain a prominent primary glass action'
   );
 });
+
+test('attendance page shift cells use the locale-aware 12-hour range formatter', () => {
+  assert.ok(
+    pageSource.includes('formatShiftTimeRange') && pageSource.includes('displayLocale'),
+    'attendance page should import a locale-aware shift range formatter'
+  );
+  assert.equal(
+    pageSource.match(/formatShiftTimeRange\(record\.profiles\?\.shift_start, record\.profiles\?\.shift_end, displayLocale\)/g)?.length,
+    2,
+    'desktop and mobile shift values should use the shared localized formatter'
+  );
+});
