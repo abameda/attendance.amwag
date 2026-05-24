@@ -4,7 +4,9 @@ import test from 'node:test';
 import {
   getAttendancePdfFooterTextsForTest,
   getAttendancePdfHeaderCellStyleForTest,
+  getAttendancePdfMetadataValueStyleForTest,
   getAttendancePdfPagesForTest,
+  getAttendancePdfReportBannerTextsForTest,
   getAttendancePdfRowStyleForTest,
 } from '../src/components/pdf/AttendanceReportPdf';
 import type { AttendanceReportData } from '../src/lib/attendance-report';
@@ -87,4 +89,18 @@ test('attendance PDF footer uses left center right print labels', () => {
     'Powered by Abdelhmeed Elshorbagy',
     'Page 1 of 2',
   ]);
+});
+
+test('attendance PDF report banner omits the selected period text', () => {
+  assert.deepEqual(getAttendancePdfReportBannerTextsForTest(reportData(1)), [
+    'Amwag Travel — Attendance Daily Report',
+  ]);
+});
+
+test('attendance PDF metadata renders Arabic period values with the Arabic font', () => {
+  assert.equal(
+    getAttendancePdfMetadataValueStyleForTest('\u0643\u0644 \u0627\u0644\u0633\u062c\u0644')
+      .fontFamily,
+    'Amiri',
+  );
 });
