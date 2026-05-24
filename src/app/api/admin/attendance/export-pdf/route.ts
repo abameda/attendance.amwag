@@ -7,6 +7,7 @@ import { isAdminOrAccountant, getCurrentUser } from '@/lib/auth';
 import {
   buildAttendanceReportData,
   buildPdfFilename,
+  normalizeAttendanceReportLocale,
   type AttendanceReportFilters,
 } from '@/lib/attendance-report';
 import type { AttendanceRecord } from '@/types';
@@ -30,16 +31,17 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
     }
 
-    const body: { records?: AttendanceRecord[]; filters?: AttendanceReportFilters } =
+    const body: { records?: AttendanceRecord[]; filters?: AttendanceReportFilters; locale?: unknown } =
       await request.json();
 
     const records = body.records ?? [];
     const filters = body.filters ?? {};
+    const reportLocale = normalizeAttendanceReportLocale(body.locale);
 
     const currentUser = await getCurrentUser(request);
     const generatedBy = currentUser?.fullName ?? currentUser?.email ?? 'Admin';
 
-    const reportData = buildAttendanceReportData(records, filters, generatedBy);
+    const reportData = buildAttendanceReportData(records, filters, generatedBy, reportLocale);
 
     // Dynamic imports keep @react-pdf/renderer out of webpack's static
     // analysis graph — the package is ESM-only with a WASM dependency
@@ -64,6 +66,7 @@ export async function POST(request: NextRequest) {
     const element = React.createElement(AttendanceReportPdf, {
       data: reportData,
       logoSrc,
+      locale: reportLocale,
     });
 
     // AttendanceReportPdf renders a <Document> root, so this is valid at
@@ -72,7 +75,7 @@ export async function POST(request: NextRequest) {
       element as unknown as Parameters<typeof renderToBuffer>[0],
     );
 
-    const filename = buildPdfFilename(filters);
+    const filename = buildPdfFilename(filters, reportLocale);
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

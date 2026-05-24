@@ -1,11 +1,5 @@
 import type { AttendanceRecord } from '@/types';
-import {
-  formatDate,
-  formatEarlyDeparture,
-  formatLateness,
-  formatOvertime,
-  formatTimestamp,
-} from '@/lib/utils';
+import { formatShiftTimeRange } from '@/lib/utils';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +38,8 @@ export interface AttendanceReportFilters {
   search?: string;
 }
 
+export type AttendanceReportLocale = 'en' | 'ar';
+
 export interface AttendanceReportMeta {
   generatedBy: string;
   generatedAt: string;       // formatted date-time string
@@ -71,10 +67,8 @@ export function hasArabic(text: string): boolean {
   return /[؀-ۿݐ-ݿࢠ-ࣿﭐ-﷿ﹰ-﻿]/.test(text);
 }
 
-function formatShift(record: AttendanceRecord): string {
-  const start = record.profiles?.shift_start;
-  const end = record.profiles?.shift_end;
-  return start && end ? `${start} - ${end}` : '-';
+export function normalizeAttendanceReportLocale(locale: unknown): AttendanceReportLocale {
+  return locale === 'ar' ? 'ar' : 'en';
 }
 
 function formatLocation(record: AttendanceRecord): string {
@@ -95,8 +89,53 @@ function buildReportId(): string {
   return `AMW-${y}${mo}${d}-${h}${mi}${s}`;
 }
 
-function formatGeneratedAt(now: Date): string {
-  return now.toLocaleString('en-US', {
+function localeCode(locale: AttendanceReportLocale): string {
+  return locale === 'ar' ? 'ar-EG' : 'en-US';
+}
+
+function formatReportDate(dateString: string, locale: AttendanceReportLocale): string {
+  const date = new Date(dateString);
+  return date.toLocaleDateString(localeCode(locale), {
+    weekday: 'short',
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
+function formatReportTimestamp(timestamp: string | null, locale: AttendanceReportLocale): string {
+  if (!timestamp) return '-';
+
+  const date = new Date(timestamp);
+  return date.toLocaleTimeString(localeCode(locale), {
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: true,
+  });
+}
+
+function formatReportDuration(minutes: number, locale: AttendanceReportLocale, suffix?: string): string {
+  if (minutes <= 0) return '-';
+
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+
+  if (locale === 'ar') {
+    const parts = [];
+    if (hours > 0) parts.push(`${hours}س`);
+    if (mins > 0) parts.push(`${mins}د`);
+    const duration = parts.length > 0 ? parts.join(' ') : '0د';
+    return suffix ? `${duration} ${suffix}` : duration;
+  }
+
+  if (hours > 0) {
+    return `${hours}h ${mins}m${suffix ? ` ${suffix}` : ''}`;
+  }
+  return `${mins}m${suffix ? ` ${suffix}` : ''}`;
+}
+
+function formatGeneratedAt(now: Date, locale: AttendanceReportLocale): string {
+  return now.toLocaleString(localeCode(locale), {
     year: 'numeric',
     month: 'short',
     day: '2-digit',
@@ -112,12 +151,13 @@ export function buildAttendanceReportData(
   records: AttendanceRecord[],
   filters: AttendanceReportFilters,
   generatedBy: string,
+  locale: AttendanceReportLocale = 'en',
 ): AttendanceReportData {
   const now = new Date();
 
   const meta: AttendanceReportMeta = {
     generatedBy,
-    generatedAt: formatGeneratedAt(now),
+    generatedAt: formatGeneratedAt(now, locale),
     reportId: buildReportId(),
   };
 
@@ -151,13 +191,17 @@ export function buildAttendanceReportData(
       index: index++,
       employeeName: record.profiles?.full_name ?? '-',
       branch: record.profiles?.branch ?? '-',
-      date: formatDate(record.date),
-      shift: formatShift(record),
-      checkIn: formatTimestamp(record.check_in_time),
-      checkOut: formatTimestamp(record.check_out_time),
-      late: formatLateness(record.late_minutes),
-      earlyLeave: formatEarlyDeparture(record.early_departure_minutes),
-      overtime: formatOvertime(record.overtime_minutes),
+      date: formatReportDate(record.date, locale),
+      shift: formatShiftTimeRange(record.profiles?.shift_start ?? null, record.profiles?.shift_end ?? null, locale),
+      checkIn: formatReportTimestamp(record.check_in_time, locale),
+      checkOut: formatReportTimestamp(record.check_out_time, locale),
+      late: formatReportDuration(record.late_minutes, locale),
+      earlyLeave: formatReportDuration(
+        record.early_departure_minutes,
+        locale,
+        locale === 'ar' ? 'مبكر' : 'early',
+      ),
+      overtime: formatReportDuration(record.overtime_minutes, locale),
       status: record.status,
       location: formatLocation(record),
     });
@@ -175,10 +219,24 @@ export function buildAttendanceReportData(
 
 // ─── Filename helper ─────────────────────────────────────────────────────────
 
-export function buildPdfFilename(filters: AttendanceReportFilters): string {
+function sanitizeFilenameLabel(label: string): string {
+  const sanitized = label
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9_-]/g, '')
+    .replace(/_+/g, '_')
+    .replace(/^_+|_+$/g, '');
+
+  return sanitized || 'all-history';
+}
+
+export function buildPdfFilename(
+  filters: AttendanceReportFilters,
+  locale: AttendanceReportLocale = 'en',
+): string {
   const dateLabel =
     filters.dateFilter ??
-    (filters.dateRangeLabel ? filters.dateRangeLabel.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '') : null) ??
+    (filters.dateRangeLabel ? sanitizeFilenameLabel(filters.dateRangeLabel) : null) ??
     new Date().toISOString().slice(0, 10);
-  return `Amwag_Attendance_Report_${dateLabel}.pdf`;
+  const localeSuffix = locale === 'ar' ? '_AR' : '';
+  return `Amwag_Attendance_Report${localeSuffix}_${dateLabel}.pdf`;
 }

@@ -238,6 +238,7 @@
         "records": "records",
         "allHistory": "All History",
         "exportPDF": "Export PDF",
+        "exportArabicPDF": "Export Arabic PDF",
         "exportSuccess": "PDF exported successfully",
         "exportError": "Failed to export PDF",
         "loadError": "Failed to load attendance records"

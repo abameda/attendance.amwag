@@ -17,6 +17,26 @@ export function formatTime(time: string | null): string {
     return `${displayHours}:${minutes.toString().padStart(2, '0')} ${period}`;
 }
 
+export function formatShiftTimeRange(
+    start: string | null | undefined,
+    end: string | null | undefined,
+    locale: 'en' | 'ar' = 'en'
+): string {
+    if (!start || !end) return '-';
+
+    const formatter = new Intl.DateTimeFormat(locale === 'ar' ? 'ar-EG' : 'en-US', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true,
+    });
+    const displayTime = (time: string) => {
+        const [hours, minutes] = time.split(':').map(Number);
+        return formatter.format(new Date(2000, 0, 1, hours, minutes));
+    };
+
+    return `${displayTime(start)} - ${displayTime(end)}`;
+}
+
 // Format timestamp to time only
 export function formatTimestamp(timestamp: string | null): string {
     if (!timestamp) return '-';

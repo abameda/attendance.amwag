@@ -17,10 +17,11 @@ import {
     TriangleAlert,
     UserX,
 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { Badge, Button, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
-import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
+import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatShiftTimeRange, formatTimestamp } from '@/lib/utils';
 import { downloadAttendanceReportPdf } from '@/lib/downloadAttendancePdf';
+import type { AttendanceReportLocale } from '@/lib/attendance-report';
 import type { AttendanceRecord } from '@/types';
 
 const RECORDS_PER_PAGE = 10;
@@ -63,12 +64,6 @@ function todayIsoDate() {
     return new Date().toISOString().split('T')[0];
 }
 
-function formatShift(record: AttendanceRecord) {
-    const start = record.profiles?.shift_start;
-    const end = record.profiles?.shift_end;
-    return start && end ? `${start} - ${end}` : '-';
-}
-
 function formatLocation(record: AttendanceRecord) {
     const checkIn = record.check_in_location || '-';
     const checkOut = record.check_out_location || '-';
@@ -77,6 +72,7 @@ function formatLocation(record: AttendanceRecord) {
 
 export default function AttendanceLogsPage() {
     const t = useTranslations('AttendanceLogs');
+    const displayLocale = useLocale() === 'ar' ? 'ar' : 'en';
     const [records, setRecords] = useState<AttendanceRecord[]>([]);
     const [totalRecords, setTotalRecords] = useState(0);
     const [summary, setSummary] = useState<AttendanceSummary>(emptySummary);
@@ -93,7 +89,7 @@ export default function AttendanceLogsPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [showAllHistory, setShowAllHistory] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
-    const [isExporting, setIsExporting] = useState(false);
+    const [exportingLocale, setExportingLocale] = useState<AttendanceReportLocale | null>(null);
     const dateFromRef = useRef<HTMLInputElement>(null);
     const dateToRef = useRef<HTMLInputElement>(null);
 
@@ -268,14 +264,16 @@ export default function AttendanceLogsPage() {
         return result.data ?? [];
     }
 
-    async function handleExportPDF() {
-        setIsExporting(true);
+    async function handleExportPDF(reportLocale: AttendanceReportLocale = 'en') {
+        setExportingLocale(reportLocale);
         try {
             const allFilteredRecords = await fetchAllFilteredRecords();
 
             const dateRangeLabel = showAllHistory
-                ? t('allHistory')
-                : `${dateFrom || todayIsoDate()} to ${dateTo || todayIsoDate()}`;
+                ? reportLocale === 'ar' ? 'كل السجل' : t('allHistory')
+                : reportLocale === 'ar'
+                    ? `${dateFrom || todayIsoDate()} إلى ${dateTo || todayIsoDate()}`
+                    : `${dateFrom || todayIsoDate()} to ${dateTo || todayIsoDate()}`;
 
             await downloadAttendanceReportPdf(allFilteredRecords, {
                 employeeName: selectedEmployee?.full_name,
@@ -283,7 +281,7 @@ export default function AttendanceLogsPage() {
                 dateRangeLabel,
                 status: statusFilter || undefined,
                 search: deferredSearch.trim() || undefined,
-            });
+            }, reportLocale);
             addToast(t('exportSuccess'), 'success');
         } catch (error) {
             console.error('PDF export error:', error);
@@ -292,7 +290,7 @@ export default function AttendanceLogsPage() {
                 'error'
             );
         } finally {
-            setIsExporting(false);
+            setExportingLocale(null);
         }
     }
 
@@ -317,13 +315,24 @@ export default function AttendanceLogsPage() {
                             </div>
                             <Button
                                 size="sm"
-                                onClick={() => void handleExportPDF()}
-                                disabled={isLoading || isExporting}
-                                isLoading={isExporting}
+                                onClick={() => void handleExportPDF('en')}
+                                disabled={isLoading || exportingLocale !== null}
+                                isLoading={exportingLocale === 'en'}
                                 className="attendance-export-action admin-glass-button-primary shrink-0 justify-between shadow-none"
                             >
                                 <span>{t('exportPDF')}</span>
                                 <FileText className="h-4 w-4" />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => void handleExportPDF('ar')}
+                                disabled={isLoading || exportingLocale !== null}
+                                isLoading={exportingLocale === 'ar'}
+                                className="attendance-export-arabic-action admin-glass-button-secondary shrink-0 justify-between shadow-none"
+                            >
+                                <span>{t('exportArabicPDF')}</span>
+                                <Globe className="h-4 w-4" />
                             </Button>
                         </div>
                     </div>
@@ -549,7 +558,7 @@ export default function AttendanceLogsPage() {
                                             {[
                                                 [t('branch'), record.profiles?.branch || '-', 'auto'],
                                                 [t('date'), formatDate(record.date)],
-                                                [t('shift'), formatShift(record)],
+                                                [t('shift'), formatShiftTimeRange(record.profiles?.shift_start, record.profiles?.shift_end, displayLocale)],
                                                 [t('checkIn'), formatTimestamp(record.check_in_time)],
                                                 [t('checkOut'), formatTimestamp(record.check_out_time)],
                                                 [t('lateness'), formatLateness(record.late_minutes)],
@@ -636,7 +645,7 @@ export default function AttendanceLogsPage() {
                                                 <span className="block truncate">{record.profiles?.branch || '-'}</span>
                                             </td>
                                             <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatDate(record.date)}</td>
-                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatShift(record)}</td>
+                                            <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatShiftTimeRange(record.profiles?.shift_start, record.profiles?.shift_end, displayLocale)}</td>
                                             <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatTimestamp(record.check_in_time)}</td>
                                             <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatTimestamp(record.check_out_time)}</td>
                                             <td className="px-3 py-2.5 text-xs text-[var(--foreground-soft)]">{formatLateness(record.late_minutes)}</td>

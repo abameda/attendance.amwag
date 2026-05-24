@@ -9,7 +9,9 @@ import {
   getAttendancePdfReportBannerTextsForTest,
   getAttendancePdfRowStyleForTest,
 } from '../src/components/pdf/AttendanceReportPdf';
+import { buildAttendanceReportData, buildPdfFilename } from '../src/lib/attendance-report';
 import type { AttendanceReportData } from '../src/lib/attendance-report';
+import type { AttendanceRecord } from '../src/types';
 
 function reportData(rowCount: number): AttendanceReportData {
   return {
@@ -49,6 +51,39 @@ function reportData(rowCount: number): AttendanceReportData {
       status: 'present',
       location: 'Cairo Branch',
     })),
+  };
+}
+
+function attendanceRecordWithShift(): AttendanceRecord {
+  return {
+    id: 'attendance-1',
+    user_id: 'employee-1',
+    date: '2026-05-22',
+    check_in_time: null,
+    check_out_time: null,
+    ip_address: null,
+    check_out_ip: null,
+    check_in_location: null,
+    check_out_location: null,
+    status: 'present',
+    late_minutes: 0,
+    early_departure_minutes: 0,
+    overtime_minutes: 0,
+    created_at: '2026-05-22T00:00:00.000Z',
+    profiles: {
+      id: 'employee-1',
+      email: 'employee@example.com',
+      full_name: 'Employee One',
+      role: 'employee',
+      branch: 'Cairo Branch',
+      job_title: null,
+      shift_start: '09:00:00',
+      shift_end: '17:00:00',
+      off_day: null,
+      overtime_enabled: false,
+      created_at: '2026-05-22T00:00:00.000Z',
+      updated_at: '2026-05-22T00:00:00.000Z',
+    },
   };
 }
 
@@ -97,10 +132,54 @@ test('attendance PDF report banner omits the selected period text', () => {
   ]);
 });
 
-test('attendance PDF metadata renders Arabic period values with the Arabic font', () => {
+test('Arabic attendance PDF uses Arabic report banner text', () => {
+  assert.deepEqual(getAttendancePdfReportBannerTextsForTest(reportData(1), 'ar'), [
+    'أمواج للسياحة - تقرير الحضور اليومي',
+  ]);
+});
+
+test('Arabic attendance PDF uses Arabic footer print labels', () => {
+  assert.deepEqual(getAttendancePdfFooterTextsForTest(1, 2, 'ar'), [
+    'نظام حضور أمواج للسياحة',
+    'تم الإنشاء بواسطة عبدالحميد الشوربجي',
+    'صفحة 1 من 2',
+  ]);
+});
+
+test('Arabic attendance PDF filename is distinct from English export filename', () => {
   assert.equal(
-    getAttendancePdfMetadataValueStyleForTest('\u0643\u0644 \u0627\u0644\u0633\u062c\u0644')
-      .fontFamily,
+    buildPdfFilename({ dateFilter: '2026-05-22' }, 'ar'),
+    'Amwag_Attendance_Report_AR_2026-05-22.pdf',
+  );
+});
+
+test('Arabic attendance PDF filename falls back when Arabic labels are not filesystem-safe', () => {
+  assert.equal(
+    buildPdfFilename({ dateRangeLabel: 'كل السجل' }, 'ar'),
+    'Amwag_Attendance_Report_AR_all-history.pdf',
+  );
+});
+
+test('attendance PDF shift values use locale-aware 12-hour time formatting', () => {
+  const record = attendanceRecordWithShift();
+
+  assert.equal(
+    buildAttendanceReportData([record], {}, 'Admin', 'en').rows[0]?.shift,
+    '09:00 AM - 05:00 PM',
+  );
+  assert.equal(
+    buildAttendanceReportData([record], {}, 'Admin', 'ar').rows[0]?.shift,
+    '٠٩:٠٠ ص - ٠٥:٠٠ م',
+  );
+});
+
+test('attendance PDF metadata renders Arabic period values with the Arabic font', () => {
+  const style = getAttendancePdfMetadataValueStyleForTest(
+    '\u0643\u0644 \u0627\u0644\u0633\u062c\u0644',
+  ) as { fontFamily?: string };
+
+  assert.equal(
+    style.fontFamily,
     'Amiri',
   );
 });

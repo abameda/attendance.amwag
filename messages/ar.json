@@ -238,6 +238,7 @@
         "records": "سجلات",
         "allHistory": "كل السجل",
         "exportPDF": "تصدير PDF",
+        "exportArabicPDF": "تصدير PDF عربي",
         "exportSuccess": "تم تصدير ملف PDF بنجاح",
         "exportError": "تعذر تصدير ملف PDF",
         "loadError": "تعذر تحميل سجلات الحضور"
