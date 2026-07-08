@@ -21,6 +21,7 @@ import { useTranslations } from 'next-intl';
 import { Badge, Button, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
 import { downloadAttendanceReportPdf } from '@/lib/downloadAttendancePdf';
+import { getEgyptDate } from '@/lib/timezone';
 import type { AttendanceRecord } from '@/types';
 
 const RECORDS_PER_PAGE = 10;
@@ -60,7 +61,7 @@ const emptySummary: AttendanceSummary = {
 };
 
 function todayIsoDate() {
-    return new Date().toISOString().split('T')[0];
+    return getEgyptDate();
 }
 
 function formatShift(record: AttendanceRecord) {

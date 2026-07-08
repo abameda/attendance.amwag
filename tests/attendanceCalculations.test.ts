@@ -238,3 +238,20 @@ test('employee portal selects an open overnight record from the previous work da
 
   assert.equal(selectCurrentEmployeeAttendanceRecord(records, '2026-07-02')?.id, 'overnight');
 });
+
+test('employee portal keeps a completed overnight record visible after midnight checkout', () => {
+  const records = [
+    {
+      id: 'overnight-complete',
+      date: '2026-07-01',
+      check_in_time: '2026-07-01T19:30:00.000Z',
+      check_out_time: '2026-07-02T03:15:00.000Z',
+      status: 'late',
+    },
+  ];
+
+  assert.equal(
+    selectCurrentEmployeeAttendanceRecord(records, '2026-07-02')?.id,
+    'overnight-complete'
+  );
+});

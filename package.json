@@ -11,6 +11,7 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
+    "db:repair": "tsx scripts/repair-branch-schema.ts",
     "db:seed": "node scripts/seed-admin.mjs"
   },
   "dependencies": {

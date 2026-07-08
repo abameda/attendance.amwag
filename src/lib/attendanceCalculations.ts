@@ -15,6 +15,19 @@ interface EmployeeAttendanceRecordLike {
   status: string;
 }
 
+function getEgyptDateFromTimestamp(timestamp: string | null): string | null {
+  if (!timestamp) {
+    return null;
+  }
+
+  const date = new Date(timestamp);
+  if (Number.isNaN(date.getTime())) {
+    return null;
+  }
+
+  return new Intl.DateTimeFormat('en-CA', { timeZone: TIMEZONE }).format(date);
+}
+
 export function selectCurrentEmployeeAttendanceRecord<T extends EmployeeAttendanceRecordLike>(
   records: T[],
   today: string
@@ -26,6 +39,12 @@ export function selectCurrentEmployeeAttendanceRecord<T extends EmployeeAttendan
         Boolean(record.check_in_time) &&
         !record.check_out_time &&
         record.status !== 'missing_checkout'
+    ) ??
+    records.find((record) => getEgyptDateFromTimestamp(record.check_out_time) === today) ??
+    records.find(
+      (record) =>
+        Boolean(record.check_in_time) &&
+        getEgyptDateFromTimestamp(record.check_in_time) === today
     ) ??
     null
   );

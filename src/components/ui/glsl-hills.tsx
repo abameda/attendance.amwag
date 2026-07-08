@@ -18,22 +18,12 @@ const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize
     useEffect(() => {
         if (!canvasRef.current) return;
 
-        class Plane {
-            uniforms: { time: { type: string; value: number } };
-            mesh: THREE.Mesh;
-            time: number;
-
-            constructor() {
-                this.uniforms = { time: { type: 'f', value: 0 } };
-                this.mesh = this.createMesh();
-                this.time = speed;
-            }
-
-            createMesh() {
-                return new THREE.Mesh(
-                    new THREE.PlaneGeometry(planeSize, planeSize, planeSize, planeSize),
+        const createPlane = () => {
+            const uniforms = { time: { type: 'f', value: 0 } };
+            const mesh = new THREE.Mesh(
+                new THREE.PlaneGeometry(planeSize, planeSize, planeSize, planeSize),
                     new THREE.RawShaderMaterial({
-                        uniforms: this.uniforms,
+                        uniforms,
                         vertexShader: `
               #define GLSLIFY 1
               attribute vec3 position;
@@ -155,19 +145,21 @@ const GLSLHills = ({ width = '100vw', height = '100vh', cameraZ = 125, planeSize
             `,
                         transparent: true,
                     })
-                );
-            }
+            );
 
-            render(time: number) {
-                this.uniforms.time.value += time * this.time;
-            }
-        }
+            return {
+                mesh,
+                render(time: number) {
+                    uniforms.time.value += time * speed;
+                },
+            };
+        };
 
         const renderer = new THREE.WebGLRenderer({ canvas: canvasRef.current, antialias: false });
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 1, 10000);
         const clock = new THREE.Clock();
-        const plane = new Plane();
+        const plane = createPlane();
 
         let animFrameId: number;
 

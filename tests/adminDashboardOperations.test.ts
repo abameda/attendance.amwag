@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildDashboardTodayExportQuery,
   buildBranchHealthRows,
   buildDashboardOperations,
   buildExceptionGroups,
@@ -233,5 +234,12 @@ test('dashboard operations clamps invalid summary numbers before they reach the 
       attendanceRate: 100,
       needsActionCount: 152,
     }
+  );
+});
+
+test('dashboard today export query always targets the current Egypt day as a full report range', () => {
+  assert.equal(
+    buildDashboardTodayExportQuery('2026-07-08').toString(),
+    'page=1&pageSize=50000&includeExpected=true&export=true&dateFrom=2026-07-08&dateTo=2026-07-08'
   );
 });

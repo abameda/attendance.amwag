@@ -77,7 +77,7 @@ export default function Footer({ className, compact = false }: FooterProps) {
             <p className={`${textSize} text-[var(--footer-muted)]`}>
                 {tc('developedBy')}{' '}
                 <a
-                    href="https://www.shorbagy.space/"
+                    href="https://aelshorbagy.vercel.app/"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="font-semibold text-[var(--footer-strong)] transition-colors hover:text-[var(--footer-accent)]"

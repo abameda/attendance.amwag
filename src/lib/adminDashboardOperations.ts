@@ -130,6 +130,17 @@ export function normalizeDashboardPeriod({
   };
 }
 
+export function buildDashboardTodayExportQuery(today: string): URLSearchParams {
+  return new URLSearchParams({
+    page: '1',
+    pageSize: '50000',
+    includeExpected: 'true',
+    export: 'true',
+    dateFrom: today,
+    dateTo: today,
+  });
+}
+
 export function buildDashboardOperations(summary: DashboardSummary): DashboardOperations {
   const checkedInCount = attendedCount(summary);
 

@@ -3,6 +3,7 @@ import test, { mock } from 'node:test';
 
 import { createCheckInHandler } from '../src/app/api/attendance/check-in/handler';
 import { createCheckOutHandler } from '../src/app/api/attendance/check-out/handler';
+import { createCurrentUserAttendanceHandler } from '../src/app/api/attendance/me/handler';
 import { createAttendanceSummaryHandler } from '../src/app/api/attendance/summary/handler';
 import { createMarkAbsentForEndedShifts } from '../src/lib/attendanceFinalization';
 import { normalizeAttendancePagination } from '../src/lib/attendancePagination';
@@ -101,6 +102,16 @@ function createQueuedDb(selectResponses: unknown[][], options: { affectedRows?: 
             return {
               where() {
                 return {
+                  orderBy() {
+                    return {
+                      limit() {
+                        return Promise.resolve(rows);
+                      },
+                      then(resolve: (value: unknown[]) => void) {
+                        return Promise.resolve(rows).then(resolve);
+                      },
+                    };
+                  },
                   limit() {
                     return Promise.resolve(rows);
                   },
@@ -215,6 +226,42 @@ test('POST /api/attendance/check-out records early checkout using the mocked clo
       status: 'present',
     });
   });
+});
+
+test('GET /api/attendance/me returns fresh records using the stored work date', async () => {
+  const fake = createQueuedDb([
+    [
+      {
+        id: 'attendance-1',
+        userId: 'employee-1',
+        date: new Date('2026-07-08T00:00:00.000+03:00'),
+        checkInTime: new Date('2026-07-08T06:00:00.000Z'),
+        checkOutTime: null,
+        ipAddress: '10.0.0.45',
+        checkOutIp: null,
+        checkInLocation: 'HQ',
+        checkOutLocation: null,
+        status: 'present',
+        lateMinutes: 0,
+        earlyDepartureMinutes: 0,
+        overtimeMinutes: 0,
+        createdAt: new Date('2026-07-08T06:00:00.000Z'),
+      },
+    ],
+  ]);
+  const get = createCurrentUserAttendanceHandler({
+    db: fake.db as never,
+    getCurrentUser: async () => employee,
+  });
+
+  const response = await get(request('http://localhost/api/attendance/me'));
+  const body = await response.json();
+
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(body.success, true);
+  assert.equal(body.data[0].date, '2026-07-08');
+  assert.equal(body.data[0].check_in_time, '2026-07-08T06:00:00.000Z');
 });
 
 test('finalization marks a missing checkout after the configured checkout window expires', async () => {

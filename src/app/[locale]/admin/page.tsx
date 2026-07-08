@@ -32,6 +32,7 @@ import { useLocale, useTranslations } from 'next-intl';
 import { Skeleton, StaggerGroup, StaggerItem, addToast } from '@/components/ui';
 import {
     buildBranchHealthRows,
+    buildDashboardTodayExportQuery,
     buildDashboardOperations,
     buildExceptionGroups,
     normalizeDashboardPeriod,
@@ -100,7 +101,7 @@ const localCopy: Record<'en' | 'ar', LocalCopy> = {
         recentActivity: 'Recent activity',
         recentActivityUnavailable: 'Chronological check-in and checkout events are not available in this summary response. Use attendance logs for event-level review.',
         reportingShortcuts: 'Reporting shortcuts',
-        exportSelectedDay: 'Export selected day',
+        exportSelectedDay: "Export today's report",
         openDailyLogs: 'Open attendance logs',
         openBranchControls: 'Open branch controls',
         topBranch: 'Top branch',
@@ -125,7 +126,7 @@ const localCopy: Record<'en' | 'ar', LocalCopy> = {
         recentActivity: 'النشاط الأخير',
         recentActivityUnavailable: 'أحداث الحضور والانصراف الزمنية غير متاحة في استجابة الملخص الحالية. استخدم سجلات الحضور للمراجعة التفصيلية.',
         reportingShortcuts: 'اختصارات التقارير',
-        exportSelectedDay: 'تصدير اليوم المحدد',
+        exportSelectedDay: 'تصدير تقرير اليوم',
         openDailyLogs: 'فتح سجلات الحضور',
         openBranchControls: 'فتح ضوابط الفروع',
         topBranch: 'أفضل فرع',
@@ -393,22 +394,11 @@ export default function AdminDashboard() {
     ];
 
     async function handleExportTodayReport() {
-        if (!period.selectedDate) {
-            addToast(t('selectDateToExport'), 'warning');
-            return;
-        }
-
-        const exportDate = period.selectedDate;
+        const exportDate = getEgyptDate();
         setIsExporting(true);
 
         try {
-            const params = new URLSearchParams({
-                page: '1',
-                pageSize: '10000',
-                includeExpected: 'true',
-                export: 'true',
-                date: exportDate,
-            });
+            const params = buildDashboardTodayExportQuery(exportDate);
             const response = await fetch(`/api/attendance?${params.toString()}`);
             const result = await readJsonResponse<{
                 success: boolean;
@@ -480,13 +470,13 @@ export default function AdminDashboard() {
                         <button
                             type="button"
                             onClick={() => void handleExportTodayReport()}
-                            disabled={isExporting || !period.selectedDate}
+                            disabled={isExporting}
                             className="focus-ring admin-glass-button-primary inline-flex min-h-11 w-full items-center justify-center gap-2 self-end px-4 text-sm font-bold transition-all duration-200 disabled:pointer-events-none disabled:opacity-55"
-                            aria-disabled={isExporting || !period.selectedDate}
+                            aria-disabled={isExporting}
                             aria-busy={isExporting}
                         >
                             {isExporting ? <RefreshCw className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                            {isExporting ? t('exportingReport') : period.selectedDate ? t('exportTodayReport') : t('selectDateToExport')}
+                            {isExporting ? t('exportingReport') : t('exportTodayReport')}
                         </button>
                     </div>
                 </div>
@@ -706,7 +696,7 @@ export default function AdminDashboard() {
                                 <ShortcutButton
                                     icon={Download}
                                     label={copy.exportSelectedDay}
-                                    disabled={isExporting || !period.selectedDate}
+                                    disabled={isExporting}
                                     onClick={() => void handleExportTodayReport()}
                                     busy={isExporting}
                                 />

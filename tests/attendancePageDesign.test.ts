@@ -45,3 +45,14 @@ test('attendance page uses the admin graphite glass foundation for its work surf
     'attendance export should remain a prominent primary glass action'
   );
 });
+
+test('attendance page defaults filters and exports to the Egypt business date', () => {
+  assert.ok(
+    pageSource.includes("import { getEgyptDate } from '@/lib/timezone';"),
+    'attendance logs should use the same Egypt date source as the dashboard'
+  );
+  assert.ok(
+    !pageSource.includes("new Date().toISOString().split('T')[0]"),
+    'attendance logs must not default to the UTC date near Cairo midnight'
+  );
+});

@@ -91,18 +91,25 @@ Create `/home/<user>/amwag-attendance/.env.local`:
 
 ```env
 DATABASE_URL=mysql://amwag:<strong-password>@127.0.0.1:3306/amwag_attendance
+APP_URL=https://your-domain.example
 INTERNAL_SCHEDULER_SECRET=<64-char random — see below>
+BACKUP_ENCRYPTION_KEY=<different 64-char random — see below>
 SESSION_COOKIE_NAME=amwag_session
 SESSION_TTL_DAYS=30
 TRUST_X_FORWARDED_FOR=true
 NODE_ENV=production
 ```
 
-Generate the scheduler secret (keep a copy — you will need it again for cron jobs):
+Generate the scheduler secret and backup encryption key (keep a copy of both; the scheduler secret is also needed for cron jobs):
 
 ```bash
 openssl rand -hex 32
+openssl rand -hex 32
 ```
+
+Use different values for `INTERNAL_SCHEDULER_SECRET` and `BACKUP_ENCRYPTION_KEY`.
+
+> `APP_URL` must be your public HTTPS origin, for example `https://attendance.example.com`.
 
 > `TRUST_X_FORWARDED_FOR=true` is required behind LiteSpeed so the app reads the real client IP from the `X-Forwarded-For` header instead of seeing `127.0.0.1` for every request. This is what makes branch IP validation work correctly in production.
 

@@ -55,7 +55,7 @@ function formatShiftTimeForLocale(time: string | null, locale: string) {
 }
 
 async function fetchTodayRecord() {
-    const response = await fetch('/api/attendance/me', { credentials: 'include' });
+    const response = await fetch('/api/attendance/me', { credentials: 'include', cache: 'no-store' });
     const result = await response.json();
 
     if (!response.ok || !result.success) {

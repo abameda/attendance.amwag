@@ -59,3 +59,10 @@ test('employee adjacent feedback uses scoped graphite glass tokens', () => {
     'success/error feedback, status, and record rows should use employee glass utilities'
   );
 });
+
+test('employee attendance refresh bypasses browser cache after clock actions', () => {
+  assert.ok(
+    pageSource.includes("cache: 'no-store'"),
+    'employee attendance fetches should not reuse the pre-check-in attendance response'
+  );
+});

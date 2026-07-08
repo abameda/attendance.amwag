@@ -207,6 +207,13 @@ npm run db:migrate
 
 This applies all Drizzle migrations from `drizzle/migrations/` and creates the tables.
 
+If you are using an older local development database and login fails with a missing
+`branch_id` column, run the idempotent branch schema repair once:
+
+```bash
+npm run db:repair
+```
+
 ### 6. Seed the first admin account
 
 ```bash
@@ -242,7 +249,9 @@ Create a `.env.local` file in the project root (never commit real secrets):
 | Variable | Required | Default | Description |
 |---|---|---|---|
 | `DATABASE_URL` | Yes | — | MySQL/MariaDB connection URL: `mysql://user:pass@host:port/db` |
+| `APP_URL` | Yes in production | `http://localhost:3000` | Public app origin used by middleware for internal auth lookups, for example `https://attendance.example.com`. |
 | `INTERNAL_SCHEDULER_SECRET` | Yes | — | Bearer token that protects `/api/internal/*` endpoints. Generate with `openssl rand -hex 32`. |
+| `BACKUP_ENCRYPTION_KEY` | Yes in production | — | Secret used to encrypt admin-created backup files. Generate a different value with `openssl rand -hex 32`. |
 | `SESSION_COOKIE_NAME` | No | `amwag_session` | Name of the HTTP-only session cookie. |
 | `SESSION_TTL_DAYS` | No | `30` | How many days a session stays valid. |
 | `TRUST_X_FORWARDED_FOR` | No | `false` | Set to `true` behind a trusted reverse proxy (LiteSpeed / Nginx) so real client IPs are used for branch validation. |
@@ -269,6 +278,7 @@ openssl rand -hex 32
 | `npm run db:generate` | Generate new Drizzle migration files after schema changes |
 | `npm run db:migrate` | Apply all pending migrations to the database |
 | `npm run db:push` | Push schema directly without migrations (development only) |
+| `npm run db:repair` | Repair older local databases missing branch-management schema objects |
 | `npm run db:seed` | Create or update the first admin account (interactive) |
 
 ---

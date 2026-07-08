@@ -14,6 +14,10 @@ type MiddlewareUser = {
   must_change_password: boolean;
 };
 
+function getMiddlewareAuthUrl(request: NextRequest) {
+  return new URL('/api/auth/me', process.env.APP_URL?.trim() || request.url);
+}
+
 async function fetchMiddlewareUser(request: NextRequest): Promise<MiddlewareUser | null> {
   const cookieHeader = request.headers.get('cookie');
   if (!cookieHeader) {
@@ -21,7 +25,7 @@ async function fetchMiddlewareUser(request: NextRequest): Promise<MiddlewareUser
   }
 
   try {
-    const response = await fetch(new URL('/api/auth/me', request.url), {
+    const response = await fetch(getMiddlewareAuthUrl(request), {
       headers: { cookie: cookieHeader },
     });
 
