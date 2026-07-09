@@ -18,31 +18,47 @@ type MiddlewareUser = {
   must_change_password: boolean;
 };
 
+// App Router navigation can issue concurrent document and flight requests.
+// Deduplicate only in-flight lookups, never cache authorization decisions.
+const pendingAuthLookups = new Map<string, Promise<MiddlewareUser | null>>();
+
 function getMiddlewareAuthUrl(request: NextRequest) {
   return new URL('/api/auth/me', getAppUrl(process.env, request.url));
 }
 
 async function fetchMiddlewareUser(request: NextRequest): Promise<MiddlewareUser | null> {
   const cookieHeader = request.headers.get('cookie');
-  if (!cookieHeader) {
+  const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+  if (!cookieHeader || !sessionToken) {
     return null;
   }
 
-  try {
-    const response = await fetch(getMiddlewareAuthUrl(request), {
-      headers: { cookie: cookieHeader },
-    });
+  const pending = pendingAuthLookups.get(sessionToken);
+  if (pending) return pending;
 
-    if (!response.ok) {
+  const lookup = (async () => {
+    try {
+      const response = await fetch(getMiddlewareAuthUrl(request), {
+        headers: { cookie: cookieHeader },
+        cache: 'no-store',
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      const result = await response.json();
+      return result.success ? (result.data as MiddlewareUser) : null;
+    } catch (error) {
+      console.error('middleware auth lookup failed:', error);
       return null;
+    } finally {
+      pendingAuthLookups.delete(sessionToken);
     }
+  })();
 
-    const result = await response.json();
-    return result.success ? (result.data as MiddlewareUser) : null;
-  } catch (error) {
-    console.error('middleware auth lookup failed:', error);
-    return null;
-  }
+  pendingAuthLookups.set(sessionToken, lookup);
+  return lookup;
 }
 
 export async function middleware(request: NextRequest) {

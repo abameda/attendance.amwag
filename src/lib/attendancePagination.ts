@@ -1,6 +1,6 @@
 const DEFAULT_PAGE_SIZE = 10;
 const MAX_PAGE_SIZE = 100;
-const MAX_EXPORT_PAGE_SIZE = 50000;
+const MAX_EXPORT_PAGE_SIZE = 5000;
 
 export function normalizeAttendancePagination(params: {
   page?: string | null;

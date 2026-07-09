@@ -10,7 +10,11 @@ import {
   type AttendanceReportData,
   type AttendanceReportFilters,
 } from '@/lib/attendance-report';
-import { validateAttendancePdfExportCaps } from '@/lib/attendancePdfExportLimits';
+import {
+  isAttendancePdfRequestTooLarge,
+  ATTENDANCE_PDF_CAP_ERROR,
+  validateAttendancePdfExportCaps,
+} from '@/lib/attendancePdfExportLimits';
 import type { AttendanceRecord } from '@/types';
 
 // Read logo once per module lifecycle (safe; no react-pdf involved).
@@ -70,6 +74,13 @@ export function createAttendancePdfExportHandler(dependencies: AttendancePdfExpo
       const auth = await dependencies.isAdminOrAccountant(request);
       if (!auth.authorized) {
         return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
+      }
+
+      if (isAttendancePdfRequestTooLarge(request.headers.get('content-length'))) {
+        return NextResponse.json(
+          { success: false, error: ATTENDANCE_PDF_CAP_ERROR },
+          { status: 413 },
+        );
       }
 
       const body: { records?: AttendanceRecord[]; filters?: AttendanceReportFilters } =

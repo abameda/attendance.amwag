@@ -103,7 +103,7 @@ test('attendance PDF export rejects ranges longer than 31 days before rendering 
   assert.equal(handler.renderCalls, 0);
 });
 
-test('attendance PDF export allows over-cap exports filtered to one employee', async () => {
+test('attendance PDF export allows the larger bounded single-employee export', async () => {
   const handler = createTestHandler();
   const records = Array.from({ length: 2001 }, (_, index) =>
     attendanceRecord(index + 1, {
@@ -118,4 +118,16 @@ test('attendance PDF export allows over-cap exports filtered to one employee', a
   assert.equal(response.headers.get('content-type'), 'application/pdf');
   assert.equal(handler.renderCalls, 1);
   assert.equal(handler.renderedRows, 2001);
+});
+
+test('attendance PDF export caps single-employee reports before rendering', async () => {
+  const handler = createTestHandler();
+  const records = Array.from({ length: 5001 }, (_, index) =>
+    attendanceRecord(index + 1, { user_id: 'employee-1' })
+  );
+
+  const response = await handler.post(request({ records, filters: { employeeName: 'Employee 1' } }));
+
+  assert.equal(response.status, 413);
+  assert.equal(handler.renderCalls, 0);
 });

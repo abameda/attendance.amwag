@@ -60,18 +60,18 @@ export function createAttendanceSummaryHandler(dependencies: AttendanceSummaryDe
         );
       }
 
-      const employeesData = await dependencies.db
-        .select({
-          id: users.id,
-          fullName: users.fullName,
-          branch: users.branch,
-          offDay: users.offDay,
-        })
-        .from(users)
-        .where(eq(users.role, 'employee'));
-
-      const attendanceData = isDaySummary
-        ? await dependencies.db
+      const [employeesData, attendanceData] = await Promise.all([
+        dependencies.db
+          .select({
+            id: users.id,
+            fullName: users.fullName,
+            branch: users.branch,
+            offDay: users.offDay,
+          })
+          .from(users)
+          .where(eq(users.role, 'employee')),
+        isDaySummary
+          ? dependencies.db
             .select({
               userId: attendance.userId,
               status: attendance.status,
@@ -81,7 +81,7 @@ export function createAttendanceSummaryHandler(dependencies: AttendanceSummaryDe
             })
             .from(attendance)
             .where(eq(attendance.date, parseIsoDate(date)))
-        : await dependencies.db
+          : dependencies.db
             .select({
               userId: attendance.userId,
               status: attendance.status,
@@ -94,8 +94,9 @@ export function createAttendanceSummaryHandler(dependencies: AttendanceSummaryDe
               and(
                 gte(attendance.date, parseIsoDate(`${month}-01`)),
                 lt(attendance.date, parseIsoDate(getNextMonth(month)))
-              )
-            );
+              ),
+            ),
+      ]);
 
       const employees = employeesData as EmployeeSummaryProfile[];
       const attendanceRows = attendanceData as Array<{

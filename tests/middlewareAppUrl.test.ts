@@ -42,3 +42,29 @@ test('middleware fetches the current user from APP_URL when configured', async (
     mock.restoreAll();
   }
 });
+
+test('middleware deduplicates concurrent auth lookups for the same session', async () => {
+  let resolveFetch: ((response: Response) => void) | undefined;
+  const fetchMock = mock.method(
+    globalThis,
+    'fetch',
+    () => new Promise<Response>((resolve) => { resolveFetch = resolve; })
+  );
+
+  try {
+    const request = () => new NextRequest('http://localhost/ar/employee', {
+      headers: { cookie: 'amwag_session=shared-session' },
+    });
+    const first = middleware(request());
+    const second = middleware(request());
+
+    assert.equal(fetchMock.mock.callCount(), 1);
+    resolveFetch?.(Response.json({
+      success: true,
+      data: { role: 'employee', must_change_password: false },
+    }));
+    await Promise.all([first, second]);
+  } finally {
+    mock.restoreAll();
+  }
+});

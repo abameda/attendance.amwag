@@ -5,6 +5,13 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { isAdmin } from '@/lib/auth';
 import { hashPassword } from '@/lib/auth/password';
+import {
+  BULK_IMPORT_MAX_BODY_BYTES,
+  BULK_IMPORT_MAX_ROWS,
+  chunkBulkImportRows,
+  hasTooManyBulkImportRows,
+  isBulkImportBodyTooLarge,
+} from '@/lib/bulkImportLimits';
 import { db } from '@/lib/db';
 import { users } from '@/lib/db/schema';
 
@@ -72,6 +79,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (isBulkImportBodyTooLarge(request.headers.get('content-length'))) {
+      return NextResponse.json(
+        { success: false, error: `CSV import must be smaller than ${BULK_IMPORT_MAX_BODY_BYTES / 1024 / 1024} MB` },
+        { status: 413 }
+      );
+    }
+
     const body = await request.json();
     const { csvData } = body ?? {};
 
@@ -79,6 +93,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: 'CSV data is required' },
         { status: 400 }
+      );
+    }
+
+    if (
+      new TextEncoder().encode(csvData).byteLength > BULK_IMPORT_MAX_BODY_BYTES ||
+      hasTooManyBulkImportRows(csvData)
+    ) {
+      return NextResponse.json(
+        { success: false, error: `CSV import is limited to ${BULK_IMPORT_MAX_ROWS} rows and ${BULK_IMPORT_MAX_BODY_BYTES / 1024 / 1024} MB` },
+        { status: 413 }
       );
     }
 
@@ -159,10 +183,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const validRows = parsedRows.filter((row) => {
-      const result = results.find((item) => item.email === row.email);
-      return result?.success;
-    });
+    const validEmails = new Set(
+      results.filter((result) => result.success).map((result) => result.email)
+    );
+    const validRows = parsedRows.filter((row) => validEmails.has(row.email));
 
     if (validRows.length !== results.length) {
       for (const result of results) {
@@ -180,21 +204,23 @@ export async function POST(request: NextRequest) {
 
     try {
       await db.transaction(async (tx) => {
-        for (const row of validRows) {
-          const passwordHash = await hashPassword(row.password);
-          await tx.insert(users).values({
-            id: randomUUID(),
-            email: row.email,
-            passwordHash,
-            fullName: row.fullName,
-            role: 'employee',
-            branch: row.branch,
-            jobTitle: row.jobTitle,
-            shiftStart: row.shiftStart,
-            shiftEnd: row.shiftEnd,
-            offDay: row.offDay,
-            overtimeEnabled: 1,
-          });
+        for (const batch of chunkBulkImportRows(validRows)) {
+          const values = await Promise.all(
+            batch.map(async (row) => ({
+              id: randomUUID(),
+              email: row.email,
+              passwordHash: await hashPassword(row.password),
+              fullName: row.fullName,
+              role: 'employee' as const,
+              branch: row.branch,
+              jobTitle: row.jobTitle,
+              shiftStart: row.shiftStart,
+              shiftEnd: row.shiftEnd,
+              offDay: row.offDay,
+              overtimeEnabled: 1,
+            }))
+          );
+          await tx.insert(users).values(values);
         }
       });
     } catch (error) {

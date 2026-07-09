@@ -437,15 +437,20 @@ export async function GET(request: NextRequest) {
       }
 
       const whereClause = buildAttendanceWhere({ date, dateFrom, dateTo, status, searchPattern, employeeId, branch });
-      const realRows = await fetchAttendanceRows(whereClause);
-      const realRecords = realRows.map(mapAttendanceRow);
-      const combined = [...virtualRecords, ...realRecords];
-      const realSummary = await fetchAttendanceSummary(whereClause);
+      const virtualPage = virtualRecords.slice(from, from + pageSize);
+      const remainingPageSize = pageSize - virtualPage.length;
+      const realOffset = Math.max(0, from - virtualRecords.length);
+      const [realRows, realSummary] = await Promise.all([
+        remainingPageSize > 0
+          ? fetchAttendanceRows(whereClause, remainingPageSize, realOffset)
+          : Promise.resolve([]),
+        fetchAttendanceSummary(whereClause),
+      ]);
 
       return NextResponse.json({
         success: true,
-        data: combined.slice(from, from + pageSize),
-        total: combined.length,
+        data: [...virtualPage, ...realRows.map(mapAttendanceRow)],
+        total: virtualRecords.length + realSummary.totalRecords,
         summary: addPendingToSummary(realSummary, virtualRecords.length),
         page,
         pageSize,

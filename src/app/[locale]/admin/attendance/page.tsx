@@ -21,6 +21,11 @@ import { useTranslations } from 'next-intl';
 import { Badge, Button, Input, PageReveal, Skeleton, addToast } from '@/components/ui';
 import { formatDate, formatEarlyDeparture, formatLateness, formatOvertime, formatTimestamp } from '@/lib/utils';
 import { downloadAttendanceReportPdf } from '@/lib/downloadAttendancePdf';
+import {
+    ATTENDANCE_PDF_CAP_ERROR,
+    ATTENDANCE_PDF_MAX_ROWS,
+    ATTENDANCE_PDF_MAX_SINGLE_EMPLOYEE_ROWS,
+} from '@/lib/attendancePdfExportLimits';
 import { getEgyptDate } from '@/lib/timezone';
 import type { AttendanceRecord } from '@/types';
 
@@ -238,7 +243,7 @@ export default function AttendanceLogsPage() {
     async function fetchAllFilteredRecords() {
         const params = new URLSearchParams({
             page: '1',
-            pageSize: '50000',
+            pageSize: String(employeeFilter ? ATTENDANCE_PDF_MAX_SINGLE_EMPLOYEE_ROWS : ATTENDANCE_PDF_MAX_ROWS),
             includeExpected: 'true',
             export: 'true',
         });
@@ -272,6 +277,9 @@ export default function AttendanceLogsPage() {
     async function handleExportPDF() {
         setIsExporting(true);
         try {
+            if (!employeeFilter && totalRecords > ATTENDANCE_PDF_MAX_ROWS) {
+                throw new Error(ATTENDANCE_PDF_CAP_ERROR);
+            }
             const allFilteredRecords = await fetchAllFilteredRecords();
 
             const dateRangeLabel = showAllHistory

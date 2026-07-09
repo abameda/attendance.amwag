@@ -99,7 +99,7 @@ test('normalizeAttendancePagination caps normal requests and preserves explicit 
     }),
     {
       page: 1,
-      pageSize: 50000,
+      pageSize: 5000,
       offset: 0,
     }
   );

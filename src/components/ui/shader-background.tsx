@@ -1,9 +1,38 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+
+import { getShaderPerformanceMode } from '@/lib/shaderPerformance';
 
 const ShaderBackground = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [shouldAnimate, setShouldAnimate] = useState(false);
+
+  useEffect(() => {
+    const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const pointerQuery = window.matchMedia('(pointer: coarse)');
+    const connection = navigator as Navigator & { deviceMemory?: number };
+
+    const updateMode = () => {
+      setShouldAnimate(
+        getShaderPerformanceMode({
+          prefersReducedMotion: motionQuery.matches,
+          isCoarsePointer: pointerQuery.matches,
+          deviceMemory: connection.deviceMemory,
+          hardwareConcurrency: navigator.hardwareConcurrency,
+        }) === 'animated',
+      );
+    };
+
+    updateMode();
+    motionQuery.addEventListener('change', updateMode);
+    pointerQuery.addEventListener('change', updateMode);
+
+    return () => {
+      motionQuery.removeEventListener('change', updateMode);
+      pointerQuery.removeEventListener('change', updateMode);
+    };
+  }, []);
 
   const vsSource = `
     attribute vec4 aVertexPosition;
@@ -147,7 +176,7 @@ const ShaderBackground = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!canvas) return;
+    if (!canvas || !shouldAnimate) return;
 
     const gl = canvas.getContext('webgl');
     if (!gl) {
@@ -175,19 +204,24 @@ const ShaderBackground = () => {
     };
 
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 1.25);
+      canvas.width = Math.min(1280, Math.floor(window.innerWidth * pixelRatio));
+      canvas.height = Math.min(800, Math.floor(window.innerHeight * pixelRatio));
       gl.viewport(0, 0, canvas.width, canvas.height);
     };
 
     window.addEventListener('resize', resizeCanvas);
     resizeCanvas();
 
-    let animationId: number;
-    const startTime = Date.now();
+    let animationId = 0;
+    let lastFrameAt = 0;
+    const startTime = performance.now();
 
-    const render = () => {
-      const currentTime = (Date.now() - startTime) / 1000;
+    const render = (now: number) => {
+      animationId = requestAnimationFrame(render);
+      if (document.hidden || now - lastFrameAt < 33) return;
+      lastFrameAt = now;
+      const currentTime = (now - startTime) / 1000;
 
       gl.clearColor(0.0, 0.0, 0.0, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
@@ -201,7 +235,6 @@ const ShaderBackground = () => {
       gl.enableVertexAttribArray(programInfo.attribLocations.vertexPosition);
 
       gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-      animationId = requestAnimationFrame(render);
     };
 
     animationId = requestAnimationFrame(render);
@@ -209,11 +242,23 @@ const ShaderBackground = () => {
     return () => {
       window.removeEventListener('resize', resizeCanvas);
       cancelAnimationFrame(animationId);
+      gl.deleteBuffer(positionBuffer);
+      gl.deleteProgram(shaderProgram);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [shouldAnimate]);
 
-  return <canvas ref={canvasRef} className="fixed top-0 left-0 w-full h-full -z-10" />;
+  return (
+    <div
+      className="fixed inset-0 -z-10 bg-[radial-gradient(circle_at_75%_20%,rgb(32_104_136_/_0.18),transparent_34rem),radial-gradient(circle_at_18%_72%,rgb(208_142_44_/_0.12),transparent_32rem),linear-gradient(135deg,rgb(4_9_14),rgb(8_15_22))]"
+      aria-hidden="true"
+    >
+      <canvas
+        ref={canvasRef}
+        className={`h-full w-full transition-opacity duration-200 ${shouldAnimate ? 'opacity-100' : 'opacity-0'}`}
+      />
+    </div>
+  );
 };
 
 export default ShaderBackground;

@@ -2,7 +2,9 @@ import type { AttendanceReportFilters } from '@/lib/attendance-report';
 import type { AttendanceRecord } from '@/types';
 
 export const ATTENDANCE_PDF_MAX_ROWS = 2000;
+export const ATTENDANCE_PDF_MAX_SINGLE_EMPLOYEE_ROWS = 5000;
 export const ATTENDANCE_PDF_MAX_RANGE_DAYS = 31;
+export const ATTENDANCE_PDF_MAX_REQUEST_BYTES = 8 * 1024 * 1024;
 export const ATTENDANCE_PDF_CAP_ERROR =
   'Please narrow your date range or filter by employee';
 
@@ -17,6 +19,11 @@ type DateRange = {
 export type AttendancePdfExportCapResult =
   | { allowed: true }
   | { allowed: false; status: number; error: string };
+
+export function isAttendancePdfRequestTooLarge(contentLength: string | null): boolean {
+  const bytes = Number(contentLength);
+  return Number.isFinite(bytes) && bytes > ATTENDANCE_PDF_MAX_REQUEST_BYTES;
+}
 
 function parseIsoDate(value: string | undefined): number | null {
   if (!value || !ISO_DATE_PATTERN.test(value)) {
@@ -97,11 +104,12 @@ export function validateAttendancePdfExportCaps(
   records: AttendanceRecord[],
   filters: AttendanceReportFilters,
 ): AttendancePdfExportCapResult {
-  if (isSingleEmployeeExport(records, filters)) {
-    return { allowed: true };
-  }
+  const isSingleEmployee = isSingleEmployeeExport(records, filters);
+  const maxRows = isSingleEmployee
+    ? ATTENDANCE_PDF_MAX_SINGLE_EMPLOYEE_ROWS
+    : ATTENDANCE_PDF_MAX_ROWS;
 
-  if (records.length > ATTENDANCE_PDF_MAX_ROWS) {
+  if (records.length > maxRows) {
     return { allowed: false, status: 413, error: ATTENDANCE_PDF_CAP_ERROR };
   }
 
@@ -112,7 +120,7 @@ export function validateAttendancePdfExportCaps(
     (range) => inclusiveDays(range) > ATTENDANCE_PDF_MAX_RANGE_DAYS,
   );
 
-  if (exceedsDateRange) {
+  if (!isSingleEmployee && exceedsDateRange) {
     return { allowed: false, status: 413, error: ATTENDANCE_PDF_CAP_ERROR };
   }
 
