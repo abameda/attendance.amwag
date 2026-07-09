@@ -339,7 +339,7 @@ export default function BranchIpsPage() {
                                             branch_name: branch?.name ?? '',
                                         }));
                                     }}
-                                    className="admin-glass-control focus-ring min-h-11 w-full min-w-0 rounded-xl px-4 py-2.5 text-sm outline-none"
+                                    className="admin-branch-ip-select admin-glass-control focus-ring min-h-11 w-full min-w-0 rounded-xl px-4 py-2.5 text-sm outline-none"
                                 >
                                     <option value="">Choose branch</option>
                                     {branchOptions.map((branch) => (
@@ -423,7 +423,7 @@ export default function BranchIpsPage() {
                             <select
                                 value={branchFilter}
                                 onChange={(event) => setBranchFilter(event.target.value)}
-                                className="admin-glass-control focus-ring min-h-11 w-full rounded-xl px-4 text-sm outline-none sm:w-auto sm:min-w-48"
+                                className="admin-branch-ip-select admin-glass-control focus-ring min-h-11 w-full rounded-xl px-4 text-sm outline-none sm:w-auto sm:min-w-48"
                             >
                                 <option value="">All branches</option>
                                 {branches.map((branch) => (
@@ -441,7 +441,7 @@ export default function BranchIpsPage() {
                                 ))}
                             </div>
                         ) : (
-                            <div className="admin-glass-table min-w-0 overflow-x-auto">
+                            <div className="admin-branch-ip-table admin-glass-table min-w-0 overflow-x-auto">
                                 <table className="w-full min-w-[820px] text-start text-sm">
                                     <thead>
                                         <tr className="border-b border-[var(--admin-glass-border-muted)] bg-[rgb(255_255_255_/_0.045)] text-xs uppercase text-[var(--admin-text-muted)]">

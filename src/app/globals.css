@@ -577,6 +577,37 @@ html[dir="rtl"] .switch-thumb-on {
   background: rgb(255 255 255 / 0.105);
 }
 
+/* Native select menus do not consistently inherit the dark glass palette. */
+.admin-branch-ip-select {
+  background-color: var(--admin-cool-field);
+  color: var(--admin-ink-strong);
+  color-scheme: dark;
+}
+
+.admin-branch-ip-select option,
+.admin-branch-ip-select optgroup {
+  background-color: var(--admin-cool-field);
+  color: var(--admin-ink-strong);
+}
+
+/* Keep dense rule data legible when the glass backdrop is unavailable or light. */
+.admin-branch-ip-table {
+  background-color: oklch(18% 0.018 250);
+  color: var(--admin-ink);
+}
+
+.admin-branch-ip-table thead {
+  background-color: oklch(22% 0.024 250);
+}
+
+.admin-branch-ip-table .admin-glass-table-row {
+  background-color: oklch(19.5% 0.018 250);
+}
+
+.admin-branch-ip-table .admin-glass-table-row:hover {
+  background-color: oklch(23% 0.028 250);
+}
+
 input.admin-glass-control:focus,
 input.admin-glass-control:focus-visible {
   outline: none;
