@@ -38,6 +38,22 @@ const employee = {
   updatedAt: new Date('2026-01-01T00:00:00.000Z'),
 };
 
+const admin = {
+  ...employee,
+  id: 'admin-1',
+  email: 'admin@example.com',
+  fullName: 'Test Admin',
+  role: 'admin' as const,
+};
+
+const accountant = {
+  ...employee,
+  id: 'accountant-1',
+  email: 'accountant@example.com',
+  fullName: 'Test Accountant',
+  role: 'accountant' as const,
+};
+
 const settings = {
   early_checkin_minutes: 60,
   late_grace_minutes: 10,
@@ -209,6 +225,67 @@ test('POST /api/attendance/check-in records a late check-in using the mocked clo
   });
 });
 
+test('POST /api/attendance/check-in rejects unauthenticated requests', async () => {
+  const fake = createQueuedDb([]);
+  const post = createCheckInHandler({
+    db: fake.db as never,
+    getCurrentUser: async () => null,
+    getGlobalSettings: async () => settings,
+  });
+
+  const response = await post(request('http://localhost/api/attendance/check-in'));
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.success, false);
+  assert.equal(body.error, 'Unauthorized');
+  assert.equal(fake.inserts.length, 0);
+});
+
+test('POST /api/attendance/check-in rejects admin self-service attendance', async () => {
+  await withClock('2026-07-01T06:25:00.000Z', async () => {
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+      [],
+    ]);
+    const post = createCheckInHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => admin,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(request('http://localhost/api/attendance/check-in'));
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.success, false);
+    assert.equal(body.error, 'Forbidden');
+    assert.equal(fake.inserts.length, 0);
+  });
+});
+
+test('POST /api/attendance/check-in rejects accountant self-service attendance', async () => {
+  await withClock('2026-07-01T06:25:00.000Z', async () => {
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+      [],
+    ]);
+    const post = createCheckInHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => accountant,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(request('http://localhost/api/attendance/check-in'));
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.success, false);
+    assert.equal(body.error, 'Forbidden');
+    assert.equal(fake.inserts.length, 0);
+  });
+});
+
 test('POST /api/attendance/check-in returns conflict when a concurrent check-in wins the insert race', async () => {
   await withClock('2026-07-01T06:25:00.000Z', async () => {
     const fake = createQueuedDb(
@@ -281,6 +358,89 @@ test('POST /api/attendance/check-out records early checkout using the mocked clo
   });
 });
 
+test('POST /api/attendance/check-out rejects unauthenticated requests', async () => {
+  const fake = createQueuedDb([]);
+  const post = createCheckOutHandler({
+    db: fake.db as never,
+    getCurrentUser: async () => null,
+    getGlobalSettings: async () => settings,
+  });
+
+  const response = await post(request('http://localhost/api/attendance/check-out'));
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.success, false);
+  assert.equal(body.error, 'Unauthorized');
+  assert.equal(fake.updates.length, 0);
+});
+
+test('POST /api/attendance/check-out rejects admin self-service attendance', async () => {
+  await withClock('2026-07-01T13:30:00.000Z', async () => {
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+      [
+        {
+          id: 'attendance-1',
+          userId: 'admin-1',
+          date: new Date('2026-07-01T00:00:00.000Z'),
+          checkInTime: new Date('2026-07-01T06:00:00.000Z'),
+          checkOutTime: null,
+          ipAddress: '10.0.0.45',
+          status: 'present',
+          lateMinutes: 0,
+        } satisfies AttendanceRow,
+      ],
+    ]);
+    const post = createCheckOutHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => admin,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(request('http://localhost/api/attendance/check-out'));
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.success, false);
+    assert.equal(body.error, 'Forbidden');
+    assert.equal(fake.updates.length, 0);
+  });
+});
+
+test('POST /api/attendance/check-out rejects accountant self-service attendance', async () => {
+  await withClock('2026-07-01T13:30:00.000Z', async () => {
+    const fake = createQueuedDb([
+      [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+      [
+        {
+          id: 'attendance-1',
+          userId: 'accountant-1',
+          date: new Date('2026-07-01T00:00:00.000Z'),
+          checkInTime: new Date('2026-07-01T06:00:00.000Z'),
+          checkOutTime: null,
+          ipAddress: '10.0.0.45',
+          status: 'present',
+          lateMinutes: 0,
+        } satisfies AttendanceRow,
+      ],
+    ]);
+    const post = createCheckOutHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => accountant,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(request('http://localhost/api/attendance/check-out'));
+    const body = await response.json();
+
+    assert.equal(response.status, 403);
+    assert.equal(body.success, false);
+    assert.equal(body.error, 'Forbidden');
+    assert.equal(fake.updates.length, 0);
+  });
+});
+
 test('GET /api/attendance/me returns fresh records using the stored work date', async () => {
   const fake = createQueuedDb([
     [
@@ -315,6 +475,92 @@ test('GET /api/attendance/me returns fresh records using the stored work date', 
   assert.equal(body.success, true);
   assert.equal(body.data[0].date, '2026-07-08');
   assert.equal(body.data[0].check_in_time, '2026-07-08T06:00:00.000Z');
+});
+
+test('GET /api/attendance/me rejects unauthenticated requests', async () => {
+  const fake = createQueuedDb([]);
+  const get = createCurrentUserAttendanceHandler({
+    db: fake.db as never,
+    getCurrentUser: async () => null,
+  });
+
+  const response = await get(request('http://localhost/api/attendance/me'));
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(body.success, false);
+  assert.equal(body.error, 'Unauthorized');
+});
+
+test('GET /api/attendance/me rejects admin self-service attendance reads', async () => {
+  const fake = createQueuedDb([
+    [
+      {
+        id: 'attendance-1',
+        userId: 'admin-1',
+        date: new Date('2026-07-08T00:00:00.000+03:00'),
+        checkInTime: new Date('2026-07-08T06:00:00.000Z'),
+        checkOutTime: null,
+        ipAddress: '10.0.0.45',
+        checkOutIp: null,
+        checkInLocation: 'HQ',
+        checkOutLocation: null,
+        status: 'present',
+        lateMinutes: 0,
+        earlyDepartureMinutes: 0,
+        overtimeMinutes: 0,
+        createdAt: new Date('2026-07-08T06:00:00.000Z'),
+      },
+    ],
+  ]);
+  const get = createCurrentUserAttendanceHandler({
+    db: fake.db as never,
+    getCurrentUser: async () => admin,
+  });
+
+  const response = await get(request('http://localhost/api/attendance/me'));
+  const body = await response.json();
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(body.success, false);
+  assert.equal(body.error, 'Forbidden');
+});
+
+test('GET /api/attendance/me rejects accountant self-service attendance reads', async () => {
+  const fake = createQueuedDb([
+    [
+      {
+        id: 'attendance-1',
+        userId: 'accountant-1',
+        date: new Date('2026-07-08T00:00:00.000+03:00'),
+        checkInTime: new Date('2026-07-08T06:00:00.000Z'),
+        checkOutTime: null,
+        ipAddress: '10.0.0.45',
+        checkOutIp: null,
+        checkInLocation: 'HQ',
+        checkOutLocation: null,
+        status: 'present',
+        lateMinutes: 0,
+        earlyDepartureMinutes: 0,
+        overtimeMinutes: 0,
+        createdAt: new Date('2026-07-08T06:00:00.000Z'),
+      },
+    ],
+  ]);
+  const get = createCurrentUserAttendanceHandler({
+    db: fake.db as never,
+    getCurrentUser: async () => accountant,
+  });
+
+  const response = await get(request('http://localhost/api/attendance/me'));
+  const body = await response.json();
+
+  assert.equal(response.status, 403);
+  assert.equal(response.headers.get('cache-control'), 'no-store');
+  assert.equal(body.success, false);
+  assert.equal(body.error, 'Forbidden');
 });
 
 test('finalization marks a missing checkout after the configured checkout window expires', async () => {

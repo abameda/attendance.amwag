@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getCurrentUser } from '@/lib/auth';
+import { authorizeEmployeeSelfService, getCurrentUser } from '@/lib/auth';
 import { calculateAttendanceWorkDate, calculateLateMinutes } from '@/lib/attendanceCalculations';
 import { db } from '@/lib/db';
 import { attendance, branchAllowedIps } from '@/lib/db/schema';
@@ -35,16 +35,18 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
   return async function POST(request: NextRequest) {
     try {
       const user = await dependencies.getCurrentUser(request);
+      const auth = authorizeEmployeeSelfService(user);
 
-      if (!user) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      if (!auth.authorized) {
+        return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
       }
 
+      const employee = auth.user;
       const currentIp = resolveClientIp(request.headers, {
         trustForwardedFor: getTrustXForwardedFor(),
       });
 
-      if (!user.branch || !user.branchId) {
+      if (!employee.branch || !employee.branchId) {
         return NextResponse.json(
           {
             success: false,
@@ -63,7 +65,9 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
           isActive: branchAllowedIps.isActive,
         })
         .from(branchAllowedIps)
-        .where(and(eq(branchAllowedIps.branchId, user.branchId), eq(branchAllowedIps.isActive, 1)));
+        .where(
+          and(eq(branchAllowedIps.branchId, employee.branchId), eq(branchAllowedIps.isActive, 1))
+        );
 
       const matchingBranch = isIpAllowedForBranch(currentIp, branchIpRows);
 
@@ -77,8 +81,8 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
           clientIp: currentIp,
           xForwardedFor: request.headers.get('x-forwarded-for'),
           xRealIp: request.headers.get('x-real-ip'),
-          employeeBranchId: user.branchId,
-          employeeBranch: user.branch,
+          employeeBranchId: employee.branchId,
+          employeeBranch: employee.branch,
           rulesCount: branchIpRows.length,
           rules: branchIpRows.map((r) => ({
             ipNetwork: r.ipNetwork,
@@ -102,7 +106,7 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
         }
       }
 
-      const checkInLocation = matchingBranch.branchName ?? user.branch;
+      const checkInLocation = matchingBranch.branchName ?? employee.branch;
       const now = new Date();
       const { date: egyptToday, totalMinutes: currentTotalMinutes } = getEgyptNow();
 
@@ -116,9 +120,9 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
       const settings = await dependencies.getGlobalSettings();
       let workDate = egyptToday;
 
-      if (user.shiftStart && user.shiftEnd) {
-        const [startH, startM] = user.shiftStart.split(':').map(Number);
-        const [endH, endM] = user.shiftEnd.split(':').map(Number);
+      if (employee.shiftStart && employee.shiftEnd) {
+        const [startH, startM] = employee.shiftStart.split(':').map(Number);
+        const [endH, endM] = employee.shiftEnd.split(':').map(Number);
 
         const shiftStartMinutes = startH * 60 + startM;
         let windowStartMinutes = shiftStartMinutes - settings.early_checkin_minutes;
@@ -147,14 +151,14 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
         workDate = calculateAttendanceWorkDate({
           currentDate: egyptToday,
           currentTotalMinutes,
-          shiftStart: user.shiftStart,
-          shiftEnd: user.shiftEnd,
+          shiftStart: employee.shiftStart,
+          shiftEnd: employee.shiftEnd,
         });
       }
 
       const lateMinutes = calculateLateMinutes({
         currentTotalMinutes,
-        shiftStart: user.shiftStart,
+        shiftStart: employee.shiftStart,
         lateGraceMinutes: settings.late_grace_minutes,
       });
       const status: 'present' | 'late' = lateMinutes > 0 ? 'late' : 'present';
@@ -167,7 +171,7 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
           checkOutTime: attendance.checkOutTime,
         })
         .from(attendance)
-        .where(and(eq(attendance.userId, user.id), eq(attendance.date, parseIsoDate(workDate))))
+        .where(and(eq(attendance.userId, employee.id), eq(attendance.date, parseIsoDate(workDate))))
         .limit(1);
 
       const existingAttendance = existingAttendanceRows[0] ?? null;
@@ -195,7 +199,7 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
       try {
         await dependencies.db.insert(attendance).values({
           id: randomUUID(),
-          userId: user.id,
+          userId: employee.id,
           date: parseIsoDate(workDate),
           checkInTime: now,
           ipAddress: currentIp,

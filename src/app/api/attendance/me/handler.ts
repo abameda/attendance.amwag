@@ -1,7 +1,7 @@
 import { desc, eq } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getCurrentUser } from '@/lib/auth';
+import { authorizeEmployeeSelfService, getCurrentUser } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { attendance } from '@/lib/db/schema';
 import { getEgyptDate } from '@/lib/timezone';
@@ -26,18 +26,20 @@ export function createCurrentUserAttendanceHandler(
   return async function GET(request: NextRequest) {
     try {
       const user = await dependencies.getCurrentUser(request);
+      const auth = authorizeEmployeeSelfService(user);
 
-      if (!user) {
+      if (!auth.authorized) {
         return NextResponse.json(
-          { success: false, error: 'Unauthorized' },
-          { status: 401, headers: { 'Cache-Control': 'no-store' } }
+          { success: false, error: auth.error },
+          { status: auth.status, headers: { 'Cache-Control': 'no-store' } }
         );
       }
 
+      const employee = auth.user;
       const rows = await dependencies.db
         .select()
         .from(attendance)
-        .where(eq(attendance.userId, user.id))
+        .where(eq(attendance.userId, employee.id))
         .orderBy(desc(attendance.date))
         .limit(90);
 

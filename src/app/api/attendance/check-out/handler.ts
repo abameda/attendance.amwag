@@ -1,7 +1,7 @@
 import { and, eq, isNull } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { getCurrentUser } from '@/lib/auth';
+import { authorizeEmployeeSelfService, getCurrentUser } from '@/lib/auth';
 import {
   calculateCheckoutMetrics,
   calculateShiftDurationMinutes,
@@ -32,16 +32,18 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
   return async function POST(request: NextRequest) {
     try {
       const user = await dependencies.getCurrentUser(request);
+      const auth = authorizeEmployeeSelfService(user);
 
-      if (!user) {
-        return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      if (!auth.authorized) {
+        return NextResponse.json({ success: false, error: auth.error }, { status: auth.status });
       }
 
+      const employee = auth.user;
       const currentIp = resolveClientIp(request.headers, {
         trustForwardedFor: getTrustXForwardedFor(),
       });
 
-      if (!user.branch || !user.branchId) {
+      if (!employee.branch || !employee.branchId) {
         return NextResponse.json(
           {
             success: false,
@@ -60,7 +62,9 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
           isActive: branchAllowedIps.isActive,
         })
         .from(branchAllowedIps)
-        .where(and(eq(branchAllowedIps.branchId, user.branchId), eq(branchAllowedIps.isActive, 1)));
+        .where(
+          and(eq(branchAllowedIps.branchId, employee.branchId), eq(branchAllowedIps.isActive, 1))
+        );
 
       const matchingBranch = isIpAllowedForBranch(currentIp, branchIpRows);
 
@@ -74,8 +78,8 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
           clientIp: currentIp,
           xForwardedFor: request.headers.get('x-forwarded-for'),
           xRealIp: request.headers.get('x-real-ip'),
-          employeeBranchId: user.branchId,
-          employeeBranch: user.branch,
+          employeeBranchId: employee.branchId,
+          employeeBranch: employee.branch,
           rulesCount: branchIpRows.length,
           rules: branchIpRows.map((r) => ({
             ipNetwork: r.ipNetwork,
@@ -99,7 +103,7 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
         }
       }
 
-      const checkOutLocation = matchingBranch.branchName ?? user.branch;
+      const checkOutLocation = matchingBranch.branchName ?? employee.branch;
       const now = new Date();
       const { date: egyptDate } = getEgyptNow();
       const today = egyptDate;
@@ -115,7 +119,7 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
           lateMinutes: attendance.lateMinutes,
         })
         .from(attendance)
-        .where(and(eq(attendance.userId, user.id), eq(attendance.date, parseIsoDate(today))))
+        .where(and(eq(attendance.userId, employee.id), eq(attendance.date, parseIsoDate(today))))
         .limit(1);
 
       let existingRecord = existingRecordRows[0] ?? null;
@@ -138,7 +142,7 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
           .from(attendance)
           .where(
             and(
-              eq(attendance.userId, user.id),
+              eq(attendance.userId, employee.id),
               eq(attendance.date, parseIsoDate(yesterdayDate)),
               isNull(attendance.checkOutTime)
             )
@@ -174,7 +178,10 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
         );
       }
 
-      const shiftDurationMinutes = calculateShiftDurationMinutes(user.shiftStart, user.shiftEnd);
+      const shiftDurationMinutes = calculateShiftDurationMinutes(
+        employee.shiftStart,
+        employee.shiftEnd
+      );
       const shiftDurationHours = shiftDurationMinutes === null ? 9 : shiftDurationMinutes / 60;
       const hoursSinceCheckIn = (now.getTime() - checkInTime.getTime()) / (1000 * 60 * 60);
       const maxAllowedSessionHours = Math.max(14, shiftDurationHours + 5);
@@ -192,13 +199,13 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
       const settings = await dependencies.getGlobalSettings();
       const workDate = toIsoDate(existingRecord.date);
 
-      if (user.shiftEnd) {
+      if (employee.shiftEnd) {
         if (
           isCheckoutWindowExpired({
             workDate,
             now,
-            shiftStart: user.shiftStart,
-            shiftEnd: user.shiftEnd,
+            shiftStart: employee.shiftStart,
+            shiftEnd: employee.shiftEnd,
             checkoutWindowMinutes: settings.checkout_window_minutes,
           })
         ) {
@@ -216,9 +223,9 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
         workDate,
         checkInTime,
         checkOutTime: now,
-        shiftStart: user.shiftStart,
-        shiftEnd: user.shiftEnd,
-        overtimeEnabled: user.overtimeEnabled,
+        shiftStart: employee.shiftStart,
+        shiftEnd: employee.shiftEnd,
+        overtimeEnabled: employee.overtimeEnabled,
         maxOvertimeMinutes: settings.max_overtime_minutes,
       });
 

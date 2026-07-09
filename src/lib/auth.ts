@@ -3,6 +3,7 @@ import type { NextRequest } from 'next/server';
 
 import { readSessionCookieFromRequest } from '@/lib/auth/cookies';
 import { getSessionByToken } from '@/lib/auth/session';
+import type { User } from '@/lib/db/schema';
 
 export interface AdminCheckResult {
   authorized: boolean;
@@ -17,6 +18,10 @@ export interface InternalAuthResult {
   error?: string;
   status?: number;
 }
+
+export type EmployeeSelfServiceAuthResult =
+  | { authorized: true; user: User & { role: 'employee' } }
+  | { authorized: false; error: string; status: 401 | 403 };
 
 /**
  * Returns `{ authorized: true, userId, role }` when the request has a valid
@@ -75,6 +80,18 @@ export async function getCurrentUser(request: NextRequest) {
 
   const result = await getSessionByToken(token);
   return result?.user ?? null;
+}
+
+export function authorizeEmployeeSelfService(user: User | null): EmployeeSelfServiceAuthResult {
+  if (!user) {
+    return { authorized: false, error: 'Unauthorized', status: 401 };
+  }
+
+  if (user.role !== 'employee') {
+    return { authorized: false, error: 'Forbidden', status: 403 };
+  }
+
+  return { authorized: true, user: user as User & { role: 'employee' } };
 }
 
 export function authorizeInternalScheduler(request: NextRequest): InternalAuthResult {
