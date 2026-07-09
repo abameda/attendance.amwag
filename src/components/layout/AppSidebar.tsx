@@ -165,12 +165,12 @@ ref
                     <LanguageSwitcher />
 
                     <div className="admin-glass-panel-muted p-4">
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-start gap-3">
                             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-blue-300/[0.25] bg-blue-600/[0.65] text-lg font-extrabold text-[var(--admin-ink-strong)] shadow-[0_14px_34px_rgba(0,0,0,0.28)]">
                                 {adminInitial}
                             </div>
-                            <div className="min-w-0">
-                                <p className="truncate text-sm font-bold text-[var(--admin-ink-strong)]">
+                            <div className="flex min-w-0 flex-1 flex-col">
+                                <p className="break-words text-sm font-bold leading-snug text-[var(--admin-ink-strong)] [overflow-wrap:anywhere]">
                                     {isProfileLoading ? t('loadingProfile') : adminName || t('adminFallback')}
                                 </p>
                                 <p className="mt-1 truncate text-xs font-bold uppercase text-slate-500">

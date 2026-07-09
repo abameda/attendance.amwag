@@ -78,3 +78,21 @@ test('admin mobile navigation behaves like an accessible dialog', () => {
   assert.ok(!sidebarSource.includes('<h1'), 'sidebar brand should not create a repeated page h1');
   assert.ok(sidebarSource.includes('<p') && sidebarSource.includes('id={labelId}'), 'sidebar brand should label the dialog without using h1');
 });
+
+test('admin sidebar profile card keeps the logged-in user name readable', () => {
+  const sidebarSource = readRequiredSource(appSidebarPath);
+
+  assert.doesNotMatch(
+    sidebarSource,
+    /<p className="truncate text-sm font-bold text-\[var\(--admin-ink-strong\)\]">\s*\{isProfileLoading/,
+    'logged-in user name should not be truncated with an ellipsis'
+  );
+  assert.ok(
+    sidebarSource.includes('[overflow-wrap:anywhere]') && sidebarSource.includes('leading-snug'),
+    'logged-in user name should wrap cleanly inside the profile card'
+  );
+  assert.ok(
+    sidebarSource.includes('flex min-w-0 flex-1 flex-col'),
+    'profile text column should keep the logout button and avatar layout stable'
+  );
+});

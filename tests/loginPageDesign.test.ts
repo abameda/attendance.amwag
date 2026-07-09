@@ -19,8 +19,8 @@ test('login page uses a single-card Dark Graphite Glass access surface', () => {
     'login form and controls should use shared admin glass vocabulary'
   );
   assert.ok(
-    loginSource.includes('login-background-mark') && loginSource.includes('opacity-[0.055]'),
-    'login should include an oversized barely visible brand mark in the background'
+    !loginSource.includes('login-background-mark'),
+    'login should not include the oversized faint AMWAG background mark'
   );
   assert.ok(
     !loginSource.includes('lg:grid-cols-[minmax(0,0.92fr)_minmax(420px,1fr)]'),

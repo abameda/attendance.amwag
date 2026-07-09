@@ -123,19 +123,6 @@ export default function LoginPage() {
                         aria-hidden="true"
                         className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgb(96_165_250_/_0.14),transparent_16rem)]"
                     />
-                    <div
-                        aria-hidden="true"
-                        className="login-background-mark pointer-events-none absolute left-1/2 top-7 h-56 w-56 -translate-x-1/2 select-none opacity-[0.055] sm:h-64 sm:w-64"
-                    >
-                        <Image
-                            src="/logo.png"
-                            alt=""
-                            fill
-                            sizes="256px"
-                            className="object-contain"
-                        />
-                    </div>
-
                     <div className="relative">
                         <div className="absolute right-5 top-5 z-10">
                             <div
