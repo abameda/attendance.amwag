@@ -7,6 +7,7 @@ import { getCurrentUser } from '@/lib/auth';
 import { calculateAttendanceWorkDate, calculateLateMinutes } from '@/lib/attendanceCalculations';
 import { db } from '@/lib/db';
 import { attendance, branchAllowedIps } from '@/lib/db/schema';
+import { getTrustXForwardedFor } from '@/lib/env';
 import { getGlobalSettings } from '@/lib/globalSettings';
 import { isIpAllowedForBranch, resolveClientIp } from '@/lib/ipValidation';
 import { getEgyptNow, isWithinTimeWindow } from '@/lib/timezone';
@@ -40,7 +41,7 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
       }
 
       const currentIp = resolveClientIp(request.headers, {
-        trustForwardedFor: process.env.TRUST_X_FORWARDED_FOR === 'true',
+        trustForwardedFor: getTrustXForwardedFor(),
       });
 
       if (!user.branch || !user.branchId) {

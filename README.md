@@ -253,9 +253,11 @@ Create a `.env.local` file in the project root (never commit real secrets):
 | `INTERNAL_SCHEDULER_SECRET` | Yes | — | Bearer token that protects `/api/internal/*` endpoints. Generate with `openssl rand -hex 32`. |
 | `BACKUP_ENCRYPTION_KEY` | Yes in production | — | 64-hex-character secret used to encrypt admin-created backup files. Generate a different value with `openssl rand -hex 32`. |
 | `SESSION_COOKIE_NAME` | No | `amwag_session` | Name of the HTTP-only session cookie. |
-| `SESSION_TTL_DAYS` | No | `30` | How many days a session stays valid. |
-| `TRUST_X_FORWARDED_FOR` | No | `false` | Set to `true` behind a trusted reverse proxy (LiteSpeed / Nginx) so real client IPs are used for branch validation. |
+| `SESSION_TTL_DAYS` | Yes in production | `30` | How many days a session stays valid. Must be a positive finite number in production. |
+| `TRUST_X_FORWARDED_FOR` | Yes in production | `false` | Must be explicitly `true` or `false` in production. Set to `true` behind a trusted reverse proxy (LiteSpeed / Nginx) so real client IPs are used for branch validation. |
 | `NODE_ENV` | No | `development` | Set to `production` in production environments. |
+
+Production runtime fails fast when required variables are missing or invalid. The internal build placeholder database URL is only used when `DATABASE_URL` is absent outside production runtime, such as tests or `next build`; it is rejected when the app runs in production.
 
 ### Generating secrets
 

@@ -113,6 +113,8 @@ Use different values for `INTERNAL_SCHEDULER_SECRET` and `BACKUP_ENCRYPTION_KEY`
 
 > Set `TRUST_X_FORWARDED_FOR=true` only when the app is behind a trusted LiteSpeed reverse proxy and direct internet access to port 3000 is blocked. With this flag enabled, the app reads the real client IP from `X-Forwarded-For`; with it disabled, spoofed `X-Forwarded-For` headers are ignored and `X-Real-IP` is preferred.
 
+Production runtime validates this environment at startup and fails fast when required values are missing or invalid. `DATABASE_URL` must be a real database URL in production; the build placeholder URL is reserved for tests and `next build` only.
+
 ---
 
 ## 5. Build the App

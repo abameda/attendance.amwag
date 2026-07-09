@@ -9,6 +9,7 @@ import {
 } from '@/lib/attendanceCalculations';
 import { db } from '@/lib/db';
 import { attendance, branchAllowedIps } from '@/lib/db/schema';
+import { getTrustXForwardedFor } from '@/lib/env';
 import { getGlobalSettings } from '@/lib/globalSettings';
 import { isIpAllowedForBranch, resolveClientIp } from '@/lib/ipValidation';
 import { getEgyptDate, getEgyptNow } from '@/lib/timezone';
@@ -37,7 +38,7 @@ export function createCheckOutHandler(dependencies: CheckOutDependencies) {
       }
 
       const currentIp = resolveClientIp(request.headers, {
-        trustForwardedFor: process.env.TRUST_X_FORWARDED_FOR === 'true',
+        trustForwardedFor: getTrustXForwardedFor(),
       });
 
       if (!user.branch || !user.branchId) {

@@ -4,10 +4,9 @@ import { and, eq, gt, lt, ne } from 'drizzle-orm';
 
 import { db } from '@/lib/db';
 import { sessions, users, type Session, type User } from '@/lib/db/schema';
+import { getSessionTtlDays } from '@/lib/env';
 
-const DEFAULT_SESSION_TTL_DAYS = 30;
-const sessionTtlDays = Number(process.env.SESSION_TTL_DAYS ?? DEFAULT_SESSION_TTL_DAYS);
-const SESSION_TTL_DAYS = Number.isFinite(sessionTtlDays) ? sessionTtlDays : DEFAULT_SESSION_TTL_DAYS;
+const SESSION_TTL_DAYS = getSessionTtlDays();
 
 function generateSessionId(): string {
   return randomBytes(48).toString('base64url');

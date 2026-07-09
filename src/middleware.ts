@@ -1,6 +1,10 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import createMiddleware from 'next-intl/middleware';
 
+import { assertValidProductionRuntimeEnvironment, getAppUrl } from '@/lib/env';
+
+assertValidProductionRuntimeEnvironment();
+
 const intlMiddleware = createMiddleware({
   locales: ['en', 'ar'],
   defaultLocale: 'ar',
@@ -15,7 +19,7 @@ type MiddlewareUser = {
 };
 
 function getMiddlewareAuthUrl(request: NextRequest) {
-  return new URL('/api/auth/me', process.env.APP_URL?.trim() || request.url);
+  return new URL('/api/auth/me', getAppUrl(process.env, request.url));
 }
 
 async function fetchMiddlewareUser(request: NextRequest): Promise<MiddlewareUser | null> {
