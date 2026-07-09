@@ -524,10 +524,8 @@ export function getAttendancePdfPagesForTest(data: AttendanceReportData): Attend
 }
 
 function ReportBanner({
-  data,
   logoSrc,
 }: {
-  data: AttendanceReportData;
   logoSrc: string;
 }) {
   return (
@@ -589,7 +587,7 @@ function ReportPage({
 }) {
   return (
     <Page size="A4" orientation="landscape" style={s.reportPage}>
-      <ReportBanner data={data} logoSrc={logoSrc} />
+      <ReportBanner logoSrc={logoSrc} />
 
       {page.isFirstPage && (
         <>
