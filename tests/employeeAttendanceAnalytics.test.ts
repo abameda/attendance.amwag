@@ -161,3 +161,65 @@ test('buildEmployeeAttendanceAnalytics returns clean empty states for employees 
   ]);
   assert.deepEqual(analytics.history, []);
 });
+
+test('buildEmployeeAttendanceAnalytics uses aggregate comparison counts when supplied', () => {
+  const analytics = buildEmployeeAttendanceAnalytics({
+    employee,
+    rows: [record('2026-05-03', 'present')],
+    previousRows: [],
+    range: { preset: 'custom', from: '2026-05-03', to: '2026-05-09' },
+    branchRows: [],
+    companyRows: [],
+    branchComparison: {
+      expectedWorkingDays: 20,
+      presentDays: 15,
+    },
+    companyComparison: {
+      expectedWorkingDays: 200,
+      presentDays: 150,
+    },
+    today: '2026-05-19',
+  });
+
+  assert.deepEqual(analytics.comparison.branchAverage, {
+    attendanceRate: 75,
+    expectedWorkingDays: 20,
+    presentDays: 15,
+  });
+  assert.deepEqual(analytics.comparison.companyAverage, {
+    attendanceRate: 75,
+    expectedWorkingDays: 200,
+    presentDays: 150,
+  });
+});
+
+test('buildEmployeeAttendanceAnalytics returns null aggregate comparison rates for zero expected days', () => {
+  const analytics = buildEmployeeAttendanceAnalytics({
+    employee,
+    rows: [],
+    previousRows: [],
+    range: { preset: 'custom', from: '2026-05-03', to: '2026-05-09' },
+    branchComparison: {
+      expectedWorkingDays: 0,
+      presentDays: 0,
+    },
+    companyComparison: {
+      expectedWorkingDays: 0,
+      presentDays: 0,
+    },
+    today: '2026-05-19',
+  });
+
+  assert.deepEqual(analytics.comparison.branchAverage, {
+    attendanceRate: null,
+    expectedWorkingDays: 0,
+    presentDays: 0,
+  });
+  assert.deepEqual(analytics.comparison.companyAverage, {
+    attendanceRate: null,
+    expectedWorkingDays: 0,
+    presentDays: 0,
+  });
+  assert.equal(Number.isNaN(analytics.comparison.branchAverage.attendanceRate), false);
+  assert.equal(Number.isNaN(analytics.comparison.companyAverage.attendanceRate), false);
+});

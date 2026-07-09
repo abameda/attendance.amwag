@@ -51,6 +51,11 @@ export interface AnalyticsComparisonEmployee {
   createdAt?: Date;
 }
 
+export interface AnalyticsComparisonAggregate {
+  expectedWorkingDays: number;
+  presentDays: number;
+}
+
 export interface EmployeeAttendanceAnalytics {
   employee: {
     id: string;
@@ -469,6 +474,36 @@ function buildComparison(
   };
 }
 
+function buildComparisonFromAggregate(aggregate: AnalyticsComparisonAggregate) {
+  return {
+    attendanceRate:
+      aggregate.expectedWorkingDays > 0
+        ? toPercent(aggregate.presentDays, aggregate.expectedWorkingDays)
+        : null,
+    expectedWorkingDays: aggregate.expectedWorkingDays,
+    presentDays: aggregate.presentDays,
+  };
+}
+
+export function buildAnalyticsComparisonAggregate(params: {
+  employees: AnalyticsComparisonEmployee[];
+  presentDays: number;
+  range: AnalyticsDateRange;
+}): AnalyticsComparisonAggregate {
+  return {
+    expectedWorkingDays: params.employees.reduce(
+      (sum, employee) =>
+        sum +
+        enumerateExpectedDates(params.range, {
+          offDay: employee.offDay,
+          createdAt: employee.createdAt ?? new Date(`${params.range.from ?? '1970-01-01'}T00:00:00.000Z`),
+        }).length,
+      0
+    ),
+    presentDays: params.presentDays,
+  };
+}
+
 export function buildEmployeeAttendanceAnalytics(params: {
   employee: AnalyticsEmployee;
   rows: AnalyticsAttendanceRow[];
@@ -476,6 +511,8 @@ export function buildEmployeeAttendanceAnalytics(params: {
   range: AnalyticsDateRange;
   branchRows?: AnalyticsAttendanceRow[];
   companyRows?: AnalyticsAttendanceRow[];
+  branchComparison?: AnalyticsComparisonAggregate;
+  companyComparison?: AnalyticsComparisonAggregate;
   branchEmployees?: AnalyticsComparisonEmployee[];
   companyEmployees?: AnalyticsComparisonEmployee[];
   today: string;
@@ -539,10 +576,14 @@ export function buildEmployeeAttendanceAnalytics(params: {
           row.checkInLocation && row.checkOutLocation && row.checkInLocation !== row.checkOutLocation
             ? `${row.checkInLocation} / ${row.checkOutLocation}`
             : row.checkInLocation ?? row.checkOutLocation,
-      })),
+    })),
     comparison: {
-      branchAverage: buildComparison(params.branchRows ?? [], params.branchEmployees, params.range),
-      companyAverage: buildComparison(params.companyRows ?? [], params.companyEmployees, params.range),
+      branchAverage: params.branchComparison
+        ? buildComparisonFromAggregate(params.branchComparison)
+        : buildComparison(params.branchRows ?? [], params.branchEmployees, params.range),
+      companyAverage: params.companyComparison
+        ? buildComparisonFromAggregate(params.companyComparison)
+        : buildComparison(params.companyRows ?? [], params.companyEmployees, params.range),
     },
     score: buildScore(summary),
   };

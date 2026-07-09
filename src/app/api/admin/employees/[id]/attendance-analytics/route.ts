@@ -1,10 +1,11 @@
-import { and, eq, gte, lte, type SQL } from 'drizzle-orm';
+import { and, eq, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { NextRequest, NextResponse } from 'next/server';
 
 import { isAdminOrAccountant } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { attendance, users, type User } from '@/lib/db/schema';
 import {
+  buildAnalyticsComparisonAggregate,
   buildEmployeeAttendanceAnalytics,
   resolveAnalyticsDateRange,
   type AnalyticsAttendanceRow,
@@ -106,6 +107,19 @@ async function fetchComparisonEmployees(branch?: string | null): Promise<Analyti
   return rows;
 }
 
+async function fetchPresentAttendanceDays(whereClause: SQL): Promise<number> {
+  const rows = await db
+    .select({
+      presentDays:
+        sql<number>`sum(case when ${attendance.status} <> 'absent' then 1 else 0 end)`.mapWith(Number),
+    })
+    .from(attendance)
+    .leftJoin(users, eq(attendance.userId, users.id))
+    .where(whereClause);
+
+  return rows[0]?.presentDays ?? 0;
+}
+
 function previousRange(range: AnalyticsDateRange): Pick<AnalyticsDateRange, 'from' | 'to'> | null {
   if (!range.from) {
     return null;
@@ -169,55 +183,17 @@ export async function GET(
     const [
       rows,
       previousRows,
-      branchRows,
-      companyRows,
+      branchPresentDays,
+      companyPresentDays,
       branchEmployees,
       companyEmployees,
     ] = await Promise.all([
       fetchAttendanceRows(currentEmployeePredicate),
       previous ? fetchAttendanceRows(and(eq(attendance.userId, id), buildDatePredicate(previous))!) : Promise.resolve([]),
       branchPredicate
-        ? db
-            .select({
-              id: attendance.id,
-              userId: attendance.userId,
-              date: attendance.date,
-              checkInTime: attendance.checkInTime,
-              checkOutTime: attendance.checkOutTime,
-              ipAddress: attendance.ipAddress,
-              checkOutIp: attendance.checkOutIp,
-              checkInLocation: attendance.checkInLocation,
-              checkOutLocation: attendance.checkOutLocation,
-              status: attendance.status,
-              lateMinutes: attendance.lateMinutes,
-              earlyDepartureMinutes: attendance.earlyDepartureMinutes,
-              overtimeMinutes: attendance.overtimeMinutes,
-              createdAt: attendance.createdAt,
-            })
-            .from(attendance)
-            .leftJoin(users, eq(attendance.userId, users.id))
-            .where(and(currentPredicate, branchPredicate)!)
-        : Promise.resolve([]),
-      db
-        .select({
-          id: attendance.id,
-          userId: attendance.userId,
-          date: attendance.date,
-          checkInTime: attendance.checkInTime,
-          checkOutTime: attendance.checkOutTime,
-          ipAddress: attendance.ipAddress,
-          checkOutIp: attendance.checkOutIp,
-          checkInLocation: attendance.checkInLocation,
-          checkOutLocation: attendance.checkOutLocation,
-          status: attendance.status,
-          lateMinutes: attendance.lateMinutes,
-          earlyDepartureMinutes: attendance.earlyDepartureMinutes,
-          overtimeMinutes: attendance.overtimeMinutes,
-          createdAt: attendance.createdAt,
-        })
-        .from(attendance)
-        .leftJoin(users, eq(attendance.userId, users.id))
-        .where(and(currentPredicate, eq(users.role, 'employee'))!),
+        ? fetchPresentAttendanceDays(and(currentPredicate, branchPredicate)!)
+        : Promise.resolve(0),
+      fetchPresentAttendanceDays(and(currentPredicate, eq(users.role, 'employee'))!),
       employee.branch ? fetchComparisonEmployees(employee.branch) : Promise.resolve([]),
       fetchComparisonEmployees(),
     ]);
@@ -227,8 +203,18 @@ export async function GET(
       rows,
       previousRows,
       range,
-      branchRows,
-      companyRows,
+      branchComparison: employee.branch
+        ? buildAnalyticsComparisonAggregate({
+            employees: branchEmployees,
+            presentDays: branchPresentDays,
+            range,
+          })
+        : undefined,
+      companyComparison: buildAnalyticsComparisonAggregate({
+        employees: companyEmployees,
+        presentDays: companyPresentDays,
+        range,
+      }),
       branchEmployees,
       companyEmployees,
       today: getEgyptDate(),
