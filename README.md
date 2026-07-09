@@ -123,25 +123,37 @@ POST /api/internal/attendance/finalize
 
 **This endpoint must be triggered by your server's cron daemon.** It does not run automatically on its own.
 
-### Recommended cron schedule
+### CyberPanel cron job
 
-Run every hour, all day:
+Add this as one cron job in **Websites → Manage → Cron Jobs**. Keep the
+schedule and command in their separate CyberPanel fields; replace the
+placeholder only in CyberPanel, never in this repository or documentation.
+
+Schedule (hourly):
+
+```text
+0 * * * *
+```
+
+Command:
 
 ```bash
-0 * * * * curl -fsS -X POST \
-  -H "Authorization: Bearer YOUR_SECRET_HERE" \
-  http://127.0.0.1:3000/api/internal/attendance/finalize
+curl -fsS -X POST -H "Authorization: Bearer YOUR_SECRET_HERE" http://127.0.0.1:3000/api/internal/attendance/finalize
 ```
+
+Use `http://127.0.0.1:3000` when CyberPanel cron runs on the same server as the
+Node.js app. The command does not require `NODE_ENV` or any shell variables.
 
 ### Session cleanup
 
-Run nightly to prune expired sessions from the database:
+This is a separate CyberPanel cron job. Run it nightly to prune expired sessions
+from the database:
 
 ```bash
-0 3 * * * curl -fsS -X POST \
-  -H "Authorization: Bearer YOUR_SECRET_HERE" \
-  http://127.0.0.1:3000/api/internal/maintenance/cleanup-sessions
+curl -fsS -X POST -H "Authorization: Bearer YOUR_SECRET_HERE" http://127.0.0.1:3000/api/internal/maintenance/cleanup-sessions
 ```
+
+Schedule: `0 3 * * *`
 
 Both endpoints require the `Authorization: Bearer <INTERNAL_SCHEDULER_SECRET>` header. The secret is validated using a constant-time comparison to prevent timing attacks.
 

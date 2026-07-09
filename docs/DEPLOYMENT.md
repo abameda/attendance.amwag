@@ -254,7 +254,7 @@ sudo firewall-cmd --reload
 
 ## 10. Cron Jobs
 
-Copy the value of `INTERNAL_SCHEDULER_SECRET` from your `.env.local` before setting up cron jobs.
+Copy the value of `INTERNAL_SCHEDULER_SECRET` from your `.env.local` before setting up cron jobs. Do not put the real value in this repository, documentation, or a shell profile.
 
 In CyberPanel, go to **Websites → Manage → Cron Jobs**. Add two separate cron jobs (paste each line as one complete command, replacing `YOUR_SECRET_HERE` with your actual secret value):
 
@@ -334,19 +334,23 @@ curl -X POST \
   http://127.0.0.1:3000/api/internal/attendance/finalize
 ```
 
-Expected finalization response:
+Expected `200` finalization response:
 
 ```json
 {
   "success": true,
   "data": {
+    "success": true,
+    "message": "Marked 0 absent, 0 missing checkout",
     "markedAbsent": 0,
     "markedMissingCheckout": 0,
     "alreadyRecorded": 5,
     "skippedShiftNotEnded": 2,
     "currentTime": "2025-01-15 08:00:00",
     "currentDate": "2025-01-15",
-    "dayOfWeek": "wednesday"
+    "dayOfWeek": "wednesday",
+    "absentEmployees": [],
+    "missingCheckoutEmployees": []
   }
 }
 ```
