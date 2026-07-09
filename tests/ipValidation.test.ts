@@ -121,3 +121,12 @@ test('resolves client IP without trusting X-Forwarded-For by default', () => {
   assert.equal(resolveClientIp(headers), '10.0.0.45');
   assert.equal(resolveClientIp(headers, { trustForwardedFor: true }), '203.0.113.99');
 });
+
+test('does not use X-Forwarded-For as a fallback unless explicitly trusted', () => {
+  const headers = new Headers({
+    'x-forwarded-for': '203.0.113.99',
+  });
+
+  assert.equal(resolveClientIp(headers), '127.0.0.1');
+  assert.equal(resolveClientIp(headers, { trustForwardedFor: true }), '203.0.113.99');
+});

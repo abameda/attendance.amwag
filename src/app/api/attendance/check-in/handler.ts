@@ -21,6 +21,15 @@ function parseIsoDate(value: string): Date {
   return new Date(`${value}T00:00:00.000Z`);
 }
 
+function isDuplicateEntryError(error: unknown): boolean {
+  const candidate = error as { code?: unknown; errno?: unknown; sqlState?: unknown };
+  return (
+    candidate?.code === 'ER_DUP_ENTRY' ||
+    candidate?.errno === 1062 ||
+    candidate?.sqlState === '23000'
+  );
+}
+
 export function createCheckInHandler(dependencies: CheckInDependencies) {
   return async function POST(request: NextRequest) {
     try {
@@ -182,16 +191,27 @@ export function createCheckInHandler(dependencies: CheckInDependencies) {
         );
       }
 
-      await dependencies.db.insert(attendance).values({
-        id: randomUUID(),
-        userId: user.id,
-        date: parseIsoDate(workDate),
-        checkInTime: now,
-        ipAddress: currentIp,
-        checkInLocation,
-        lateMinutes,
-        status,
-      });
+      try {
+        await dependencies.db.insert(attendance).values({
+          id: randomUUID(),
+          userId: user.id,
+          date: parseIsoDate(workDate),
+          checkInTime: now,
+          ipAddress: currentIp,
+          checkInLocation,
+          lateMinutes,
+          status,
+        });
+      } catch (error) {
+        if (isDuplicateEntryError(error)) {
+          return NextResponse.json(
+            { success: false, error: 'Duplicate check-in is not allowed for the same work date' },
+            { status: 409 }
+          );
+        }
+
+        throw error;
+      }
 
       return NextResponse.json({
         success: true,

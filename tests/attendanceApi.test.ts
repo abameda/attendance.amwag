@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test, { mock } from 'node:test';
 
 import { createCheckInHandler } from '../src/app/api/attendance/check-in/handler';
@@ -44,6 +45,22 @@ const settings = {
   max_overtime_minutes: 180,
 };
 
+test('legacy mark-absent endpoint delegates to the locked finalization flow', () => {
+  const source = readFileSync(
+    'src/app/api/internal/attendance/mark-absent/route.ts',
+    'utf8'
+  );
+
+  assert.ok(
+    source.includes('executeAttendanceFinalization'),
+    'legacy route should call the same locked finalization flow as /finalize'
+  );
+  assert.ok(
+    !source.includes('markAbsentForEndedShifts'),
+    'legacy route must not bypass the finalization lock'
+  );
+});
+
 test('normalizeAttendancePagination caps normal requests and preserves explicit export requests', () => {
   assert.deepEqual(
     normalizeAttendancePagination({
@@ -87,7 +104,10 @@ function withClock<T>(isoNow: string, run: () => Promise<T>): Promise<T> {
   return run().finally(() => mock.timers.reset());
 }
 
-function createQueuedDb(selectResponses: unknown[][], options: { affectedRows?: number } = {}) {
+function createQueuedDb(
+  selectResponses: unknown[][],
+  options: { affectedRows?: number; insertError?: unknown } = {}
+) {
   const inserts: unknown[] = [];
   const updates: unknown[] = [];
 
@@ -131,6 +151,9 @@ function createQueuedDb(selectResponses: unknown[][], options: { affectedRows?: 
         return {
           values(value: unknown) {
             inserts.push(value);
+            if (options.insertError) {
+              return Promise.reject(options.insertError);
+            }
             return Promise.resolve({ affectedRows: 1 });
           },
         };
@@ -183,6 +206,36 @@ test('POST /api/attendance/check-in records a late check-in using the mocked clo
       lateMinutes: 25,
       status: 'late',
     });
+  });
+});
+
+test('POST /api/attendance/check-in returns conflict when a concurrent check-in wins the insert race', async () => {
+  await withClock('2026-07-01T06:25:00.000Z', async () => {
+    const fake = createQueuedDb(
+      [
+        [{ branchName: 'HQ', ruleType: 'cidr', ipNetwork: '10.0.0.0/24', isActive: 1 }],
+        [],
+      ],
+      {
+        insertError: Object.assign(new Error('Duplicate entry'), {
+          code: 'ER_DUP_ENTRY',
+          errno: 1062,
+          sqlState: '23000',
+        }),
+      }
+    );
+    const post = createCheckInHandler({
+      db: fake.db as never,
+      getCurrentUser: async () => employee,
+      getGlobalSettings: async () => settings,
+    });
+
+    const response = await post(request('http://localhost/api/attendance/check-in'));
+    const body = await response.json();
+
+    assert.equal(response.status, 409);
+    assert.equal(body.success, false);
+    assert.equal(body.error, 'Duplicate check-in is not allowed for the same work date');
   });
 });
 

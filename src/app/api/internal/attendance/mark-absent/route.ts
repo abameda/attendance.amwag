@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { authorizeInternalScheduler } from '@/lib/auth';
-import { markAbsentForEndedShifts } from '@/lib/attendanceFinalization';
+import { executeAttendanceFinalization } from '@/lib/attendanceFinalization';
 
 export async function POST(request: NextRequest) {
   const guard = authorizeInternalScheduler(request);
@@ -13,8 +13,12 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await markAbsentForEndedShifts();
-    return NextResponse.json({ success: true, data: result });
+    const result = await executeAttendanceFinalization();
+    if (!result.body.success) {
+      return NextResponse.json(result.body, { status: result.status });
+    }
+
+    return NextResponse.json({ success: true, data: result.body }, { status: result.status });
   } catch (error) {
     console.error('mark-absent cron error:', error);
     return NextResponse.json(

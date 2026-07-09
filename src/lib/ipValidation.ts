@@ -312,16 +312,6 @@ export function resolveClientIp(
     return normalizeClientIp(realIp);
   }
 
-  // 3. Even without trusting x-forwarded-for for proxy chains, Next.js
-  //    still sets it on localhost. Try it as a last resort.
-  const fallbackForwarded = headers.get('x-forwarded-for');
-  if (fallbackForwarded) {
-    const fallbackIp = fallbackForwarded.split(',')[0]?.trim();
-    if (fallbackIp && isValidIp(fallbackIp)) {
-      return normalizeClientIp(fallbackIp);
-    }
-  }
-
   return '127.0.0.1';
 }
 
