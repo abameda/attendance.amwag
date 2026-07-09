@@ -8,7 +8,7 @@ import { createGzip, gunzip } from 'node:zlib';
 import { promisify } from 'node:util';
 
 import { db } from '@/lib/db';
-import { attendance, branchAllowedIps, globalSettings, users } from '@/lib/db/schema';
+import { attendance, branches, branchAllowedIps, globalSettings, users } from '@/lib/db/schema';
 import { asc } from 'drizzle-orm';
 
 const gunzipAsync = promisify(gunzip);
@@ -17,6 +17,7 @@ const DEFAULT_BACKUP_TABLE_BATCH_SIZE = 1000;
 const MAX_BACKUP_TABLE_BATCH_SIZE = 5000;
 
 export const INCLUDED_BACKUP_TABLES = [
+  'branches',
   'users',
   'attendance',
   'branch_allowed_ips',
@@ -39,7 +40,7 @@ export type BackupStatus = 'ready';
 export interface BackupMetadata {
   appName: 'Amwag Attendance System';
   backupName: string;
-  backupVersion: 1;
+  backupVersion: 1 | 2;
   generatedAt: string;
   generatedBy: string;
   createdAt: string;
@@ -88,6 +89,26 @@ export interface BackupStorageOptions {
   encryptionKey?: string;
 }
 
+export interface BackupRestoreOptions extends BackupStorageOptions {
+  adapter?: BackupRestoreAdapter;
+}
+
+export interface BackupRestoreTransaction {
+  clearTable: (tableName: IncludedBackupTable) => Promise<void>;
+  insertRows: (tableName: IncludedBackupTable, rows: unknown[]) => Promise<void>;
+}
+
+export interface BackupRestoreAdapter {
+  transaction: <T>(restore: (transaction: BackupRestoreTransaction) => Promise<T>) => Promise<T>;
+}
+
+export interface BackupRestoreResult {
+  backupName: string;
+  backupVersion: 1 | 2;
+  restoredTables: IncludedBackupTable[];
+  rowCounts: Record<IncludedBackupTable, number>;
+}
+
 export class BackupError extends Error {
   constructor(
     message: string,
@@ -102,6 +123,8 @@ const BACKUP_FILE_PATTERN =
   /^backup-amwag-attendance-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}(?:-[a-f0-9]{12})?\.json\.gz(?:\.enc)?$/;
 
 const defaultTableExporters: BackupTableExporters = {
+  branches: async ({ limit, offset }) =>
+    db.select().from(branches).orderBy(asc(branches.id)).limit(limit).offset(offset),
   users: async ({ limit, offset }) =>
     db.select().from(users).orderBy(asc(users.id)).limit(limit).offset(offset),
   attendance: async ({ limit, offset }) =>
@@ -180,13 +203,37 @@ function normalizeForJson(value: unknown): unknown {
   return value;
 }
 
+const BACKUP_ENCRYPTION_KEY_PATTERN = /^[a-f0-9]{64}$/i;
+
+export function normalizeBackupEncryptionKey(encryptionKey?: string) {
+  const normalized = (encryptionKey ?? '').trim();
+
+  if (!normalized) {
+    return '';
+  }
+
+  if (!BACKUP_ENCRYPTION_KEY_PATTERN.test(normalized)) {
+    throw new BackupError(
+      'BACKUP_ENCRYPTION_KEY must be exactly 64 hexadecimal characters (32 bytes). Generate it with: openssl rand -hex 32',
+      500
+    );
+  }
+
+  return normalized.toLowerCase();
+}
+
 function encryptionKeyToBytes(encryptionKey: string) {
+  return Buffer.from(normalizeBackupEncryptionKey(encryptionKey), 'hex');
+}
+
+function legacyEncryptionKeyToBytes(encryptionKey: string) {
   return createHash('sha256').update(encryptionKey).digest();
 }
 
 function decryptBuffer(buffer: Buffer, encryptionKey: string) {
   const envelope = JSON.parse(buffer.toString('utf8')) as {
     algorithm: string;
+    keyDerivation?: string;
     iv: string;
     authTag: string;
     ciphertext: string;
@@ -196,17 +243,31 @@ function decryptBuffer(buffer: Buffer, encryptionKey: string) {
     throw new BackupError('Unsupported backup encryption algorithm', 400);
   }
 
-  const decipher = createDecipheriv(
-    'aes-256-gcm',
-    encryptionKeyToBytes(encryptionKey),
-    Buffer.from(envelope.iv, 'base64')
-  );
-  decipher.setAuthTag(Buffer.from(envelope.authTag, 'base64'));
+  const normalizedKey = normalizeBackupEncryptionKey(encryptionKey);
+  const candidateKeys =
+    envelope.keyDerivation === 'hex'
+      ? [encryptionKeyToBytes(normalizedKey)]
+      : [encryptionKeyToBytes(normalizedKey), legacyEncryptionKeyToBytes(encryptionKey)];
 
-  return Buffer.concat([
-    decipher.update(Buffer.from(envelope.ciphertext, 'base64')),
-    decipher.final(),
-  ]);
+  for (const candidateKey of candidateKeys) {
+    try {
+      const decipher = createDecipheriv(
+        'aes-256-gcm',
+        candidateKey,
+        Buffer.from(envelope.iv, 'base64')
+      );
+      decipher.setAuthTag(Buffer.from(envelope.authTag, 'base64'));
+
+      return Buffer.concat([
+        decipher.update(Buffer.from(envelope.ciphertext, 'base64')),
+        decipher.final(),
+      ]);
+    } catch {
+      // Try the legacy derivation used before the envelope recorded keyDerivation.
+    }
+  }
+
+  throw new BackupError('Unable to decrypt backup with BACKUP_ENCRYPTION_KEY', 400);
 }
 
 function normalizeTableBatchSize(value?: number) {
@@ -411,7 +472,7 @@ async function writeBackupFile(params: {
       createWriteStream(ciphertextPath, { mode: 0o600 })
     );
 
-    const envelopePrefix = `{"algorithm":"aes-256-gcm","iv":${JSON.stringify(
+    const envelopePrefix = `{"algorithm":"aes-256-gcm","keyDerivation":"hex","iv":${JSON.stringify(
       iv.toString('base64')
     )},"ciphertext":"`;
     const envelopeSuffix = `","authTag":${JSON.stringify(cipher.getAuthTag().toString('base64'))}}`;
@@ -436,7 +497,9 @@ async function writeBackupFile(params: {
 export async function createSystemBackup(options: CreateSystemBackupOptions): Promise<BackupRecord> {
   const backupDir = resolveBackupDirectory(options.backupDir);
   const nodeEnv = options.nodeEnv ?? process.env.NODE_ENV ?? 'development';
-  const encryptionKey = options.encryptionKey ?? process.env.BACKUP_ENCRYPTION_KEY ?? '';
+  const encryptionKey = normalizeBackupEncryptionKey(
+    options.encryptionKey ?? process.env.BACKUP_ENCRYPTION_KEY
+  );
   const encrypted = Boolean(encryptionKey);
 
   if (nodeEnv === 'production' && !encrypted) {
@@ -470,7 +533,7 @@ export async function createSystemBackup(options: CreateSystemBackupOptions): Pr
     const metadataWithoutChecksum = {
       appName: 'Amwag Attendance System' as const,
       backupName: fileName,
-      backupVersion: 1 as const,
+      backupVersion: 2 as const,
       generatedAt: generatedAt.toISOString(),
       generatedBy: options.generatedBy,
       createdAt: generatedAt.toISOString(),
@@ -554,6 +617,7 @@ export async function listBackups(options: BackupStorageOptions = {}): Promise<B
           includedTables: [...INCLUDED_BACKUP_TABLES],
           excludedTables: [...EXCLUDED_BACKUP_TABLES],
           rowCounts: {
+            branches: 0,
             users: 0,
             attendance: 0,
             branch_allowed_ips: 0,
@@ -606,7 +670,108 @@ export async function deleteBackup(id: string, options: BackupStorageOptions = {
   await rm(metadataPath(filePath), { force: true });
 }
 
-export async function readBackupPayloadForTests(
+const BACKUP_V1_TABLES = [
+  'users',
+  'attendance',
+  'branch_allowed_ips',
+  'global_settings',
+] as const satisfies readonly IncludedBackupTable[];
+
+const DRIZZLE_BACKUP_TABLES: Record<IncludedBackupTable, unknown> = {
+  branches,
+  users,
+  attendance,
+  branch_allowed_ips: branchAllowedIps,
+  global_settings: globalSettings,
+};
+
+function includedTablesForVersion(backupVersion: 1 | 2): readonly IncludedBackupTable[] {
+  return backupVersion === 1 ? BACKUP_V1_TABLES : INCLUDED_BACKUP_TABLES;
+}
+
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function checksumPayload(metadata: BackupMetadata, tables: Record<string, unknown>) {
+  const { checksum: _checksum, ...metadataWithoutChecksum } = metadata;
+  const hash = createHash('sha256');
+
+  hash.update('{"metadata":');
+  hash.update(JSON.stringify(metadataWithoutChecksum));
+  hash.update(',"tables":');
+  hash.update(JSON.stringify(tables));
+  hash.update('}');
+
+  return hash.digest('hex');
+}
+
+export function validateBackupPayload(payload: unknown): BackupPayload {
+  if (!isPlainObject(payload)) {
+    throw new BackupError('Invalid backup payload', 400);
+  }
+
+  const metadata = payload['metadata.json'] as BackupMetadata | undefined;
+  const tables = payload.tables as Record<string, unknown> | undefined;
+
+  if (!isPlainObject(metadata) || !isPlainObject(tables)) {
+    throw new BackupError('Invalid backup payload structure', 400);
+  }
+
+  if (metadata.appName !== 'Amwag Attendance System') {
+    throw new BackupError('Backup was not created by this application', 400);
+  }
+
+  if (metadata.backupVersion !== 1 && metadata.backupVersion !== 2) {
+    throw new BackupError('Unsupported backup version', 400);
+  }
+
+  if (metadata.databaseType !== 'mysql') {
+    throw new BackupError('Unsupported backup database type', 400);
+  }
+
+  if (!Array.isArray(metadata.includedTables) || !Array.isArray(metadata.excludedTables)) {
+    throw new BackupError('Invalid backup table metadata', 400);
+  }
+
+  if (!metadata.excludedTables.includes('sessions')) {
+    throw new BackupError('Backup metadata must exclude sessions', 400);
+  }
+
+  if (Object.prototype.hasOwnProperty.call(tables, 'sessions')) {
+    throw new BackupError('Backup payload must not include sessions', 400);
+  }
+
+  const expectedTables = includedTablesForVersion(metadata.backupVersion);
+  for (const tableName of expectedTables) {
+    if (!metadata.includedTables.includes(tableName)) {
+      throw new BackupError(`Backup metadata is missing table "${tableName}"`, 400);
+    }
+
+    if (!Array.isArray(tables[tableName])) {
+      throw new BackupError(`Backup payload is missing table "${tableName}"`, 400);
+    }
+
+    const expectedCount = metadata.rowCounts?.[tableName] ?? 0;
+    if ((tables[tableName] as unknown[]).length !== expectedCount) {
+      throw new BackupError(`Backup row count mismatch for table "${tableName}"`, 400);
+    }
+  }
+
+  for (const tableName of Object.keys(tables)) {
+    if (!(INCLUDED_BACKUP_TABLES as readonly string[]).includes(tableName)) {
+      throw new BackupError(`Backup payload contains unsupported table "${tableName}"`, 400);
+    }
+  }
+
+  if (!/^[a-f0-9]{64}$/.test(metadata.checksum) || checksumPayload(metadata, tables) !== metadata.checksum) {
+    throw new BackupError('Backup checksum validation failed', 400);
+  }
+
+  return payload as unknown as BackupPayload;
+}
+
+export async function readBackupPayload(
   id: string,
   options: BackupStorageOptions = {}
 ): Promise<BackupPayload> {
@@ -621,5 +786,90 @@ export async function readBackupPayloadForTests(
     buffer = decryptBuffer(buffer, options.encryptionKey);
   }
 
-  return JSON.parse((await gunzipAsync(buffer)).toString('utf8')) as BackupPayload;
+  try {
+    return validateBackupPayload(JSON.parse((await gunzipAsync(buffer)).toString('utf8')));
+  } catch (error) {
+    if (error instanceof BackupError) {
+      throw error;
+    }
+
+    throw new BackupError('Invalid or corrupt backup file', 400);
+  }
+}
+
+export async function readBackupPayloadForTests(
+  id: string,
+  options: BackupStorageOptions = {}
+): Promise<BackupPayload> {
+  return readBackupPayload(id, options);
+}
+
+export function createDrizzleBackupRestoreAdapter(database = db): BackupRestoreAdapter {
+  return {
+    transaction: async (restore) =>
+      (database as never as { transaction: <T>(run: (tx: unknown) => Promise<T>) => Promise<T> }).transaction(
+        async (tx) =>
+          restore({
+            clearTable: async (tableName) => {
+              await (tx as never as { delete: (table: unknown) => Promise<unknown> }).delete(
+                DRIZZLE_BACKUP_TABLES[tableName]
+              );
+            },
+            insertRows: async (tableName, rows) => {
+              if (rows.length === 0) {
+                return;
+              }
+
+              await (
+                tx as never as {
+                  insert: (table: unknown) => {
+                    values: (values: unknown[]) => Promise<unknown>;
+                  };
+                }
+              )
+                .insert(DRIZZLE_BACKUP_TABLES[tableName])
+                .values(rows);
+            },
+          })
+      ),
+  };
+}
+
+export async function restoreBackupPayload(
+  payload: BackupPayload,
+  options: { adapter?: BackupRestoreAdapter } = {}
+): Promise<BackupRestoreResult> {
+  const validatedPayload = validateBackupPayload(payload);
+  const metadata = validatedPayload['metadata.json'];
+  const tables = validatedPayload.tables as Record<IncludedBackupTable, unknown[] | undefined>;
+  const adapter = options.adapter ?? createDrizzleBackupRestoreAdapter();
+  const restoreTables = [...includedTablesForVersion(metadata.backupVersion)];
+  const rowCounts = Object.fromEntries(
+    INCLUDED_BACKUP_TABLES.map((tableName) => [tableName, tables[tableName]?.length ?? 0])
+  ) as Record<IncludedBackupTable, number>;
+
+  await adapter.transaction(async (transaction) => {
+    for (const tableName of [...restoreTables].reverse()) {
+      await transaction.clearTable(tableName);
+    }
+
+    for (const tableName of restoreTables) {
+      await transaction.insertRows(tableName, tables[tableName] ?? []);
+    }
+  });
+
+  return {
+    backupName: metadata.backupName,
+    backupVersion: metadata.backupVersion,
+    restoredTables: restoreTables,
+    rowCounts,
+  };
+}
+
+export async function restoreBackup(
+  id: string,
+  options: BackupRestoreOptions = {}
+): Promise<BackupRestoreResult> {
+  const payload = await readBackupPayload(id, options);
+  return restoreBackupPayload(payload, { adapter: options.adapter });
 }

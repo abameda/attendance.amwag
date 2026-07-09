@@ -93,7 +93,7 @@ Create `/home/<user>/amwag-attendance/.env.local`:
 DATABASE_URL=mysql://amwag:<strong-password>@127.0.0.1:3306/amwag_attendance
 APP_URL=https://your-domain.example
 INTERNAL_SCHEDULER_SECRET=<64-char random — see below>
-BACKUP_ENCRYPTION_KEY=<different 64-char random — see below>
+BACKUP_ENCRYPTION_KEY=<different 64-hex-character random value — see below>
 SESSION_COOKIE_NAME=amwag_session
 SESSION_TTL_DAYS=30
 TRUST_X_FORWARDED_FOR=true
@@ -107,7 +107,7 @@ openssl rand -hex 32
 openssl rand -hex 32
 ```
 
-Use different values for `INTERNAL_SCHEDULER_SECRET` and `BACKUP_ENCRYPTION_KEY`.
+Use different values for `INTERNAL_SCHEDULER_SECRET` and `BACKUP_ENCRYPTION_KEY`. `BACKUP_ENCRYPTION_KEY` must be exactly 64 hexadecimal characters; generate it with `openssl rand -hex 32`.
 
 > `APP_URL` must be your public HTTPS origin, for example `https://attendance.example.com`.
 

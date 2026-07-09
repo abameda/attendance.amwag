@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:repair": "tsx scripts/repair-branch-schema.ts",
-    "db:seed": "node scripts/seed-admin.mjs"
+    "db:seed": "node scripts/seed-admin.mjs",
+    "backup:restore": "tsx scripts/restore-backup.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.5.1",

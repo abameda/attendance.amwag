@@ -251,7 +251,7 @@ Create a `.env.local` file in the project root (never commit real secrets):
 | `DATABASE_URL` | Yes | — | MySQL/MariaDB connection URL: `mysql://user:pass@host:port/db` |
 | `APP_URL` | Yes in production | `http://localhost:3000` | Public app origin used by middleware for internal auth lookups, for example `https://attendance.example.com`. |
 | `INTERNAL_SCHEDULER_SECRET` | Yes | — | Bearer token that protects `/api/internal/*` endpoints. Generate with `openssl rand -hex 32`. |
-| `BACKUP_ENCRYPTION_KEY` | Yes in production | — | Secret used to encrypt admin-created backup files. Generate a different value with `openssl rand -hex 32`. |
+| `BACKUP_ENCRYPTION_KEY` | Yes in production | — | 64-hex-character secret used to encrypt admin-created backup files. Generate a different value with `openssl rand -hex 32`. |
 | `SESSION_COOKIE_NAME` | No | `amwag_session` | Name of the HTTP-only session cookie. |
 | `SESSION_TTL_DAYS` | No | `30` | How many days a session stays valid. |
 | `TRUST_X_FORWARDED_FOR` | No | `false` | Set to `true` behind a trusted reverse proxy (LiteSpeed / Nginx) so real client IPs are used for branch validation. |

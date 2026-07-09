@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -11,7 +11,11 @@ import {
   createSystemBackup,
   deleteBackup,
   readBackupPayloadForTests,
+  readBackupPayload,
+  restoreBackup,
   type BackupRecord,
+  type BackupRestoreAdapter,
+  type IncludedBackupTable,
   type BackupTableExporters,
 } from '../src/lib/backups';
 import {
@@ -28,8 +32,18 @@ const backupFileNamePattern =
   /^backup-amwag-attendance-2026-05-20-10-15-30-[a-f0-9]{12}\.json\.gz$/;
 const encryptedBackupFileNamePattern =
   /^backup-amwag-attendance-2026-05-20-10-15-30-[a-f0-9]{12}\.json\.gz\.enc$/;
+const backupEncryptionKey = 'a'.repeat(64);
 
 const tableExporters: BackupTableExporters = {
+  branches: async () => [
+    {
+      id: 'branch-1',
+      name: 'Head Office',
+      code: 'HQ',
+      address: 'Main campus',
+      isActive: 1,
+    },
+  ],
   users: async () => [
     {
       id: 'admin-1',
@@ -81,6 +95,35 @@ function request(url = 'http://localhost/api/admin/backups', init?: RequestInit)
   return new Request(url, init) as never;
 }
 
+function createMemoryRestoreAdapter(
+  target: Record<IncludedBackupTable, unknown[]>
+): BackupRestoreAdapter {
+  return {
+    transaction: async (restore) => {
+      const draft = Object.fromEntries(
+        Object.entries(target).map(([tableName, rows]) => [tableName, [...rows]])
+      ) as Record<IncludedBackupTable, unknown[]>;
+
+      const result = await restore({
+        clearTable: async (tableName) => {
+          draft[tableName] = [];
+        },
+        insertRows: async (tableName, rows) => {
+          draft[tableName] = rows.map((row) =>
+            row && typeof row === 'object' ? { ...row } : row
+          );
+        },
+      });
+
+      for (const tableName of Object.keys(target) as IncludedBackupTable[]) {
+        target[tableName] = draft[tableName];
+      }
+
+      return result;
+    },
+  };
+}
+
 test('createSystemBackup rejects unencrypted production backups when BACKUP_ENCRYPTION_KEY is missing', async () => {
   await withTempBackupDir(async (backupDir) => {
     await assert.rejects(
@@ -94,6 +137,23 @@ test('createSystemBackup rejects unencrypted production backups when BACKUP_ENCR
           tableExporters,
         }),
       /BACKUP_ENCRYPTION_KEY is required/
+    );
+  });
+});
+
+test('createSystemBackup rejects invalid BACKUP_ENCRYPTION_KEY values', async () => {
+  await withTempBackupDir(async (backupDir) => {
+    await assert.rejects(
+      () =>
+        createSystemBackup({
+          backupDir,
+          encryptionKey: 'test encryption key',
+          generatedBy: 'admin-1',
+          nodeEnv: 'production',
+          now: fixedNow,
+          tableExporters,
+        }),
+      /64 hexadecimal characters/
     );
   });
 });
@@ -119,6 +179,7 @@ test('createSystemBackup writes a development json.gz backup with metadata and d
     );
 
     assert.deepEqual(payload['metadata.json'].includedTables, [
+      'branches',
       'users',
       'attendance',
       'branch_allowed_ips',
@@ -128,13 +189,16 @@ test('createSystemBackup writes a development json.gz backup with metadata and d
     assert.equal(payload['metadata.json'].encrypted, false);
     assert.equal(payload['metadata.json'].generatedBy, 'admin-1');
     assert.equal(payload['metadata.json'].databaseType, 'mysql');
+    assert.equal(payload['metadata.json'].backupVersion, 2);
     assert.match(payload['metadata.json'].checksum, /^[a-f0-9]{64}$/);
+    assert.equal(payload.tables.branches.length, 1);
     assert.equal(payload.tables.users.length, 1);
     assert.equal(payload.tables.attendance.length, 1);
     assert.equal(payload.tables.branch_allowed_ips.length, 1);
     assert.equal(payload.tables.global_settings.length, 1);
     assert.equal(payload.tables.sessions, undefined);
     assert.deepEqual(payload['metadata.json'].rowCounts, {
+      branches: 1,
       users: 1,
       attendance: 1,
       branch_allowed_ips: 1,
@@ -161,6 +225,10 @@ test('createSystemBackup reads backup tables in batches while preserving payload
       now: fixedNow,
       tableBatchSize: 2,
       tableExporters: {
+        branches: async ({ limit, offset, tableName }) =>
+          tableExporters.branches({ limit, offset, tableName }).then((rows) =>
+            rows.slice(offset, offset + limit)
+          ),
         users: async ({ limit, offset, tableName }) =>
           tableExporters.users({ limit, offset, tableName }).then((rows) => rows.slice(offset, offset + limit)),
         attendance: async ({ limit, offset }) => {
@@ -229,7 +297,7 @@ test('createSystemBackup uses distinct staging and output paths for concurrent r
     const [firstBackup, secondBackup] = await Promise.all([
       createSystemBackup({
         backupDir,
-        encryptionKey: 'test encryption key',
+        encryptionKey: backupEncryptionKey,
         generatedBy: 'admin-1',
         nodeEnv: 'production',
         now: fixedNow,
@@ -237,7 +305,7 @@ test('createSystemBackup uses distinct staging and output paths for concurrent r
       }),
       createSystemBackup({
         backupDir,
-        encryptionKey: 'test encryption key',
+        encryptionKey: backupEncryptionKey,
         generatedBy: 'admin-1',
         nodeEnv: 'production',
         now: fixedNow,
@@ -261,7 +329,7 @@ test('createSystemBackup writes an encrypted json.gz.enc backup when BACKUP_ENCR
   await withTempBackupDir(async (backupDir) => {
     const backup = await createSystemBackup({
       backupDir,
-      encryptionKey: 'test encryption key',
+      encryptionKey: backupEncryptionKey,
       generatedBy: 'admin-1',
       nodeEnv: 'production',
       now: fixedNow,
@@ -273,16 +341,93 @@ test('createSystemBackup writes an encrypted json.gz.enc backup when BACKUP_ENCR
 
     const encryptedText = await readFile(path.join(backupDir, backup.fileName), 'utf8');
     assert.match(encryptedText, /"algorithm":"aes-256-gcm"/);
+    assert.match(encryptedText, /"keyDerivation":"hex"/);
 
     const payload = await readBackupPayloadForTests(backup.fileName, {
       backupDir,
-      encryptionKey: 'test encryption key',
+      encryptionKey: backupEncryptionKey,
     });
 
     assert.equal(payload['metadata.json'].encrypted, true);
     const tables = payload.tables as Record<string, Array<{ email?: string }> | undefined>;
     assert.equal(tables.sessions, undefined);
     assert.equal(tables.users?.[0]?.email, 'admin@example.com');
+  });
+});
+
+test('restoreBackup replaces backed-up tables on an isolated temporary restore target', async () => {
+  await withTempBackupDir(async (backupDir) => {
+    const backup = await createSystemBackup({
+      backupDir,
+      encryptionKey: '',
+      generatedBy: 'admin-1',
+      nodeEnv: 'development',
+      now: fixedNow,
+      tableExporters,
+    });
+    const target: Record<IncludedBackupTable, unknown[]> = {
+      branches: [{ id: 'stale-branch' }],
+      users: [{ id: 'stale-user' }],
+      attendance: [{ id: 'stale-attendance' }],
+      branch_allowed_ips: [{ id: 'stale-ip' }],
+      global_settings: [{ id: 1, lateGraceMinutes: 99 }],
+    };
+
+    const result = await restoreBackup(backup.fileName, {
+      backupDir,
+      adapter: createMemoryRestoreAdapter(target),
+    });
+
+    assert.deepEqual(result.restoredTables, [
+      'branches',
+      'users',
+      'attendance',
+      'branch_allowed_ips',
+      'global_settings',
+    ]);
+    assert.deepEqual(result.rowCounts, {
+      branches: 1,
+      users: 1,
+      attendance: 1,
+      branch_allowed_ips: 1,
+      global_settings: 1,
+    });
+    assert.equal((target.branches[0] as { id: string }).id, 'branch-1');
+    assert.equal((target.users[0] as { email: string }).email, 'admin@example.com');
+    assert.equal((target.attendance[0] as { id: string }).id, 'attendance-1');
+    assert.equal((target.branch_allowed_ips[0] as { id: string }).id, 'branch-ip-1');
+    assert.equal((target.global_settings[0] as { lateGraceMinutes: number }).lateGraceMinutes, 0);
+  });
+});
+
+test('restoreBackup refuses invalid or corrupt backup files before mutating restore target', async () => {
+  await withTempBackupDir(async (backupDir) => {
+    const corruptBackupName = 'backup-amwag-attendance-2026-05-20-10-15-30-deadbeefcafe.json.gz';
+    await writeFile(path.join(backupDir, corruptBackupName), 'not a gzip backup', {
+      mode: 0o600,
+    });
+    const target: Record<IncludedBackupTable, unknown[]> = {
+      branches: [{ id: 'existing-branch' }],
+      users: [{ id: 'existing-user' }],
+      attendance: [],
+      branch_allowed_ips: [],
+      global_settings: [],
+    };
+
+    await assert.rejects(
+      () =>
+        restoreBackup(corruptBackupName, {
+          backupDir,
+          adapter: createMemoryRestoreAdapter(target),
+        }),
+      /Invalid or corrupt backup file/
+    );
+    await assert.rejects(
+      () => readBackupPayload(corruptBackupName, { backupDir }),
+      /Invalid or corrupt backup file/
+    );
+    assert.deepEqual(target.branches, [{ id: 'existing-branch' }]);
+    assert.deepEqual(target.users, [{ id: 'existing-user' }]);
   });
 });
 
@@ -347,9 +492,10 @@ test('POST /api/admin/backups/create allows admin and passes creator id to the s
         createdBy: 'admin-1',
         fileSize: 123,
         status: 'ready',
-        includedTables: ['users', 'attendance', 'branch_allowed_ips', 'global_settings'],
+        includedTables: ['branches', 'users', 'attendance', 'branch_allowed_ips', 'global_settings'],
         excludedTables: ['sessions'],
         rowCounts: {
+          branches: 0,
           users: 1,
           attendance: 0,
           branch_allowed_ips: 0,
@@ -358,7 +504,7 @@ test('POST /api/admin/backups/create allows admin and passes creator id to the s
         encrypted: false,
         checksum: 'a'.repeat(64),
         databaseType: 'mysql',
-        backupVersion: 1,
+        backupVersion: 2,
       } satisfies BackupRecord;
     },
   });
