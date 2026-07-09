@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 
 import {
@@ -8,6 +9,8 @@ import {
   getAttendancePdfRowStyleForTest,
 } from '../src/components/pdf/AttendanceReportPdf';
 import type { AttendanceReportData } from '../src/lib/attendance-report';
+
+const pdfSource = readFileSync('src/components/pdf/AttendanceReportPdf.tsx', 'utf8');
 
 function reportData(rowCount: number): AttendanceReportData {
   return {
@@ -87,4 +90,8 @@ test('attendance PDF footer uses left center right print labels', () => {
     'Powered by Abdelhmeed Elshorbagy',
     'Page 1 of 2',
   ]);
+});
+
+test('attendance PDF banner omits the right-side period label', () => {
+  assert.ok(!pdfSource.includes('style={s.tableBannerMeta}'));
 });

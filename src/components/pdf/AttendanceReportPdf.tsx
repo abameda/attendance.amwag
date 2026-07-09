@@ -205,11 +205,6 @@ const s = StyleSheet.create({
     color: BRAND.white,
     letterSpacing: 0.3,
   },
-  tableBannerMeta: {
-    fontSize: 6.5,
-    color: BRAND.white,
-  },
-
   // ── Table header ─────────────────────────────
   tableHeaderRow: {
     height: TABLE_HEADER_H,
@@ -535,8 +530,6 @@ function ReportBanner({
   data: AttendanceReportData;
   logoSrc: string;
 }) {
-  const period = periodLabel(data);
-
   return (
     <View style={s.tableBanner} fixed>
       <View style={s.tableBannerLeft}>
@@ -546,7 +539,6 @@ function ReportBanner({
         ) : null}
         <Text style={s.tableBannerTitle}>Amwag Travel — Attendance Daily Report</Text>
       </View>
-      <Text style={s.tableBannerMeta}>{period}</Text>
     </View>
   );
 }
