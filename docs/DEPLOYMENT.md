@@ -111,7 +111,7 @@ Use different values for `INTERNAL_SCHEDULER_SECRET` and `BACKUP_ENCRYPTION_KEY`
 
 > `APP_URL` must be your public HTTPS origin, for example `https://attendance.example.com`.
 
-> `TRUST_X_FORWARDED_FOR=true` is required behind LiteSpeed so the app reads the real client IP from the `X-Forwarded-For` header instead of seeing `127.0.0.1` for every request. This is what makes branch IP validation work correctly in production.
+> Set `TRUST_X_FORWARDED_FOR=true` only when the app is behind a trusted LiteSpeed reverse proxy and direct internet access to port 3000 is blocked. With this flag enabled, the app reads the real client IP from `X-Forwarded-For`; with it disabled, spoofed `X-Forwarded-For` headers are ignored and `X-Real-IP` is preferred.
 
 ---
 
@@ -127,6 +127,33 @@ npm prune --production  # optional: remove dev packages to save disk space after
 ---
 
 ## 6. Migrations and Admin Seed
+
+Before running migrations on an existing production database:
+
+- Create and download a fresh database backup from the admin backup page or with `mysqldump`.
+- Confirm the backup can be read before changing schema.
+- Run migrations from the server only after the new code has been uploaded and dependencies are installed.
+- Do not run `npm run db:push` in production; it is for development only.
+- Do not continue a failed migration by editing production tables manually unless you have a rollback plan and a backup.
+
+Required production checks before branch-related migrations or repair scripts:
+
+```sql
+SELECT COUNT(*) AS users_without_branch_id
+FROM users
+WHERE role = 'employee'
+  AND branch IS NOT NULL
+  AND TRIM(branch) <> ''
+  AND branch_id IS NULL;
+
+SELECT COUNT(*) AS ip_rules_without_branch_id
+FROM branch_allowed_ips
+WHERE branch_name IS NOT NULL
+  AND TRIM(branch_name) <> ''
+  AND branch_id IS NULL;
+```
+
+Both counts must be `0` before relying on production check-in/check-out. If either count is not `0`, run `npm run db:repair` during a maintenance window, re-run the checks, then smoke test branch IP validation.
 
 ```bash
 cd /home/<user>/amwag-attendance
@@ -341,6 +368,8 @@ The `removed` value will be greater than zero when expired sessions exist.
 ---
 
 ## 14. Upgrades
+
+For production upgrades, take a fresh backup and run the branch ID checks from [Migrations and Admin Seed](#6-migrations-and-admin-seed) before restarting the app.
 
 ```bash
 cd /home/<user>/amwag-attendance

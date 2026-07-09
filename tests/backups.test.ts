@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync } from 'node:fs';
-import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
@@ -24,6 +24,10 @@ import {
 const gunzipAsync = promisify(gunzip);
 
 const fixedNow = new Date('2026-05-20T10:15:30.000Z');
+const backupFileNamePattern =
+  /^backup-amwag-attendance-2026-05-20-10-15-30-[a-f0-9]{12}\.json\.gz$/;
+const encryptedBackupFileNamePattern =
+  /^backup-amwag-attendance-2026-05-20-10-15-30-[a-f0-9]{12}\.json\.gz\.enc$/;
 
 const tableExporters: BackupTableExporters = {
   users: async () => [
@@ -105,7 +109,7 @@ test('createSystemBackup writes a development json.gz backup with metadata and d
       tableExporters,
     });
 
-    assert.equal(backup.fileName, 'backup-amwag-attendance-2026-05-20-10-15-30.json.gz');
+    assert.match(backup.fileName, backupFileNamePattern);
     assert.equal(backup.encrypted, false);
     assert.ok(existsSync(path.join(backupDir, backup.fileName)));
     assert.ok(existsSync(path.join(backupDir, `${backup.fileName}.metadata.json`)));
@@ -139,6 +143,120 @@ test('createSystemBackup writes a development json.gz backup with metadata and d
   });
 });
 
+test('createSystemBackup reads backup tables in batches while preserving payload shape', async () => {
+  await withTempBackupDir(async (backupDir) => {
+    const attendanceRows = Array.from({ length: 5 }, (_, index) => ({
+      id: `attendance-${index + 1}`,
+      userId: `employee-${index + 1}`,
+      date: '2026-05-20',
+      status: 'present',
+    }));
+    const attendancePages: Array<{ limit: number; offset: number }> = [];
+
+    const backup = await createSystemBackup({
+      backupDir,
+      encryptionKey: '',
+      generatedBy: 'admin-1',
+      nodeEnv: 'development',
+      now: fixedNow,
+      tableBatchSize: 2,
+      tableExporters: {
+        users: async ({ limit, offset, tableName }) =>
+          tableExporters.users({ limit, offset, tableName }).then((rows) => rows.slice(offset, offset + limit)),
+        attendance: async ({ limit, offset }) => {
+          attendancePages.push({ limit, offset });
+          return attendanceRows.slice(offset, offset + limit);
+        },
+        branch_allowed_ips: async ({ limit, offset }) =>
+          tableExporters
+            .branch_allowed_ips({ limit, offset, tableName: 'branch_allowed_ips' })
+            .then((rows) => rows.slice(offset, offset + limit)),
+        global_settings: async ({ limit, offset }) =>
+          tableExporters
+            .global_settings({ limit, offset, tableName: 'global_settings' })
+            .then((rows) => rows.slice(offset, offset + limit)),
+      },
+    });
+
+    const payload = JSON.parse(
+      (await gunzipAsync(await readFile(path.join(backupDir, backup.fileName)))).toString('utf8')
+    );
+
+    assert.deepEqual(attendancePages, [
+      { limit: 2, offset: 0 },
+      { limit: 2, offset: 2 },
+      { limit: 2, offset: 4 },
+      { limit: 2, offset: 6 },
+    ]);
+    assert.equal(payload.tables.attendance.length, 5);
+    assert.equal(payload.tables.attendance[4].id, 'attendance-5');
+    assert.equal(payload['metadata.json'].rowCounts.attendance, 5);
+    assert.equal(payload['metadata.json'].checksum, backup.checksum);
+    assert.deepEqual(Object.keys(payload), ['metadata.json', 'tables']);
+  });
+});
+
+test('createSystemBackup removes staged table json when export fails', async () => {
+  await withTempBackupDir(async (backupDir) => {
+    await assert.rejects(
+      () =>
+        createSystemBackup({
+          backupDir,
+          encryptionKey: '',
+          generatedBy: 'admin-1',
+          nodeEnv: 'development',
+          now: fixedNow,
+          tableExporters: {
+            ...tableExporters,
+            attendance: async () => {
+              throw new Error('attendance export failed');
+            },
+          },
+        }),
+      /attendance export failed/
+    );
+
+    const entries = await readdir(backupDir);
+    assert.deepEqual(
+      entries.filter((entry) => entry.endsWith('.tmp')),
+      []
+    );
+  });
+});
+
+test('createSystemBackup uses distinct staging and output paths for concurrent runs', async () => {
+  await withTempBackupDir(async (backupDir) => {
+    const [firstBackup, secondBackup] = await Promise.all([
+      createSystemBackup({
+        backupDir,
+        encryptionKey: 'test encryption key',
+        generatedBy: 'admin-1',
+        nodeEnv: 'production',
+        now: fixedNow,
+        tableExporters,
+      }),
+      createSystemBackup({
+        backupDir,
+        encryptionKey: 'test encryption key',
+        generatedBy: 'admin-1',
+        nodeEnv: 'production',
+        now: fixedNow,
+        tableExporters,
+      }),
+    ]);
+
+    assert.notEqual(firstBackup.fileName, secondBackup.fileName);
+    assert.match(firstBackup.fileName, encryptedBackupFileNamePattern);
+    assert.match(secondBackup.fileName, encryptedBackupFileNamePattern);
+
+    const entries = await readdir(backupDir);
+    assert.deepEqual(
+      entries.filter((entry) => entry.endsWith('.tmp')),
+      []
+    );
+  });
+});
+
 test('createSystemBackup writes an encrypted json.gz.enc backup when BACKUP_ENCRYPTION_KEY is present', async () => {
   await withTempBackupDir(async (backupDir) => {
     const backup = await createSystemBackup({
@@ -150,7 +268,7 @@ test('createSystemBackup writes an encrypted json.gz.enc backup when BACKUP_ENCR
       tableExporters,
     });
 
-    assert.equal(backup.fileName, 'backup-amwag-attendance-2026-05-20-10-15-30.json.gz.enc');
+    assert.match(backup.fileName, encryptedBackupFileNamePattern);
     assert.equal(backup.encrypted, true);
 
     const encryptedText = await readFile(path.join(backupDir, backup.fileName), 'utf8');
